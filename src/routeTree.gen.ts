@@ -11,8 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MyInfoRouteImport } from './routes/my-info'
-import { Route as ProjectsRouteImport } from './routes/projects'
-import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StudyRouteImport } from './routes/study'
 
 const IndexRoute = IndexRouteImport.update({
@@ -25,16 +23,6 @@ const MyInfoRoute = MyInfoRouteImport.update({
   path: '/my-info',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectsRoute = ProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const StudyRoute = StudyRouteImport.update({
   id: '/study',
   path: '/study',
@@ -44,38 +32,30 @@ const StudyRoute = StudyRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/my-info': typeof MyInfoRoute
-  '/projects': typeof ProjectsRoute
-  '/settings': typeof SettingsRoute
   '/study': typeof StudyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/my-info': typeof MyInfoRoute
-  '/projects': typeof ProjectsRoute
-  '/settings': typeof SettingsRoute
   '/study': typeof StudyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/my-info': typeof MyInfoRoute
-  '/projects': typeof ProjectsRoute
-  '/settings': typeof SettingsRoute
   '/study': typeof StudyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/my-info' | '/projects' | '/settings' | '/study'
+  fullPaths: '/' | '/my-info' | '/study'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/my-info' | '/projects' | '/settings' | '/study'
-  id: '__root__' | '/' | '/my-info' | '/projects' | '/settings' | '/study'
+  to: '/' | '/my-info' | '/study'
+  id: '__root__' | '/' | '/my-info' | '/study'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   MyInfoRoute: typeof MyInfoRoute
-  ProjectsRoute: typeof ProjectsRoute
-  SettingsRoute: typeof SettingsRoute
   StudyRoute: typeof StudyRoute
 }
 
@@ -95,20 +75,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MyInfoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects': {
-      id: '/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof ProjectsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/study': {
       id: '/study'
       path: '/study'
@@ -122,8 +88,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   MyInfoRoute: MyInfoRoute,
-  ProjectsRoute: ProjectsRoute,
-  SettingsRoute: SettingsRoute,
   StudyRoute: StudyRoute,
 }
 export const routeTree = rootRouteImport
