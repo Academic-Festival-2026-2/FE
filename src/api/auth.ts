@@ -1,8 +1,8 @@
 import { request } from "./client";
 
 export type SignUpRequest = {
-  name: string;
   email: string;
+  nickname: string;
   password: string;
 };
 
