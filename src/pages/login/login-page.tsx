@@ -1,15 +1,14 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { login } from "../../api/auth";
 import { ApiError } from "../../api/client";
+import { TextField } from "../../components/form/text-field";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { useAuthStore } from "../../stores/auth-store";
 
-const inputClass =
-  "h-12 w-full rounded-lg border border-gray-200 bg-gray-50 px-4 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#3b6fb6] focus:bg-white";
-
 export function LoginPage() {
   const navigate = useNavigate();
+  const { signedUp } = useSearch({ from: "/login" });
   const setTokens = useAuthStore((state) => state.setTokens);
 
   const [email, setEmail] = useState("");
@@ -44,36 +43,31 @@ export function LoginPage() {
         <h1 className="text-2xl font-bold text-gray-900">로그인</h1>
         <p className="mt-2 text-sm text-gray-500">플랩스터디에서 더 많은 기능을 만나보세요.</p>
 
-        <form className="mt-8 flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="email" className="text-sm font-medium text-gray-700">
-              이메일
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="이메일 주소를 입력해주세요"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className={inputClass}
-            />
-          </div>
+        {signedUp && (
+          <p role="status" className="mt-6 rounded-lg bg-[#eef3fa] px-4 py-3 text-sm text-[#3b6fb6]">
+            회원가입이 완료되었어요. 가입한 이메일로 로그인해주세요.
+          </p>
+        )}
 
-          <div className="flex flex-col gap-2">
-            <label htmlFor="password" className="text-sm font-medium text-gray-700">
-              비밀번호
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="비밀번호를 입력해주세요"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className={inputClass}
-            />
-          </div>
+        <form className="mt-8 flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+          <TextField
+            id="email"
+            label="이메일"
+            type="email"
+            autoComplete="email"
+            placeholder="이메일 주소를 입력해주세요"
+            value={email}
+            onChange={setEmail}
+          />
+          <TextField
+            id="password"
+            label="비밀번호"
+            type="password"
+            autoComplete="current-password"
+            placeholder="비밀번호를 입력해주세요"
+            value={password}
+            onChange={setPassword}
+          />
 
           <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-600">
             <input
@@ -101,10 +95,9 @@ export function LoginPage() {
         </form>
 
         <div className="mt-6 flex items-center justify-center gap-3 text-sm text-gray-500">
-          {/* TODO: 회원가입 라우트를 만들면 <Link to="/signup">으로 교체 */}
-          <a href="/signup" className="hover:text-gray-900">
+          <Link to="/signup" className="hover:text-gray-900">
             회원가입
-          </a>
+          </Link>
           <span className="h-3 w-px bg-gray-300" />
           {/* 비밀번호 찾기 API가 없어 비활성 */}
           <span className="cursor-not-allowed text-gray-300">비밀번호 찾기</span>
