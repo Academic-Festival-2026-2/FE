@@ -8,9 +8,16 @@ const navigation = [
   { to: "/my-info", label: "내 정보", englishLabel: "My Info" },
 ] as const;
 
+// 로그인·회원가입 화면은 자체 헤더를 쓰고 하단 메뉴를 숨김
+const authPaths = ["/login", "/signup"];
+
 export function AppShell() {
   const closeNav = useAppStore((state) => state.closeNav);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  if (authPaths.includes(pathname)) {
+    return <Outlet />;
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f2ec] pb-24 text-[#25231f]">
