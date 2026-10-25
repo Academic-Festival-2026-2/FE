@@ -3,7 +3,7 @@ import { cn } from "../../utils/cn";
 import { AuthHeader } from "./auth-header";
 
 type AuthLayoutProps = {
-  headerLink: { to: "/login" | "/signup"; label: string };
+  headerLink?: { to: "/login" | "/signup"; label: string };
   cardClassName?: string;
   children: ReactNode;
 };

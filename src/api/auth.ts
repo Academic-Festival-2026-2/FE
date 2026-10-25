@@ -23,6 +23,13 @@ export function signUp(body: SignUpRequest) {
   });
 }
 
+export function logout(accessToken: string) {
+  return request<void>("/api/auth/logout", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
 export function login(body: LoginRequest) {
   return request<TokenResponse>("/api/auth/login", {
     method: "POST",
