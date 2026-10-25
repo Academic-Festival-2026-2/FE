@@ -62,6 +62,8 @@ export function SignUpPage() {
   const [serverErrors, setServerErrors] = useState<Partial<Record<Field, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // 인증 메일 버튼 안내는 버튼 바로 아래(이메일 칸)에 표시
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validate(values);
@@ -135,10 +137,11 @@ export function SignUpPage() {
           onChange={(value) => handleChange("email", value)}
           onBlur={() => markTouched("email")}
           error={errorOf("email")}
+          hint={emailNotice ?? undefined}
           action={
             <button
               type="button"
-              onClick={() => showNotReady("이메일 인증")}
+              onClick={() => setEmailNotice("이메일 인증 기능은 준비 중이에요.")}
               className="h-12 shrink-0 rounded-xl border border-gray-900 bg-white px-4 text-sm text-gray-900 transition-colors hover:bg-[#f7f5f0]"
             >
               인증 메일
@@ -154,7 +157,7 @@ export function SignUpPage() {
           onChange={(value) => handleChange("password", value)}
           onBlur={() => markTouched("password")}
           error={errorOf("password")}
-          hint="8자 이상, 영문과 숫자를 함께"
+          hint="8~20자, 영문과 숫자를 함께"
         />
         <TextField
           id="passwordConfirm"
