@@ -1,8 +1,8 @@
 import { request } from "./client";
 
 export type SignUpRequest = {
-  name: string;
   email: string;
+  nickname: string;
   password: string;
 };
 
@@ -20,6 +20,13 @@ export function signUp(body: SignUpRequest) {
   return request<void>("/api/auth/signup", {
     method: "POST",
     body: JSON.stringify(body),
+  });
+}
+
+export function logout(accessToken: string) {
+  return request<void>("/api/auth/logout", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
 }
 

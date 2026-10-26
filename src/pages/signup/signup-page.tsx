@@ -3,33 +3,42 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { signUp } from "../../api/auth";
 import { ApiError } from "../../api/client";
 import { TextField } from "../../components/form/text-field";
-import { AuthHeader } from "../../components/layout/auth-header";
+import { AuthLayout } from "../../components/layout/auth-layout";
 
-type Field = "name" | "email" | "password" | "passwordConfirm";
+type Field = "email" | "password" | "passwordConfirm" | "nickname";
 type FormValues = Record<Field, string>;
 
+type Term = "service" | "privacy" | "location" | "notification";
+
+const TERMS: { key: Term; label: string; required: boolean }[] = [
+  { key: "service", label: "[필수] 서비스 이용약관", required: true },
+  { key: "privacy", label: "[필수] 개인정보 수집·이용", required: true },
+  { key: "location", label: "[필수] 위치정보 이용 (사진 촬영 위치)", required: true },
+  // 저장할 BE 필드가 아직 없어 화면에만 표시
+  { key: "notification", label: "[선택] 색 알림 수신", required: false },
+];
+
 // BE SignUpRequest 검증 규칙과 동일하게 유지
-const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@catholic\.ac\.kr$/;
-const PASSWORD_PATTERN = /^[\x21-\x7E]{8,20}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{8,20}$/;
 
 function validate(values: FormValues): Partial<Record<Field, string>> {
   const errors: Partial<Record<Field, string>> = {};
-  const name = values.name.trim();
+  const nickname = values.nickname.trim();
 
-  if (name === "") errors.name = "이름을 입력해주세요.";
-  else if (name.length > 30) errors.name = "이름은 30자 이하여야 해요.";
+  if (values.email.trim() === "") errors.email = "이메일을 입력해 주세요.";
+  else if (!EMAIL_PATTERN.test(values.email.trim())) errors.email = "이메일 형식이 올바르지 않아요.";
 
-  if (values.email.trim() === "") errors.email = "이메일을 입력해주세요.";
-  else if (!EMAIL_PATTERN.test(values.email.trim()))
-    errors.email = "가톨릭대학교 이메일(@catholic.ac.kr)만 사용할 수 있어요.";
-
-  if (values.password === "") errors.password = "비밀번호를 입력해주세요.";
+  if (values.password === "") errors.password = "비밀번호를 입력해 주세요.";
   else if (!PASSWORD_PATTERN.test(values.password))
-    errors.password = "공백 없는 영문, 숫자, 특수문자 8~20자로 입력해주세요.";
+    errors.password = "공백 없이 영문과 숫자를 함께 넣어 8~20자로 입력해 주세요.";
 
-  if (values.passwordConfirm === "") errors.passwordConfirm = "비밀번호를 한 번 더 입력해주세요.";
+  if (values.passwordConfirm === "") errors.passwordConfirm = "비밀번호를 한 번 더 입력해 주세요.";
   else if (values.passwordConfirm !== values.password)
     errors.passwordConfirm = "비밀번호가 일치하지 않아요.";
+
+  if (nickname === "") errors.nickname = "닉네임을 입력해 주세요.";
+  else if (nickname.length < 2 || nickname.length > 16) errors.nickname = "닉네임은 2~16자로 입력해 주세요.";
 
   return errors;
 }
@@ -38,19 +47,29 @@ export function SignUpPage() {
   const navigate = useNavigate();
 
   const [values, setValues] = useState<FormValues>({
-    name: "",
     email: "",
     password: "",
     passwordConfirm: "",
+    nickname: "",
   });
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
-  const [agreed, setAgreed] = useState(false);
+  const [agreements, setAgreements] = useState<Record<Term, boolean>>({
+    service: false,
+    privacy: false,
+    location: false,
+    notification: false,
+  });
   const [serverErrors, setServerErrors] = useState<Partial<Record<Field, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  // 인증 메일 버튼 안내는 버튼 바로 아래(이메일 칸)에 표시
+  const [emailNotice, setEmailNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validate(values);
-  const canSubmit = Object.keys(errors).length === 0 && agreed && !isSubmitting;
+  const allAgreed = TERMS.every((term) => agreements[term.key]);
+  const requiredAgreed = TERMS.every((term) => !term.required || agreements[term.key]);
+  const canSubmit = Object.keys(errors).length === 0 && requiredAgreed && !isSubmitting;
 
   function handleChange(field: Field, value: string) {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -66,17 +85,26 @@ export function SignUpPage() {
     setTouched((prev) => ({ ...prev, [field]: true }));
   }
 
+  function toggleAll(checked: boolean) {
+    setAgreements({ service: checked, privacy: checked, location: checked, notification: checked });
+  }
+
+  // 아직 BE API가 없는 기능
+  function showNotReady(feature: string) {
+    setNotice(`${feature} 기능은 준비 중이에요.`);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setTouched({ name: true, email: true, password: true, passwordConfirm: true });
+    setTouched({ email: true, password: true, passwordConfirm: true, nickname: true });
     if (!canSubmit) return;
 
     setIsSubmitting(true);
     setFormError(null);
     try {
       await signUp({
-        name: values.name.trim(),
         email: values.email.trim(),
+        nickname: values.nickname.trim(),
         password: values.password,
       });
       navigate({ to: "/login", search: { signedUp: true } });
@@ -94,91 +122,127 @@ export function SignUpPage() {
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-white">
-      <AuthHeader />
-      <main className="px-5 pt-8 pb-12">
-        <h1 className="text-2xl font-bold text-gray-900">회원가입</h1>
-        <p className="mt-2 text-sm text-gray-500">가톨릭대학교 이메일로 가입할 수 있어요.</p>
+    <AuthLayout headerLink={{ to: "/login", label: "로그인" }} cardClassName="max-w-[480px]">
+      <h1 className="text-3xl font-extrabold text-gray-900">회원가입</h1>
+      <p className="mt-3 text-gray-600">내 사진이 동네의 색이 되도록, 계정을 만들어 주세요.</p>
 
-        <form className="mt-8 flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-          <TextField
-            id="name"
-            label="이름"
-            autoComplete="name"
-            placeholder="이름을 입력해주세요"
-            value={values.name}
-            onChange={(value) => handleChange("name", value)}
-            onBlur={() => markTouched("name")}
-            error={errorOf("name")}
-          />
-          <TextField
-            id="email"
-            label="이메일"
-            type="email"
-            autoComplete="email"
-            placeholder="example@catholic.ac.kr"
-            value={values.email}
-            onChange={(value) => handleChange("email", value)}
-            onBlur={() => markTouched("email")}
-            error={errorOf("email")}
-            hint="@catholic.ac.kr 이메일만 가입할 수 있어요."
-          />
-          <TextField
-            id="password"
-            label="비밀번호"
-            type="password"
-            autoComplete="new-password"
-            placeholder="비밀번호를 입력해주세요"
-            value={values.password}
-            onChange={(value) => handleChange("password", value)}
-            onBlur={() => markTouched("password")}
-            error={errorOf("password")}
-            hint="공백 없는 영문, 숫자, 특수문자 8~20자"
-          />
-          <TextField
-            id="passwordConfirm"
-            label="비밀번호 확인"
-            type="password"
-            autoComplete="new-password"
-            placeholder="비밀번호를 다시 입력해주세요"
-            value={values.passwordConfirm}
-            onChange={(value) => handleChange("passwordConfirm", value)}
-            onBlur={() => markTouched("passwordConfirm")}
-            error={errorOf("passwordConfirm")}
-          />
+      <form className="mt-6 flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
+        <TextField
+          id="email"
+          label="이메일"
+          type="email"
+          autoComplete="email"
+          placeholder="name@example.com"
+          value={values.email}
+          onChange={(value) => handleChange("email", value)}
+          onBlur={() => markTouched("email")}
+          error={errorOf("email")}
+          hint={emailNotice ?? undefined}
+          action={
+            <button
+              type="button"
+              onClick={() => setEmailNotice("이메일 인증 기능은 준비 중이에요.")}
+              className="h-12 shrink-0 rounded-xl border border-gray-900 bg-white px-4 text-sm text-gray-900 transition-colors hover:bg-[#f7f5f0]"
+            >
+              인증 메일
+            </button>
+          }
+        />
+        <TextField
+          id="password"
+          label="비밀번호"
+          type="password"
+          autoComplete="new-password"
+          value={values.password}
+          onChange={(value) => handleChange("password", value)}
+          onBlur={() => markTouched("password")}
+          error={errorOf("password")}
+          hint="8~20자, 영문과 숫자를 함께"
+        />
+        <TextField
+          id="passwordConfirm"
+          label="비밀번호 확인"
+          type="password"
+          autoComplete="new-password"
+          value={values.passwordConfirm}
+          onChange={(value) => handleChange("passwordConfirm", value)}
+          onBlur={() => markTouched("passwordConfirm")}
+          error={errorOf("passwordConfirm")}
+        />
+        <TextField
+          id="nickname"
+          label="닉네임"
+          autoComplete="nickname"
+          value={values.nickname}
+          onChange={(value) => handleChange("nickname", value)}
+          onBlur={() => markTouched("nickname")}
+          error={errorOf("nickname")}
+          hint="2–16자 · 동 지도에서 사진 올린 사람으로 표시"
+        />
 
-          <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-gray-600">
+        <fieldset className="rounded-2xl border border-[#e8e4dc] px-4 pt-1 pb-4">
+          <legend className="px-2 text-sm text-gray-600">약관 동의</legend>
+          <label className="flex cursor-pointer items-center gap-3 border-b border-[#e8e4dc] py-3 font-bold text-gray-900">
             <input
               type="checkbox"
-              checked={agreed}
-              onChange={(event) => setAgreed(event.target.checked)}
-              className="h-4 w-4 accent-[#3b6fb6]"
+              checked={allAgreed}
+              onChange={(event) => toggleAll(event.target.checked)}
+              className="h-5 w-5 accent-[#ff8a3d]"
             />
-            이용약관 및 개인정보처리방침에 동의합니다.
+            전체 동의
           </label>
+          <div className="mt-2 flex flex-col">
+            {TERMS.map((term) => (
+              <label key={term.key} className="flex cursor-pointer items-center gap-3 py-2 text-gray-800">
+                <input
+                  type="checkbox"
+                  checked={agreements[term.key]}
+                  onChange={(event) =>
+                    setAgreements((prev) => ({ ...prev, [term.key]: event.target.checked }))
+                  }
+                  className="h-5 w-5 accent-[#ff8a3d]"
+                />
+                {term.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
-          {formError && (
-            <p role="alert" className="text-sm text-red-500">
-              {formError}
-            </p>
-          )}
+        {formError && (
+          <p role="alert" className="text-sm text-red-500">
+            {formError}
+          </p>
+        )}
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="mt-2 h-12 w-full rounded-lg bg-[#3b6fb6] text-sm font-semibold text-white transition-colors hover:bg-[#335f9e] disabled:cursor-not-allowed disabled:bg-gray-300"
-          >
-            {isSubmitting ? "가입 중..." : "가입하기"}
-          </button>
-        </form>
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="h-12 w-full rounded-xl bg-[#ff8a3d] font-bold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isSubmitting ? "가입 중..." : "가입하기"}
+        </button>
+      </form>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
-          이미 계정이 있나요?{" "}
-          <Link to="/login" className="font-semibold text-[#3b6fb6] hover:underline">
-            로그인
-          </Link>
+      <button
+        type="button"
+        onClick={() => showNotReady("카카오 가입")}
+        className="mt-4 h-12 w-full rounded-xl border border-[#ddd8ce] bg-white text-gray-900 transition-colors hover:bg-[#f7f5f0]"
+      >
+        카카오로 가입
+      </button>
+
+      {notice && (
+        <p role="status" className="mt-3 text-center text-sm text-gray-500">
+          {notice}
         </p>
-      </main>
-    </div>
+      )}
+
+      <p className="mt-6 text-center text-gray-600">
+        이미 계정이 있으신가요?{" "}
+        <Link to="/login" className="font-bold text-[#c4581a] underline underline-offset-4">
+          로그인
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

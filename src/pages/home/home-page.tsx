@@ -1,77 +1,39 @@
+import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { logout } from "../../api/auth";
+import { AuthLayout } from "../../components/layout/auth-layout";
+import { useAuthStore } from "../../stores/auth-store";
+
 export function HomePage() {
+  const navigate = useNavigate();
+  const tokens = useAuthStore((state) => state.tokens);
+  const clearTokens = useAuthStore((state) => state.clearTokens);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    try {
+      if (tokens) await logout(tokens.accessToken);
+    } catch {
+      // 토큰이 만료돼 서버 로그아웃이 실패해도 이 기기에서는 로그아웃 처리
+    } finally {
+      clearTokens();
+      navigate({ to: "/login" });
+    }
+  }
+
   return (
-    <main className="mx-auto flex h-screen max-w-md flex-col bg-white shadow-sm border-x border-gray-100 relative">
-      {/* 본문 스크롤 영역 (하단 네비게이션 공간 확보를 위해 pb-20 적용) */}
-      <div className="flex-1 overflow-y-auto pb-20">
-        {/* 상단 헤더 영역 */}
-        <div className="px-6 pt-12 pb-6">
-          <p className="text-sm font-medium text-gray-500">가톨릭대학교 성심교정</p>
-          <h1 className="mt-1 text-3xl font-bold text-gray-900">빈 강의실 찾기</h1>
-
-          <div className="mt-4 flex w-fit items-center gap-2 rounded-lg bg-[#f0f8f1] px-4 py-2.5 text-sm font-medium text-[#2d944c]">
-            <div className="h-2 w-2 rounded-full bg-[#2d944c]"></div>
-            실시간 · 목요일 15:26 · 106개 빈 강의실
-          </div>
-        </div>
-
-        {/* 건물별 현황 리스트 (포인트/광고 배너 영역 제거됨) */}
-        <div className="px-6 pt-4">
-          <h2 className="mb-6 text-lg font-bold text-gray-900">건물별 현황</h2>
-
-          <div className="flex flex-col gap-8">
-            {/* 첫 번째 건물 */}
-            <div>
-              <div className="mb-3 flex items-end justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">니콜스관</h3>
-                  <p className="mt-0.5 text-xs text-gray-400">강의실 50개</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-[#2d944c]">17</p>
-                  <p className="text-xs text-gray-400">빈 강의실</p>
-                </div>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                <div className="h-full rounded-full bg-orange-400" style={{ width: '34%' }}></div>
-              </div>
-            </div>
-
-            {/* 두 번째 건물 */}
-            <div>
-              <div className="mb-3 flex items-end justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">마리아관</h3>
-                  <p className="mt-0.5 text-xs text-gray-400">강의실 46개</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-[#2d944c]">15</p>
-                  <p className="text-xs text-gray-400">빈 강의실</p>
-                </div>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                <div className="h-full rounded-full bg-yellow-400" style={{ width: '32%' }}></div>
-              </div>
-            </div>
-
-            {/* 세 번째 건물 */}
-            <div>
-              <div className="mb-3 flex items-end justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">다솔관</h3>
-                  <p className="mt-0.5 text-xs text-gray-400">강의실 44개</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-[#2d944c]">23</p>
-                  <p className="text-xs text-gray-400">빈 강의실</p>
-                </div>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                <div className="h-full rounded-full bg-[#2d944c]" style={{ width: '52%' }}></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </main>
+    <AuthLayout>
+      <h1 className="text-3xl font-extrabold text-gray-900">로그인되었어요</h1>
+      <p className="mt-3 text-gray-600">픽셀의 다른 기능은 준비 중이에요.</p>
+      <button
+        type="button"
+        onClick={handleLogout}
+        disabled={isLoggingOut}
+        className="mt-8 h-12 w-full rounded-xl border border-[#ddd8ce] bg-white text-gray-900 transition-colors hover:bg-[#f7f5f0] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+      </button>
+    </AuthLayout>
   );
 }

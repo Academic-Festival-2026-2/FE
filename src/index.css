@@ -1,10 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
 @import "tailwindcss";
 
 :root {
-  font-family: "DM Sans", sans-serif;
-  color: #25231f;
-  background: #f5f2ec;
+  font-family: system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color: #111827;
+  background: #f7f5f0;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
