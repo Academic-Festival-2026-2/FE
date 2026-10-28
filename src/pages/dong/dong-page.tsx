@@ -1,7 +1,14 @@
 import { useEffect, useRef } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { TimeBand } from "../../api/map";
-import { PAGE_BG, toKakaoPath, useBoundaries, useDongColors } from "../map/map-data";
+import {
+  KAKAO_ERROR,
+  KAKAO_UNAVAILABLE,
+  PAGE_BG,
+  toKakaoPath,
+  useBoundaries,
+  useDongColors,
+} from "../map/map-data";
 import { DongCard, ErrorBanner, TimeBandBar } from "../map/map-ui";
 
 const TIME_BAND_LABEL: Record<TimeBand, string> = {
@@ -35,7 +42,7 @@ export function DongPage() {
   const dong = dongs.get(dongCode);
 
   useEffect(() => {
-    if (!boundaries || !feature) return;
+    if (!boundaries || !feature || KAKAO_UNAVAILABLE) return;
     let cancelled = false;
     const overlays: (kakao.maps.Polygon | kakao.maps.CustomOverlay)[] = [];
 
@@ -137,7 +144,15 @@ export function DongPage() {
         <DongCard dong={dong} />
       </div>
       <div className="absolute bottom-6 right-4 z-10">
-        <ErrorBanner message={notFound ? "없는 동이에요." : (boundaryError ?? colorError)} />
+        <ErrorBanner
+          message={
+            KAKAO_UNAVAILABLE
+              ? KAKAO_ERROR
+              : notFound
+                ? "없는 동이에요."
+                : (boundaryError ?? colorError)
+          }
+        />
       </div>
     </div>
   );

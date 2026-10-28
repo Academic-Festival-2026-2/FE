@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Boundaries, DongColor } from "../../api/map";
-import { EMPTY_FILL, PAGE_BG, labelPoint, toKakaoPath } from "./map-data";
+import { EMPTY_FILL, KAKAO_UNAVAILABLE, PAGE_BG, labelPoint, toKakaoPath } from "./map-data";
 
 type Handlers = {
   onHover: (dongCode: string | null) => void;
@@ -22,7 +22,7 @@ export function useCoveredMap(
   });
 
   useEffect(() => {
-    if (!boundaries) return;
+    if (!boundaries || KAKAO_UNAVAILABLE) return;
     let cancelled = false;
     const polygons = polygonsRef.current;
     const overlays: (kakao.maps.Polygon | kakao.maps.CustomOverlay)[] = [];

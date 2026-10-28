@@ -11,6 +11,9 @@ import {
 export const PAGE_BG = "#f7f5f0";
 export const EMPTY_FILL = "#e4dfd5";
 
+export const KAKAO_UNAVAILABLE = typeof kakao === "undefined";
+export const KAKAO_ERROR = "지도를 불러오지 못했어요.";
+
 const TIME_BAND_VALUES: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
 
 export function parseTimeBand(value: unknown): TimeBand {
@@ -28,7 +31,7 @@ export function useBoundaries() {
         if (!cancelled) setBoundaries(result);
       })
       .catch(() => {
-        if (!cancelled) setError("동 경계를 불러오지 못했습니다..");
+        if (!cancelled) setError("동 경계를 불러오지 못했어요.");
       });
     return () => {
       cancelled = true;
@@ -51,7 +54,9 @@ export function useDongColors(timeBand: TimeBand) {
         setError(null);
       })
       .catch(() => {
-        if (!cancelled) setError("동 색을 불러오지 못했어요.");
+        if (cancelled) return;
+        setDongs(new Map());
+        setError("동 색을 불러오지 못했어요.");
       });
     return () => {
       cancelled = true;

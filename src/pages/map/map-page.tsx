@@ -1,7 +1,13 @@
 import { useRef, useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { TimeBand } from "../../api/map";
-import { PAGE_BG, useBoundaries, useDongColors } from "./map-data";
+import {
+  KAKAO_ERROR,
+  KAKAO_UNAVAILABLE,
+  PAGE_BG,
+  useBoundaries,
+  useDongColors,
+} from "./map-data";
 import { DongCard, ErrorBanner, TimeBandBar } from "./map-ui";
 import { useCoveredMap } from "./use-covered-map";
 
@@ -34,7 +40,7 @@ export function MapPage() {
         <DongCard dong={hoveredCode ? dongs.get(hoveredCode) : undefined} />
       </div>
       <div className="absolute bottom-6 right-4 z-10">
-        <ErrorBanner message={boundaryError ?? colorError} />
+        <ErrorBanner message={KAKAO_UNAVAILABLE ? KAKAO_ERROR : (boundaryError ?? colorError)} />
       </div>
     </div>
   );
