@@ -5,7 +5,8 @@ import { ApiError } from "../../api/client";
 import { TextField } from "../../components/form/text-field";
 import { AuthLayout } from "../../components/layout/auth-layout";
 
-type Field = "email" | "password" | "passwordConfirm" | "nickname";
+const FIELDS = ["email", "password", "passwordConfirm", "nickname"] as const;
+type Field = (typeof FIELDS)[number];
 type FormValues = Record<Field, string>;
 
 type Term = "service" | "privacy" | "location" | "notification";
@@ -106,13 +107,23 @@ export function SignUpPage() {
         email: values.email.trim(),
         nickname: values.nickname.trim(),
         password: values.password,
+        termsAgreed: agreements.service,
+        privacyAgreed: agreements.privacy,
+        locationAgreed: agreements.location,
       });
       navigate({ to: "/login", search: { signedUp: true } });
     } catch (error) {
       if (error instanceof ApiError && error.code === "USER409_1") {
         setServerErrors({ email: error.message });
+      } else if (error instanceof ApiError && error.code === "USER409_2") {
+        setServerErrors({ nickname: error.message });
       } else if (error instanceof ApiError && error.fieldErrors) {
         setServerErrors(error.fieldErrors);
+        // 입력칸이 없는 에러(약관 동의 등)는 버튼 위에 표시
+        const otherErrors = Object.entries(error.fieldErrors)
+          .filter(([field]) => !(FIELDS as readonly string[]).includes(field))
+          .map(([, message]) => message);
+        if (otherErrors.length > 0) setFormError(otherErrors.join(" "));
       } else {
         setFormError(error instanceof ApiError ? error.message : "회원가입 중 오류가 발생했어요.");
       }
