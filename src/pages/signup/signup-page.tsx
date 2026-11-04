@@ -4,6 +4,12 @@ import { signUp } from "../../api/auth";
 import { ApiError } from "../../api/client";
 import { TextField } from "../../components/form/text-field";
 import { AuthLayout } from "../../components/layout/auth-layout";
+import {
+  EMAIL_PATTERN,
+  PASSWORD_PATTERN,
+  PASSWORD_RULE_MESSAGE,
+  validateNickname,
+} from "../../utils/validation";
 
 const FIELDS = ["email", "password", "passwordConfirm", "nickname"] as const;
 type Field = (typeof FIELDS)[number];
@@ -19,27 +25,22 @@ const TERMS: { key: Term; label: string; required: boolean }[] = [
   { key: "notification", label: "[선택] 색 알림 수신", required: false },
 ];
 
-// BE SignUpRequest 검증 규칙과 동일하게 유지
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{8,20}$/;
-
 function validate(values: FormValues): Partial<Record<Field, string>> {
   const errors: Partial<Record<Field, string>> = {};
-  const nickname = values.nickname.trim();
 
   if (values.email.trim() === "") errors.email = "이메일을 입력해 주세요.";
   else if (!EMAIL_PATTERN.test(values.email.trim())) errors.email = "이메일 형식이 올바르지 않아요.";
 
   if (values.password === "") errors.password = "비밀번호를 입력해 주세요.";
   else if (!PASSWORD_PATTERN.test(values.password))
-    errors.password = "공백 없이 영문과 숫자를 함께 넣어 8~20자로 입력해 주세요.";
+    errors.password = PASSWORD_RULE_MESSAGE;
 
   if (values.passwordConfirm === "") errors.passwordConfirm = "비밀번호를 한 번 더 입력해 주세요.";
   else if (values.passwordConfirm !== values.password)
     errors.passwordConfirm = "비밀번호가 일치하지 않아요.";
 
-  if (nickname === "") errors.nickname = "닉네임을 입력해 주세요.";
-  else if (nickname.length < 2 || nickname.length > 16) errors.nickname = "닉네임은 2~16자로 입력해 주세요.";
+  const nicknameError = validateNickname(values.nickname);
+  if (nicknameError) errors.nickname = nicknameError;
 
   return errors;
 }
