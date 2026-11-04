@@ -4,6 +4,7 @@ import { getMyInfo, type MyInfoResponse } from "../../api/user";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
+import { ProfileForm } from "./profile-form";
 import { ProfileSummary } from "./profile-summary";
 
 export function MyPage() {
@@ -30,6 +31,11 @@ export function MyPage() {
     };
   }, [accessToken, expireSession]);
 
+  // 수정 API는 결과를 돌려주지 않아서 보낸 값으로 화면을 갱신
+  function handleUpdated(changes: Partial<MyInfoResponse>) {
+    setInfo((prev) => (prev ? { ...prev, ...changes } : prev));
+  }
+
   return (
     // 공통 헤더(별도 이슈)가 생기면 AuthHeader 자리를 AppLayout으로 교체
     <div className="min-h-screen bg-[#f7f5f0]">
@@ -48,6 +54,9 @@ export function MyPage() {
         {info && accessToken && (
           <div className="mt-5 flex flex-col gap-4">
             <ProfileSummary info={info} />
+            <div className="grid items-start gap-4 md:grid-cols-2">
+              <ProfileForm accessToken={accessToken} info={info} onUpdated={handleUpdated} />
+            </div>
           </div>
         )}
       </main>
