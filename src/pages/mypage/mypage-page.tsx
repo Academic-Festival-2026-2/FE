@@ -4,6 +4,7 @@ import { getMyInfo, type MyInfoResponse } from "../../api/user";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
+import { AccountSection } from "./account-section";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 import { ProfileSummary } from "./profile-summary";
@@ -61,6 +62,7 @@ export function MyPage() {
               <ProfileForm accessToken={accessToken} info={info} onUpdated={handleUpdated} />
               <PasswordForm accessToken={accessToken} />
             </div>
+            <AccountSection accessToken={accessToken} />
           </div>
         )}
       </main>

@@ -8,7 +8,7 @@ import { useAuthStore } from "../../stores/auth-store";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { signedUp, passwordChanged } = useSearch({ from: "/login" });
+  const { signedUp, passwordChanged, withdrawn } = useSearch({ from: "/login" });
   const setTokens = useAuthStore((state) => state.setTokens);
 
   const [email, setEmail] = useState("");
@@ -25,7 +25,9 @@ export function LoginPage() {
     ? "회원가입이 완료되었어요. 가입한 이메일로 로그인해 주세요."
     : passwordChanged
       ? "비밀번호를 바꿨어요. 새 비밀번호로 로그인해 주세요."
-      : null;
+      : withdrawn
+        ? "탈퇴가 완료되었어요. 그동안 이용해 주셔서 고마워요."
+        : null;
 
   // 아직 BE API가 없는 기능
   function showNotReady(feature: string) {

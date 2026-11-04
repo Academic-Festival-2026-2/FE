@@ -6,12 +6,15 @@ type LoginSearch = {
   signedUp?: boolean;
   // 비밀번호 변경 후 이동했을 때 다시 로그인 안내를 띄움
   passwordChanged?: boolean;
+  // 회원 탈퇴 후 이동했을 때 완료 안내를 띄움
+  withdrawn?: boolean;
 };
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): LoginSearch => ({
     signedUp: search.signedUp === true ? true : undefined,
     passwordChanged: search.passwordChanged === true ? true : undefined,
+    withdrawn: search.withdrawn === true ? true : undefined,
   }),
   component: LoginPage,
 });
