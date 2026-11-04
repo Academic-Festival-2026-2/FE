@@ -15,6 +15,6 @@ export function useExpireSession() {
   // useEffect 의존성에 넣어도 매번 새로 만들어지지 않도록 useCallback 사용
   return useCallback(() => {
     clearTokens();
-    navigate({ to: "/login" });
+    navigate({ to: "/login", search: { expired: true } });
   }, [clearTokens, navigate]);
 }

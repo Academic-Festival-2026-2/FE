@@ -8,6 +8,8 @@ type LoginSearch = {
   passwordChanged?: boolean;
   // 회원 탈퇴 후 이동했을 때 완료 안내를 띄움
   withdrawn?: boolean;
+  // 토큰 만료·탈퇴 회원 등으로 로그인이 풀려 이동했을 때 안내를 띄움
+  expired?: boolean;
 };
 
 export const Route = createFileRoute("/login")({
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/login")({
     signedUp: search.signedUp === true ? true : undefined,
     passwordChanged: search.passwordChanged === true ? true : undefined,
     withdrawn: search.withdrawn === true ? true : undefined,
+    expired: search.expired === true ? true : undefined,
   }),
   component: LoginPage,
 });
