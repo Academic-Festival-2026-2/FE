@@ -21,7 +21,8 @@ export function ProfileSummary({ info }: { info: MyInfoResponse }) {
         className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#ff8a3d] font-bold text-gray-900"
         aria-hidden
       >
-        {info.nickname[0]}
+        {/* 이모지처럼 두 칸짜리 글자도 잘리지 않게 Array.from 사용 */}
+        {Array.from(info.nickname)[0]}
       </span>
       <div className="min-w-0 flex-1">
         <p className="font-bold text-gray-900">{info.nickname}</p>
