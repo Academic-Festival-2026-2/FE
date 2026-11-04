@@ -77,13 +77,14 @@ export function ProfileForm({ accessToken, info, onUpdated }: ProfileFormProps) 
 
   return (
     <section className="rounded-3xl border border-[#e8e4dc] bg-white p-6">
-      <h2 className="text-lg font-bold text-gray-900">
-        <span className="mr-2 font-mono text-sm text-[#c4581a]">01</span>프로필
+      <h2 className="flex items-baseline gap-2 text-[17px] font-bold text-gray-900">
+        <span className="font-mono text-xs font-normal text-[#c4581a]">01</span>프로필
       </h2>
 
-      <form className="mt-5" onSubmit={handleSaveNickname} noValidate>
+      <form className="mt-4" onSubmit={handleSaveNickname} noValidate>
         <TextField
           id="nickname"
+          size="sm"
           label="닉네임"
           value={nickname}
           onChange={handleNicknameChange}
@@ -93,7 +94,7 @@ export function ProfileForm({ accessToken, info, onUpdated }: ProfileFormProps) 
             <button
               type="submit"
               disabled={!canSaveNickname}
-              className="h-12 shrink-0 rounded-xl bg-[#ff8a3d] px-4 font-bold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 shrink-0 rounded-[10px] bg-[#ff8a3d] px-4 text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSavingNickname ? "저장 중" : "저장"}
             </button>
