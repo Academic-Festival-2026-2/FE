@@ -7,7 +7,8 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { useAuthStore } from "../../stores/auth-store";
 import { PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from "../../utils/validation";
 
-type Field = "currentPassword" | "newPassword" | "newPasswordConfirm";
+const FIELDS = ["currentPassword", "newPassword", "newPasswordConfirm"] as const;
+type Field = (typeof FIELDS)[number];
 type Errors = Partial<Record<Field, string>>;
 
 export function PasswordForm({ accessToken }: { accessToken: string }) {
@@ -58,8 +59,9 @@ export function PasswordForm({ accessToken }: { accessToken: string }) {
       if (!(error instanceof ApiError)) setFormError("비밀번호를 바꾸지 못했어요.");
       else if (error.code === "USER400_1") setServerErrors({ currentPassword: error.message });
       else if (error.code === "USER400_2") setServerErrors({ newPassword: error.message });
-      else if (error.fieldErrors) setServerErrors(error.fieldErrors);
-      else setFormError(error.message);
+      else if (error.fieldErrors && FIELDS.some((field) => error.fieldErrors?.[field])) {
+        setServerErrors(error.fieldErrors);
+      } else setFormError(error.message);
     } finally {
       setIsSubmitting(false);
     }
