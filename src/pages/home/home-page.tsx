@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { AuthLayout } from "../../components/layout/auth-layout";
 import { useLogout } from "../../hooks/use-logout";
 
@@ -16,6 +17,13 @@ export function HomePage() {
       >
         {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
       </button>
+      {/* 공통 헤더의 드롭다운이 생기기 전까지 쓰는 임시 링크 */}
+      <Link
+        to="/mypage"
+        className="mt-4 block text-center text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900"
+      >
+        마이페이지
+      </Link>
     </AuthLayout>
   );
 }
