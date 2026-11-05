@@ -8,7 +8,7 @@ import { useAuthStore } from "../../stores/auth-store";
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { signedUp } = useSearch({ from: "/login" });
+  const { signedUp, passwordChanged, withdrawn, expired } = useSearch({ from: "/login" });
   const setTokens = useAuthStore((state) => state.setTokens);
 
   const [email, setEmail] = useState("");
@@ -19,6 +19,17 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = email.trim() !== "" && password !== "" && !isSubmitting;
+
+  // 다른 화면에서 이동해 왔을 때 보여줄 안내
+  const loginNotice = signedUp
+    ? "회원가입이 완료되었어요. 가입한 이메일로 로그인해 주세요."
+    : passwordChanged
+      ? "비밀번호를 바꿨어요. 새 비밀번호로 로그인해 주세요."
+      : withdrawn
+        ? "탈퇴가 완료되었어요. 그동안 이용해 주셔서 고마워요."
+        : expired
+          ? "로그인이 만료되었어요. 다시 로그인해 주세요."
+          : null;
 
   // 아직 BE API가 없는 기능
   function showNotReady(feature: string) {
@@ -47,9 +58,9 @@ export function LoginPage() {
       <h1 className="text-3xl font-extrabold text-gray-900">로그인</h1>
       <p className="mt-3 text-gray-600">사진을 올리고 내 기록을 보려면 로그인해 주세요.</p>
 
-      {signedUp && (
+      {loginNotice && (
         <p role="status" className="mt-6 rounded-xl bg-[#fff1e6] px-4 py-3 text-sm text-[#b9541a]">
-          회원가입이 완료되었어요. 가입한 이메일로 로그인해 주세요.
+          {loginNotice}
         </p>
       )}
 
