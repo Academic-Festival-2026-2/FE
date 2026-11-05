@@ -9,7 +9,7 @@ import {
   useBoundaries,
   useDongColors,
 } from "../map/map-data";
-import { DongCard, ErrorBanner, TimeBandBar } from "../map/map-ui";
+import { DongCard, ErrorBanner, TimeBandTabs } from "../map/map-ui";
 
 const TIME_BAND_LABEL: Record<TimeBand, string> = {
   DAWN: "새벽",
@@ -137,7 +137,7 @@ export function DongPage() {
             <p className="mt-1 text-sm text-gray-500">가을 · 사진 {dong.photoCount}장</p>
           )}
         </div>
-        <TimeBandBar value={timeBand} onChange={changeTimeBand} />
+        <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
       </div>
 
       <div className="absolute bottom-6 left-4 z-10">

@@ -29,10 +29,24 @@ export type DongColor = {
   status: CellStatus;
 };
 
+export type ColorRatio = {
+  hex: string;
+  ratio: number;
+};
+
+export type TopDong = {
+  dongCode: string;
+  name: string;
+  guName: string;
+  photoCount: number;
+  colorRatio: ColorRatio[];
+};
+
 export type MapDongs = {
   season: string;
   timeBand: TimeBand;
   dongs: DongColor[];
+  topDongs: TopDong[];
 };
 
 export function getBoundaries() {
