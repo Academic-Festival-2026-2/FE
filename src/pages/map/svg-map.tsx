@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Boundaries, DongColor } from "../../api/map";
-import { EMPTY_FILL, PAGE_BG, mixColor } from "./map-data";
+import { EMPTY_FILL, toneColor } from "./map-data";
 import { VIEW_SIZE, toShapes, type DongShape } from "./map-geometry";
 
-const EDGE_WIDTH = 12;
-const EDGE_BLUR = 9;
-const GLOW_BLUR = 16;
-const SOFTEN = 0.3;
+const EDGE_WIDTH = 6;
+const EDGE_BLUR = 5;
 const MIN_VIEW = 90;
 const LABEL_MIN_AREA = 900;
 
@@ -69,7 +67,7 @@ export function SvgMap({
   const colorOf = (dongCode: string) => dongs.get(dongCode)?.dominantColor ?? null;
   const fillOf = (dongCode: string) => {
     const color = colorOf(dongCode);
-    return color ? mixColor(color, PAGE_BG, SOFTEN) : EMPTY_FILL;
+    return color ? toneColor(color) : EMPTY_FILL;
   };
   const focusCode = hoveredCode ?? selectedCode;
   const focused = shapes.find((shape) => shape.dongCode === focusCode);
@@ -184,9 +182,6 @@ export function SvgMap({
             <filter id="dong-blur" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation={EDGE_BLUR} />
             </filter>
-            <filter id="city-glow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation={GLOW_BLUR} />
-            </filter>
             <filter id="edge-feather" x="-10%" y="-10%" width="120%" height="120%">
               <feGaussianBlur stdDeviation={EDGE_WIDTH / 4} />
             </filter>
@@ -211,10 +206,6 @@ export function SvgMap({
               </g>
             </mask>
           </defs>
-
-          <g filter="url(#city-glow)" opacity={0.5} pointerEvents="none">
-            {fills}
-          </g>
 
           <g clipPath="url(#city-clip)">
             <g>
