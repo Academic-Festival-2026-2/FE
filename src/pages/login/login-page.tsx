@@ -5,7 +5,7 @@ import { ApiError } from "../../api/client";
 import { TextField } from "../../components/form/text-field";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { useAuthStore } from "../../stores/auth-store";
-import loginHero from "../../assets/login-hero.webp";
+import loginHero from "../../assets/login-hero.svg";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -55,18 +55,27 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f3f1ec]">
+    <div className="flex min-h-screen flex-col bg-[#f3f1ec]">
       <AuthHeader />
-      <main className="mx-auto grid w-full max-w-[1440px] gap-6 px-4 py-12 sm:px-12 sm:pt-14 sm:pb-6 xl:grid-cols-[1.25fr_1fr]">
+      {/*
+        2단일 때 카드 높이 = 화면 높이 - 헤더(67px) - 위아래 여백(56px×2), 단 620~760px 사이.
+        화면 축소 등으로 창이 아주 높으면 760px에서 멈추고 세로 가운데 정렬,
+        창이 낮으면 620px을 유지하고 스크롤
+      */}
+      <main className="mx-auto grid w-full max-w-[1440px] flex-1 content-start gap-6 px-4 py-12 sm:px-12 sm:py-14 xl:grid-cols-[1.25fr_1fr] xl:grid-rows-[clamp(620px,calc(100svh-179px),760px)] xl:content-center">
         {/* 소개 그림: 좁은 화면에서는 숨기고 로그인 카드만 표시 */}
         <section
           aria-label="픽셀 소개"
           className="relative hidden min-h-[620px] overflow-hidden rounded-3xl border border-[#e6e2da] bg-white xl:block"
         >
+          {/*
+            그림은 시안처럼 56px 위로 올리고, 크기는 카드 폭에만 맞춤.
+            창이 높거나(화면 축소) 낮아도 그림이 커지거나 줄지 않아 문구와 겹치지 않음
+          */}
           <img
             src={loginHero}
             alt=""
-            className="absolute inset-0 h-full w-full object-cover object-left-top"
+            className="absolute -top-14 left-0 h-auto w-full max-w-none"
           />
           <p className="absolute right-10 bottom-10 left-10 text-[clamp(32px,3.5vw,50px)] leading-[1.22] font-extrabold tracking-[-2px] text-gray-900">
             사진의 색으로 그리는
@@ -77,7 +86,7 @@ export function LoginPage() {
           </p>
         </section>
 
-        <section className="mx-auto flex w-full max-w-[480px] flex-col rounded-3xl border border-[#e6e2da] bg-white px-6 py-10 sm:px-[46px] sm:pt-11 sm:pb-[34px] xl:max-w-none">
+        <section className="mx-auto flex w-full max-w-[480px] flex-col rounded-3xl border border-[#e6e2da] bg-white px-6 py-10 sm:px-[46px] sm:pt-9 sm:pb-7 xl:max-w-none">
           <h1 className="text-[32px] font-extrabold tracking-[-0.5px] text-gray-900">로그인</h1>
           <p className="mt-2.5 text-[15px] text-[#55524c]">
             사진을 올리고 내 기록을 보려면 로그인해 주세요.
