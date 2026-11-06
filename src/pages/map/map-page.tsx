@@ -3,8 +3,8 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { bandLabel, seasonOf, useBoundaries, useDongColors } from "./map-data";
+import { MapTooltip } from "./map-tooltip";
 import {
-  DongCard,
   ErrorBanner,
   MapModeToggle,
   RankPanel,
@@ -18,14 +18,16 @@ export function MapPage() {
   const { timeBand } = useSearch({ from: "/map" });
   const navigate = useNavigate();
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
   const { dongs, topDongs, season, error: colorError } = useDongColors(timeBand);
 
   const seasonInfo = seasonOf(season);
   const totalPhotos = [...dongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
   const title = [seasonInfo?.name, `${bandLabel(timeBand)}의 부천`].filter(Boolean).join(" ");
-  const focusCode = hoveredCode ?? selectedCode;
+  const hoveredDong = hoveredCode ? dongs.get(hoveredCode) : undefined;
+  const hoveredGu = boundaries?.features.find(
+      (feature) => feature.properties.dongCode === hoveredCode,
+  )?.properties.guName;
 
   function changeTimeBand(value: TimeBand) {
     navigate({ to: "/map", search: { timeBand: value }, replace: true });
@@ -57,32 +59,24 @@ export function MapPage() {
               <div className="relative mt-2 h-[560px]">
                 {boundaries && (
                     <SvgMap
-                        boundaries={boundaries}
-                        dongs={dongs}
-                        hoveredCode={hoveredCode}
-                        selectedCode={selectedCode}
-                        onHover={setHoveredCode}
-                        onSelect={setSelectedCode}
-                    />
+                  boundaries={boundaries}
+                  dongs={dongs}
+                  hoveredCode={hoveredCode}
+                  onHover={setHoveredCode}
+                  onSelect={(dongCode) =>
+                      navigate({ to: "/dong/$dongCode", params: { dongCode }, search: { timeBand } })}
+                  tooltip={
+                  hoveredDong && (
+                  <MapTooltip
+                  dong={hoveredDong}
+                guName={hoveredGu ?? ""}
+                bandLabel={bandLabel(timeBand)}
+                hint="눌러서 확대 →"
+              />
+              )
+              }
+              />
                 )}
-                <div className="absolute bottom-2 left-2 flex flex-col items-start gap-2">
-                  <DongCard dong={focusCode ? dongs.get(focusCode) : undefined} />
-                  {selectedCode && (
-                      <button
-                          type="button"
-                          onClick={() =>
-                              navigate({
-                                to: "/dong/$dongCode",
-                                params: { dongCode: selectedCode },
-                                search: { timeBand },
-                              })
-                          }
-                          className="h-10 rounded-xl bg-gray-900 px-4 text-sm font-bold text-white"
-                      >
-                        동 상세 보기
-                      </button>
-                  )}
-                </div>
                 <div className="absolute left-2 top-2">
                   <ErrorBanner message={boundaryError ?? colorError} />
                 </div>

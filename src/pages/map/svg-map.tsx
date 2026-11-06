@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Boundaries, DongColor } from "../../api/map";
 import { EMPTY_FILL, toneColor } from "./map-data";
 import { VIEW_SIZE, toShapes, type DongShape } from "./map-geometry";
@@ -16,9 +16,9 @@ type Props = {
   boundaries: Boundaries;
   dongs: Map<string, DongColor>;
   hoveredCode: string | null;
-  selectedCode: string | null;
   onHover: (dongCode: string | null) => void;
-  onSelect: (dongCode: string | null) => void;
+  onSelect: (dongCode: string) => void;
+  tooltip?: ReactNode;
 };
 
 function clampView({ x, y, size }: View): View {
@@ -28,12 +28,6 @@ function clampView({ x, y, size }: View): View {
     y: Math.min(VIEW_SIZE - clamped * 0.2, Math.max(-clamped * 0.8, y)),
     size: clamped,
   };
-}
-
-function viewOf(shape: DongShape): View {
-  const [minX, minY, maxX, maxY] = shape.bounds;
-  const size = Math.max(maxX - minX, maxY - minY) * 1.8 + 40;
-  return clampView({ x: (minX + maxX) / 2 - size / 2, y: (minY + maxY) / 2 - size / 2, size });
 }
 
 function toSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
@@ -52,9 +46,9 @@ export function SvgMap({
                          boundaries,
                          dongs,
                          hoveredCode,
-                         selectedCode,
                          onHover,
                          onSelect,
+                         tooltip,
                        }: Props) {
   const shapes = useMemo(() => toShapes(boundaries), [boundaries]);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -64,13 +58,25 @@ export function SvgMap({
   const dragRef = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null);
   const movedRef = useRef(false);
 
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const hovered = shapes.find((shape) => shape.dongCode === hoveredCode);
+
+  function moveTooltip(event: React.PointerEvent<HTMLDivElement>) {
+    const tip = tooltipRef.current;
+    if (!tip) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    let x = event.clientX - box.left + 16;
+    let y = event.clientY - box.top + 16;
+    if (x + tip.offsetWidth > box.width) x -= tip.offsetWidth + 32;
+    if (y + tip.offsetHeight > box.height) y -= tip.offsetHeight + 32;
+    tip.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
   const colorOf = (dongCode: string) => dongs.get(dongCode)?.dominantColor ?? null;
   const fillOf = (dongCode: string) => {
     const color = colorOf(dongCode);
     return color ? toneColor(color) : EMPTY_FILL;
   };
-  const focusCode = hoveredCode ?? selectedCode;
-  const focused = shapes.find((shape) => shape.dongCode === focusCode);
   const scale = view.size / VIEW_SIZE;
 
   function applyView(next: View) {
@@ -110,11 +116,9 @@ export function SvgMap({
   function select(shape: DongShape) {
     if (movedRef.current) return;
     onSelect(shape.dongCode);
-    animateTo(viewOf(shape));
   }
 
   function reset() {
-    onSelect(null);
     animateTo(FULL_VIEW);
   }
 
@@ -138,7 +142,7 @@ export function SvgMap({
   ));
 
   return (
-      <div className="relative h-full w-full">
+      <div className="relative h-full w-full" onPointerMove={moveTooltip}>
         <svg
             ref={svgRef}
             viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
@@ -249,10 +253,20 @@ export function SvgMap({
             ))}
           </g>
 
-          {focused && (
+          {hovered && (
               <path
-                  d={focused.path}
-                  fill={colorOf(focused.dongCode) ?? EMPTY_FILL}
+                  d={`M-1000,-1000H1600V1600H-1000Z${hovered.path}`}
+                  fill="#ffffff"
+                  fillOpacity={0.55}
+                  fillRule="evenodd"
+                  pointerEvents="none"
+              />
+          )}
+
+          {hovered && (
+              <path
+                  d={hovered.path}
+                  fill={colorOf(hovered.dongCode) ?? EMPTY_FILL}
                   fillRule="evenodd"
                   stroke="#ffffff"
                   strokeWidth={2.5}
@@ -285,6 +299,10 @@ export function SvgMap({
           </g>
         </svg>
 
+        <div ref={tooltipRef} className="pointer-events-none absolute left-0 top-0 z-10">
+          {hoveredCode && tooltip}
+        </div>
+
         <div className="absolute right-2 top-2 flex flex-col gap-1.5">
           <button
               type="button"
@@ -294,6 +312,7 @@ export function SvgMap({
           >
             +
           </button>
+
           <button
               type="button"
               aria-label="축소"
