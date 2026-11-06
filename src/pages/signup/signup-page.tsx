@@ -169,6 +169,7 @@ export function SignUpPage() {
                 type="password"
                 autoComplete="new-password"
                 placeholder="8~20자, 영문+숫자"
+                hint="영문과 숫자를 함께 넣어 8~20자"
                 value={values.password}
                 onChange={(value) => handleChange("password", value)}
                 onBlur={() => markTouched("password")}
@@ -193,7 +194,8 @@ export function SignUpPage() {
             id="nickname"
             label="닉네임"
             autoComplete="nickname"
-            placeholder="2–16자 · 동 지도에서 사진 올린 사람으로 표시돼요"
+            placeholder="2~16자"
+            hint="2~16자, 동 지도에서 사진 올린 사람으로 표시돼요"
             value={values.nickname}
             onChange={(value) => handleChange("nickname", value)}
             onBlur={() => markTouched("nickname")}
