@@ -42,12 +42,13 @@ export function useBoundaries() {
 }
 
 type MapDongsState = {
+  timeBand: TimeBand | null;
   dongs: Map<string, DongColor>;
   topDongs: TopDong[];
   season: string | null;
 };
 
-const EMPTY_MAP_DONGS: MapDongsState = { dongs: new Map(), topDongs: [], season: null };
+const EMPTY_MAP_DONGS: MapDongsState = { timeBand: null, dongs: new Map(), topDongs: [], season: null };
 
 export function useDongColors(timeBand: TimeBand) {
   const [data, setData] = useState<MapDongsState>(EMPTY_MAP_DONGS);
@@ -58,12 +59,12 @@ export function useDongColors(timeBand: TimeBand) {
     getMapDongs(timeBand)
     .then(({ dongs, topDongs, season }) => {
       if (cancelled) return;
-      setData({ dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])), topDongs, season });
+      setData({ timeBand, dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])), topDongs, season });
       setError(null);
     })
     .catch(() => {
       if (cancelled) return;
-      setData(EMPTY_MAP_DONGS);
+      setData({ ...EMPTY_MAP_DONGS, timeBand });
       setError("동 색을 불러오지 못했어요.");
     });
     return () => {
@@ -71,7 +72,7 @@ export function useDongColors(timeBand: TimeBand) {
     };
   }, [timeBand]);
 
-  return { ...data, error };
+  return { ...data, error, loading: data.timeBand !== timeBand };
 }
 
 export function toKakaoPath(rings: number[][][]) {

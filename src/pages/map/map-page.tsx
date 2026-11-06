@@ -19,7 +19,7 @@ export function MapPage() {
   const navigate = useNavigate();
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
-  const { dongs, topDongs, season, error: colorError } = useDongColors(timeBand);
+  const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
 
   const seasonInfo = seasonOf(season);
   const totalPhotos = [...dongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
@@ -56,7 +56,7 @@ export function MapPage() {
                 <MapModeToggle />
               </div>
 
-              <div className="relative mt-2 h-[560px]">
+              <div className={`relative mt-2 h-[560px] transition-opacity ${loading ? "opacity-50" : ""}`}>
                 {boundaries && (
                     <SvgMap
                   boundaries={boundaries}
@@ -87,7 +87,7 @@ export function MapPage() {
               </p>
             </section>
 
-            <aside className="flex flex-col gap-4">
+            <aside className={`flex flex-col gap-4 transition-opacity ${loading ? "opacity-50" : ""}`}>
               <RankPanel
                   timeBand={timeBand}
                   season={seasonInfo}
