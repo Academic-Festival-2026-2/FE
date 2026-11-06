@@ -160,13 +160,14 @@ export function LoginPage() {
                 회원가입
               </Link>
             </p>
-            <button
-              type="button"
-              onClick={() => showNotReady("지도 둘러보기")}
+            {/* /map은 로그인 없이 볼 수 있음, 시간대는 지도 화면 기본값(SUNSET)과 같게 */}
+            <Link
+              to="/map"
+              search={{ timeBand: "SUNSET" }}
               className="text-[13px] text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
             >
               로그인 없이 지도 둘러보기
-            </button>
+            </Link>
           </div>
         </section>
       </main>
