@@ -18,11 +18,11 @@ type FormValues = Record<Field, string>;
 type Term = "service" | "privacy" | "location" | "notification";
 
 const TERMS: { key: Term; label: string; required: boolean }[] = [
-  { key: "service", label: "[필수] 서비스 이용약관", required: true },
-  { key: "privacy", label: "[필수] 개인정보 수집·이용", required: true },
-  { key: "location", label: "[필수] 위치정보 이용 (사진 촬영 위치)", required: true },
+  { key: "service", label: "서비스 이용약관", required: true },
+  { key: "privacy", label: "개인정보 수집·이용", required: true },
+  { key: "location", label: "위치정보 이용 (사진 촬영 위치)", required: true },
   // 저장할 BE 필드가 아직 없어 화면에만 표시
-  { key: "notification", label: "[선택] 색 알림 수신", required: false },
+  { key: "notification", label: "색 알림 수신", required: false },
 ];
 
 function validate(values: FormValues): Partial<Record<Field, string>> {
@@ -64,8 +64,6 @@ export function SignUpPage() {
   const [serverErrors, setServerErrors] = useState<Partial<Record<Field, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // 인증 메일 버튼 안내는 버튼 바로 아래(이메일 칸)에 표시
-  const [emailNotice, setEmailNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validate(values);
@@ -134,124 +132,132 @@ export function SignUpPage() {
   }
 
   return (
-    <AuthLayout cardClassName="max-w-[480px]">
-      <h1 className="text-3xl font-extrabold text-gray-900">회원가입</h1>
-      <p className="mt-3 text-gray-600">내 사진이 동네의 색이 되도록, 계정을 만들어 주세요.</p>
+    <AuthLayout cardClassName="max-w-[1000px] px-5 py-8 sm:px-12 sm:py-12">
+      <h1 className="text-3xl font-extrabold tracking-[-0.5px] text-gray-900">회원가입</h1>
+      <p className="mt-2 text-[15px] text-[#55524c]">
+        내 사진이 동네의 색이 되도록, 계정을 만들어 주세요.
+      </p>
 
-      <form className="mt-6 flex flex-col gap-5" onSubmit={handleSubmit} noValidate>
-        <TextField
-          id="email"
-          label="이메일"
-          type="email"
-          autoComplete="email"
-          placeholder="name@example.com"
-          value={values.email}
-          onChange={(value) => handleChange("email", value)}
-          onBlur={() => markTouched("email")}
-          error={errorOf("email")}
-          hint={emailNotice ?? undefined}
-          action={
-            <button
-              type="button"
-              onClick={() => setEmailNotice("이메일 인증 기능은 준비 중이에요.")}
-              className="h-12 shrink-0 rounded-xl border border-gray-900 bg-white px-4 text-sm text-gray-900 transition-colors hover:bg-[#f7f5f0]"
-            >
-              인증 메일
-            </button>
-          }
-        />
-        <TextField
-          id="password"
-          label="비밀번호"
-          type="password"
-          autoComplete="new-password"
-          value={values.password}
-          onChange={(value) => handleChange("password", value)}
-          onBlur={() => markTouched("password")}
-          error={errorOf("password")}
-          hint="8~20자, 영문과 숫자를 함께"
-        />
-        <TextField
-          id="passwordConfirm"
-          label="비밀번호 확인"
-          type="password"
-          autoComplete="new-password"
-          value={values.passwordConfirm}
-          onChange={(value) => handleChange("passwordConfirm", value)}
-          onBlur={() => markTouched("passwordConfirm")}
-          error={errorOf("passwordConfirm")}
-        />
-        <TextField
-          id="nickname"
-          label="닉네임"
-          autoComplete="nickname"
-          value={values.nickname}
-          onChange={(value) => handleChange("nickname", value)}
-          onBlur={() => markTouched("nickname")}
-          error={errorOf("nickname")}
-          hint="2–16자 · 동 지도에서 사진 올린 사람으로 표시"
-        />
+      <form
+        className="mt-8 grid gap-x-10 gap-y-5 md:grid-cols-2"
+        onSubmit={handleSubmit}
+        noValidate
+      >
+        <div className="flex flex-col gap-5">
+          <TextField
+            id="email"
+            label="이메일"
+            type="email"
+            autoComplete="email"
+            placeholder="name@example.com"
+            value={values.email}
+            onChange={(value) => handleChange("email", value)}
+            onBlur={() => markTouched("email")}
+            error={errorOf("email")}
+          />
+          <TextField
+            id="password"
+            label="비밀번호"
+            type="password"
+            autoComplete="new-password"
+            placeholder="8~20자, 영문+숫자"
+            value={values.password}
+            onChange={(value) => handleChange("password", value)}
+            onBlur={() => markTouched("password")}
+            error={errorOf("password")}
+          />
+          <TextField
+            id="passwordConfirm"
+            label="비밀번호 확인"
+            type="password"
+            autoComplete="new-password"
+            placeholder="한 번 더"
+            value={values.passwordConfirm}
+            onChange={(value) => handleChange("passwordConfirm", value)}
+            onBlur={() => markTouched("passwordConfirm")}
+            error={errorOf("passwordConfirm")}
+          />
+          <TextField
+            id="nickname"
+            label="닉네임"
+            autoComplete="nickname"
+            placeholder="2–16자 · 동 지도에서 사진 올린 사람으로 표시돼요"
+            value={values.nickname}
+            onChange={(value) => handleChange("nickname", value)}
+            onBlur={() => markTouched("nickname")}
+            error={errorOf("nickname")}
+          />
+        </div>
 
-        <fieldset className="rounded-2xl border border-[#e8e4dc] px-4 pt-1 pb-4">
-          <legend className="px-2 text-sm text-gray-600">약관 동의</legend>
-          <label className="flex cursor-pointer items-center gap-3 border-b border-[#e8e4dc] py-3 font-bold text-gray-900">
-            <input
-              type="checkbox"
-              checked={allAgreed}
-              onChange={(event) => toggleAll(event.target.checked)}
-              className="h-5 w-5 accent-[#ff8a3d]"
-            />
-            전체 동의
-          </label>
-          <div className="mt-2 flex flex-col">
-            {TERMS.map((term) => (
-              <label key={term.key} className="flex cursor-pointer items-center gap-3 py-2 text-gray-800">
-                <input
-                  type="checkbox"
-                  checked={agreements[term.key]}
-                  onChange={(event) =>
-                    setAgreements((prev) => ({ ...prev, [term.key]: event.target.checked }))
-                  }
-                  className="h-5 w-5 accent-[#ff8a3d]"
-                />
-                {term.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <div className="flex flex-col gap-5">
+          {/* 약관 박스가 남는 높이를 채워 버튼 아랫선을 왼쪽 닉네임 칸과 맞춤 */}
+          <fieldset className="flex-1 rounded-2xl border border-[#e2ded5] px-5 pt-1 pb-4">
+            <legend className="px-1 text-sm font-bold text-gray-900">약관 동의</legend>
+            <label className="flex cursor-pointer items-center gap-3 border-b border-[#ece8e1] py-3 font-bold text-gray-900">
+              <input
+                type="checkbox"
+                checked={allAgreed}
+                onChange={(event) => toggleAll(event.target.checked)}
+                className="h-5 w-5 shrink-0 accent-[#ff8a3d]"
+              />
+              전체 동의
+            </label>
+            <div className="mt-2 flex flex-col">
+              {TERMS.map((term) => (
+                <div key={term.key} className="flex items-center justify-between gap-3 py-1.5">
+                  <label className="flex min-w-0 cursor-pointer items-center gap-3 text-gray-800">
+                    <input
+                      type="checkbox"
+                      checked={agreements[term.key]}
+                      onChange={(event) =>
+                        setAgreements((prev) => ({ ...prev, [term.key]: event.target.checked }))
+                      }
+                      className="h-5 w-5 shrink-0 accent-[#ff8a3d]"
+                    />
+                    <span>
+                      <b className={term.required ? "text-[#b5470e]" : "text-[#6b675f]"}>
+                        {term.required ? "[필수]" : "[선택]"}
+                      </b>{" "}
+                      {term.label}
+                    </span>
+                  </label>
+                  {/* 약관 본문이 아직 없어 안내만 표시 */}
+                  <button
+                    type="button"
+                    onClick={() => showNotReady("약관 보기")}
+                    className="shrink-0 text-[13px] whitespace-nowrap text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
+                  >
+                    보기
+                  </button>
+                </div>
+              ))}
+            </div>
+            {notice && (
+              <p role="status" className="mt-2 text-sm text-gray-500">
+                {notice}
+              </p>
+            )}
+          </fieldset>
 
-        {formError && (
-          <p role="alert" className="text-sm text-red-500">
-            {formError}
-          </p>
-        )}
+          {formError && (
+            <p role="alert" className="text-sm text-red-500">
+              {formError}
+            </p>
+          )}
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="h-12 w-full rounded-xl bg-[#ff8a3d] font-bold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSubmitting ? "가입 중..." : "가입하기"}
-        </button>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="h-12 w-full shrink-0 rounded-xl bg-[#ff8a3d] font-extrabold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? "가입 중..." : "가입하기"}
+          </button>
+        </div>
       </form>
 
-      <button
-        type="button"
-        onClick={() => showNotReady("카카오 가입")}
-        className="mt-4 h-12 w-full rounded-xl border border-[#ddd8ce] bg-white text-gray-900 transition-colors hover:bg-[#f7f5f0]"
-      >
-        카카오로 가입
-      </button>
-
-      {notice && (
-        <p role="status" className="mt-3 text-center text-sm text-gray-500">
-          {notice}
-        </p>
-      )}
-
-      <p className="mt-6 text-center text-gray-600">
+      <p className="mt-8 text-center text-sm text-[#55524c]">
         이미 계정이 있으신가요?{" "}
-        <Link to="/login" className="font-bold text-[#c4581a] underline underline-offset-4">
+        <Link to="/login" className="font-bold text-[#b5470e] underline underline-offset-4 hover:text-[#8a350a]">
           로그인
         </Link>
       </p>
