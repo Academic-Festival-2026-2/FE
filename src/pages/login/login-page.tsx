@@ -54,7 +54,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthLayout headerLink={{ to: "/signup", label: "회원가입" }}>
+    <AuthLayout>
       <h1 className="text-3xl font-extrabold text-gray-900">로그인</h1>
       <p className="mt-3 text-gray-600">사진을 올리고 내 기록을 보려면 로그인해 주세요.</p>
 

@@ -1,28 +1,18 @@
 import { Link } from "@tanstack/react-router";
 
-type AuthHeaderProps = {
-  // 오른쪽 위에 보여줄 이동 링크
-  link?: { to: "/login" | "/signup"; label: string };
-};
-
-export function AuthHeader({ link }: AuthHeaderProps) {
+export function AuthHeader() {
   return (
-    <header className="border-b border-[#e8e4dc]">
-      <div className="flex h-16 items-center justify-between px-6 sm:px-12">
-        <Link to="/" className="flex items-center gap-3">
-          <span className="grid h-6 w-6 grid-cols-2 gap-0.5" aria-hidden>
-            <span className="rounded-[2px] bg-[#ff8a3d]" />
-            <span className="rounded-[2px] bg-[#7fb2e5]" />
-            <span className="rounded-[2px] bg-[#4b5784]" />
-            <span className="rounded-[2px] bg-[#d3d3d6]" />
-          </span>
-          <span className="text-xl font-extrabold text-gray-900">픽셀</span>
+    <header className="border-b border-[#e3dfd7]">
+      <div className="flex h-[66px] items-center px-6 sm:px-12">
+        <Link to="/" className="flex items-center gap-2.5">
+          <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden>
+            <rect x="0" y="0" width="14" height="14" fill="#ff8a3d" />
+            <rect x="16" y="0" width="14" height="14" fill="#7fb0e0" />
+            <rect x="0" y="16" width="14" height="14" fill="#5e6a91" />
+            <rect x="16" y="16" width="14" height="14" fill="#c9cbd3" />
+          </svg>
+          <span className="text-2xl font-extrabold tracking-[-0.5px] text-gray-900">픽셀</span>
         </Link>
-        {link && (
-          <Link to={link.to} className="text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900">
-            {link.label}
-          </Link>
-        )}
       </div>
     </header>
   );

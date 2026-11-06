@@ -134,7 +134,7 @@ export function SignUpPage() {
   }
 
   return (
-    <AuthLayout headerLink={{ to: "/login", label: "로그인" }} cardClassName="max-w-[480px]">
+    <AuthLayout cardClassName="max-w-[480px]">
       <h1 className="text-3xl font-extrabold text-gray-900">회원가입</h1>
       <p className="mt-3 text-gray-600">내 사진이 동네의 색이 되도록, 계정을 만들어 주세요.</p>
 
