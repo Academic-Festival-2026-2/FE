@@ -1,5 +1,5 @@
 import type { DongColor } from "../../api/map";
-import { EMPTY_FILL } from "./map-data";
+import { ColorBar } from "./map-ui";
 
 type Props = {
   dong: DongColor;
@@ -15,10 +15,9 @@ export function MapTooltip({ dong, guName, bandLabel, hint }: Props) {
           <span className="font-bold text-gray-900">{dong.name}</span>
           <span className="text-xs text-gray-500">{guName}</span>
         </div>
-        <div
-            className="mt-2 h-2 rounded-full"
-            style={{ backgroundColor: dong.dominantColor ?? EMPTY_FILL }}
-        />
+        <div className="mt-2">
+          <ColorBar colors={dong.colorRatio.slice(0, 4)} />
+        </div>
         <p className="mt-2 text-xs text-gray-600">
           {bandLabel} 사진 {dong.photoCount}장
         </p>
