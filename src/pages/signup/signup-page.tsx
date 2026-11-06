@@ -20,7 +20,7 @@ type Term = "service" | "privacy" | "location" | "notification";
 const TERMS: { key: Term; label: string; required: boolean }[] = [
   { key: "service", label: "서비스 이용약관", required: true },
   { key: "privacy", label: "개인정보 수집·이용", required: true },
-  { key: "location", label: "위치정보 이용 (사진 촬영 위치)", required: true },
+  { key: "location", label: "위치정보 이용 (사진 촬영 위치)", required: false },
   // 저장할 BE 필드가 아직 없어 화면에만 표시
   { key: "notification", label: "색 알림 수신", required: false },
 ];
