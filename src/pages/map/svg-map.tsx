@@ -159,7 +159,7 @@ export function SvgMap({
             ref={svgRef}
             viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
             className="h-full w-full touch-none select-none"
-            role="img"
+            role="group"
             aria-label="부천 동별 대표색 지도"
             onPointerDown={(event) => {
               dragRef.current = { x: event.clientX, y: event.clientY, view: viewRef.current, moved: false };
