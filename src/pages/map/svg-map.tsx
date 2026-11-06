@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Boundaries, DongColor } from "../../api/map";
 import { EMPTY_FILL, toneColor } from "./map-data";
 import { VIEW_SIZE, toShapes, type DongShape } from "./map-geometry";
@@ -61,6 +61,12 @@ export function SvgMap({
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [pointerInside, setPointerInside] = useState(false);
   const hovered = shapes.find((shape) => shape.dongCode === hoveredCode);
+
+  const uid = useId();
+  const clipId = `${uid}-clip`;
+  const blurId = `${uid}-blur`;
+  const featherId = `${uid}-feather`;
+  const edgesId = `${uid}-edges`;
 
   function moveTooltip(event: React.PointerEvent<HTMLDivElement>) {
     const tip = tooltipRef.current;
@@ -184,19 +190,19 @@ export function SvgMap({
             }}
         >
           <defs>
-            <clipPath id="city-clip">
+            <clipPath id={clipId}>
               {shapes.map((shape) => (
                   <path key={shape.dongCode} d={shape.path} />
               ))}
             </clipPath>
-            <filter id="dong-blur" x="-20%" y="-20%" width="140%" height="140%">
+            <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation={EDGE_BLUR} />
             </filter>
-            <filter id="edge-feather" x="-10%" y="-10%" width="120%" height="120%">
+            <filter id={featherId} x="-10%" y="-10%" width="120%" height="120%">
               <feGaussianBlur stdDeviation={EDGE_WIDTH / 4} />
             </filter>
             <mask
-                id="dong-edges"
+                id={edgesId}
                 maskUnits="userSpaceOnUse"
                 x={-100}
                 y={-100}
@@ -208,7 +214,7 @@ export function SvgMap({
                   stroke="#ffffff"
                   strokeWidth={EDGE_WIDTH}
                   strokeLinejoin="round"
-                  filter="url(#edge-feather)"
+                  filter={`url(#${featherId})`}
               >
                 {shapes.map((shape) => (
                     <path key={shape.dongCode} d={shape.path} />
@@ -217,7 +223,7 @@ export function SvgMap({
             </mask>
           </defs>
 
-          <g clipPath="url(#city-clip)">
+          <g clipPath={`url(#${clipId})`}>
             <g>
               {shapes.map((shape) => (
                   <path
@@ -240,8 +246,8 @@ export function SvgMap({
                   />
               ))}
             </g>
-            <g mask="url(#dong-edges)" pointerEvents="none">
-              <g filter="url(#dong-blur)">{fills}</g>
+            <g mask={`url(#${edgesId})`} pointerEvents="none">
+              <g filter={`url(#${blurId})`}>{fills}</g>
             </g>
           </g>
 
