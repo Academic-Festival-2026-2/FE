@@ -59,6 +59,7 @@ export function SvgMap({
   const movedRef = useRef(false);
 
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const [pointerInside, setPointerInside] = useState(false);
   const hovered = shapes.find((shape) => shape.dongCode === hoveredCode);
 
   function moveTooltip(event: React.PointerEvent<HTMLDivElement>) {
@@ -142,7 +143,12 @@ export function SvgMap({
   ));
 
   return (
-      <div className="relative h-full w-full" onPointerMove={moveTooltip}>
+      <div
+        className="relative h-full w-full"
+        onPointerMove={moveTooltip}
+        onPointerEnter={() => setPointerInside(true)}
+        onPointerLeave={() => setPointerInside(false)}
+      >
         <svg
             ref={svgRef}
             viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
@@ -229,7 +235,7 @@ export function SvgMap({
                       onBlur={() => onHover(null)}
                       onClick={() => select(shape)}
                       onKeyDown={(event) => {
-                        if (event.key === "Enter") select(shape);
+                        if (event.key === "Enter") onSelect(shape.dongCode);
                       }}
                   />
               ))}
@@ -300,7 +306,7 @@ export function SvgMap({
         </svg>
 
         <div ref={tooltipRef} className="pointer-events-none absolute left-0 top-0 z-10">
-          {hoveredCode && tooltip}
+          {hoveredCode && pointerInside && tooltip}
         </div>
 
         <div className="absolute right-2 top-2 flex flex-col gap-1.5">
