@@ -40,7 +40,7 @@ export function TextField({
     <div className={cn("flex flex-col", isSmall ? "gap-1.5" : "gap-2")}>
       <label
         htmlFor={id}
-        className={isSmall ? "text-[13px] font-bold text-gray-900" : "text-sm text-gray-600"}
+        className={isSmall ? "text-[13px] font-bold text-gray-900" : "text-sm font-bold text-gray-900"}
       >
         {label}
       </label>
@@ -56,10 +56,11 @@ export function TextField({
           aria-invalid={error ? true : undefined}
           aria-describedby={message ? messageId : undefined}
           className={cn(
-            "w-full min-w-0 border border-[#ddd8ce] px-4 text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-[#ff8a3d] focus:bg-white",
+            "w-full min-w-0 border px-4 text-gray-900 outline-none transition-colors focus:border-[#ff8a3d] focus:bg-white",
             isSmall
-              ? "h-10 rounded-[10px] bg-white text-sm"
-              : "h-12 rounded-xl bg-[#f7f5f0] text-base",
+              ? "h-10 rounded-[10px] border-[#ddd8ce] bg-white text-sm placeholder:text-gray-400"
+              : // 브라우저 자동 완성의 노란 배경 대신 입력칸 배경색 유지
+                "h-12 rounded-[10px] border-[#e2ded5] bg-[#f6f4ef] text-[15px] placeholder:text-[#7a766e] autofill:shadow-[inset_0_0_0_1000px_#f6f4ef]",
             error && "border-red-400 focus:border-red-400",
           )}
         />
