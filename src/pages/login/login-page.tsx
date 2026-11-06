@@ -57,11 +57,11 @@ export function LoginPage() {
   return (
     <div className="min-h-screen bg-[#f3f1ec]">
       <AuthHeader />
-      <main className="mx-auto grid w-full max-w-[1440px] gap-6 px-4 py-12 sm:px-12 sm:pt-14 sm:pb-6 lg:grid-cols-[1.25fr_1fr]">
+      <main className="mx-auto grid w-full max-w-[1440px] gap-6 px-4 py-12 sm:px-12 sm:pt-14 sm:pb-6 xl:grid-cols-[1.25fr_1fr]">
         {/* 소개 그림: 좁은 화면에서는 숨기고 로그인 카드만 표시 */}
         <section
           aria-label="픽셀 소개"
-          className="relative hidden min-h-[620px] overflow-hidden rounded-3xl border border-[#e6e2da] bg-white lg:block"
+          className="relative hidden min-h-[620px] overflow-hidden rounded-3xl border border-[#e6e2da] bg-white xl:block"
         >
           <img
             src={loginHero}
@@ -77,7 +77,7 @@ export function LoginPage() {
           </p>
         </section>
 
-        <section className="mx-auto flex w-full max-w-[480px] flex-col rounded-3xl border border-[#e6e2da] bg-white px-6 py-10 sm:px-[46px] sm:pt-11 sm:pb-[34px] lg:max-w-none">
+        <section className="mx-auto flex w-full max-w-[480px] flex-col rounded-3xl border border-[#e6e2da] bg-white px-6 py-10 sm:px-[46px] sm:pt-11 sm:pb-[34px] xl:max-w-none">
           <h1 className="text-[32px] font-extrabold tracking-[-0.5px] text-gray-900">로그인</h1>
           <p className="mt-2.5 text-[15px] text-[#55524c]">
             사진을 올리고 내 기록을 보려면 로그인해 주세요.
