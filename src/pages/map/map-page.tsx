@@ -1,47 +1,103 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { TimeBand } from "../../api/map";
+import { AuthHeader } from "../../components/layout/auth-header";
+import { bandLabel, seasonOf, useBoundaries, useDongColors } from "./map-data";
+import { MapTooltip } from "./map-tooltip";
 import {
-  KAKAO_ERROR,
-  KAKAO_UNAVAILABLE,
-  PAGE_BG,
-  useBoundaries,
-  useDongColors,
-} from "./map-data";
-import { DongCard, ErrorBanner, TimeBandBar } from "./map-ui";
-import { useCoveredMap } from "./use-covered-map";
+  ErrorBanner,
+  MapModeToggle,
+  RankPanel,
+  SeasonChip,
+  TimeBandTabs,
+  UploadCta,
+} from "./map-ui";
+import { SvgMap } from "./svg-map";
 
 export function MapPage() {
   const { timeBand } = useSearch({ from: "/map" });
   const navigate = useNavigate();
-  const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
-  const { dongs, error: colorError } = useDongColors(timeBand);
+  const { dongs, topDongs, season, error: colorError } = useDongColors(timeBand);
 
-  useCoveredMap(containerRef, boundaries, dongs, {
-    onHover: setHoveredCode,
-    onSelect: (dongCode) =>
-      navigate({ to: "/dong/$dongCode", params: { dongCode }, search: { timeBand } }),
-  });
+  const seasonInfo = seasonOf(season);
+  const totalPhotos = [...dongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
+  const title = [seasonInfo?.name, `${bandLabel(timeBand)}의 부천`].filter(Boolean).join(" ");
+  const hoveredDong = hoveredCode ? dongs.get(hoveredCode) : undefined;
+  const hoveredGu = boundaries?.features.find(
+      (feature) => feature.properties.dongCode === hoveredCode,
+  )?.properties.guName;
 
   function changeTimeBand(value: TimeBand) {
     navigate({ to: "/map", search: { timeBand: value }, replace: true });
   }
 
   return (
-    <div className="relative h-screen w-full" style={{ backgroundColor: PAGE_BG }}>
-      <div ref={containerRef} className="h-full w-full" />
+      <div className="min-h-screen bg-[#f7f5f0]">
+        <AuthHeader />
+        <main className="mx-auto w-full max-w-[1192px] px-4 pt-7 pb-12">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <section className="flex min-w-0 flex-col rounded-3xl border border-[#e8e4dc] bg-white p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-[26px] font-extrabold text-gray-900">{title}</h1>
+                  <p className="mt-1 text-sm text-gray-500">
+                    사진 {totalPhotos.toLocaleString()}장 · 동 {dongs.size}곳
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
+                  {seasonInfo && <SeasonChip season={seasonInfo} />}
+                </div>
+              </div>
 
-      <div className="absolute left-4 top-4 z-10">
-        <TimeBandBar value={timeBand} onChange={changeTimeBand} />
+              <div className="mt-4">
+                <MapModeToggle />
+              </div>
+
+              <div className="relative mt-2 h-[560px]">
+                {boundaries && (
+                    <SvgMap
+                  boundaries={boundaries}
+                  dongs={dongs}
+                  hoveredCode={hoveredCode}
+                  onHover={setHoveredCode}
+                  onSelect={(dongCode) =>
+                      navigate({ to: "/dong/$dongCode", params: { dongCode }, search: { timeBand } })}
+                  tooltip={
+                  hoveredDong && (
+                  <MapTooltip
+                  dong={hoveredDong}
+                guName={hoveredGu ?? ""}
+                bandLabel={bandLabel(timeBand)}
+                hint="눌러서 확대 →"
+              />
+              )
+              }
+              />
+                )}
+                <div className="absolute left-2 top-2">
+                  <ErrorBanner message={boundaryError ?? colorError} />
+                </div>
+              </div>
+
+              <p className="mt-2 text-xs text-gray-500">
+                동에 마우스를 올리면 그 동만 선명해지고, 누르면 확대돼요
+              </p>
+            </section>
+
+            <aside className="flex flex-col gap-4">
+              <RankPanel
+                  timeBand={timeBand}
+                  season={seasonInfo}
+                  topDongs={topDongs}
+                  onHover={setHoveredCode}
+              />
+              <UploadCta />
+            </aside>
+          </div>
+        </main>
       </div>
-      <div className="absolute bottom-6 left-4 z-10">
-        <DongCard dong={hoveredCode ? dongs.get(hoveredCode) : undefined} />
-      </div>
-      <div className="absolute bottom-6 right-4 z-10">
-        <ErrorBanner message={KAKAO_UNAVAILABLE ? KAKAO_ERROR : (boundaryError ?? colorError)} />
-      </div>
-    </div>
   );
 }

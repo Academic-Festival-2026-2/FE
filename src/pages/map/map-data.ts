@@ -5,7 +5,7 @@ import {
   type BoundaryFeature,
   type Boundaries,
   type DongColor,
-  type TimeBand,
+  type TimeBand, type TopDong,
 } from "../../api/map";
 
 export const PAGE_BG = "#f7f5f0";
@@ -41,29 +41,37 @@ export function useBoundaries() {
   return { boundaries, error };
 }
 
+type MapDongsState = {
+  dongs: Map<string, DongColor>;
+  topDongs: TopDong[];
+  season: string | null;
+};
+
+const EMPTY_MAP_DONGS: MapDongsState = { dongs: new Map(), topDongs: [], season: null };
+
 export function useDongColors(timeBand: TimeBand) {
-  const [dongs, setDongs] = useState(new Map<string, DongColor>());
+  const [data, setData] = useState<MapDongsState>(EMPTY_MAP_DONGS);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     getMapDongs(timeBand)
-      .then(({ dongs: list }) => {
-        if (cancelled) return;
-        setDongs(new Map(list.map((dong) => [dong.dongCode, dong])));
-        setError(null);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setDongs(new Map());
-        setError("동 색을 불러오지 못했어요.");
-      });
+    .then(({ dongs, topDongs, season }) => {
+      if (cancelled) return;
+      setData({ dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])), topDongs, season });
+      setError(null);
+    })
+    .catch(() => {
+      if (cancelled) return;
+      setData(EMPTY_MAP_DONGS);
+      setError("동 색을 불러오지 못했어요.");
+    });
     return () => {
       cancelled = true;
     };
   }, [timeBand]);
 
-  return { dongs, error };
+  return { ...data, error };
 }
 
 export function toKakaoPath(rings: number[][][]) {
@@ -99,4 +107,60 @@ export function labelPoint(feature: BoundaryFeature): [number, number] {
 
   if (bestArea === 0) return [best[0][0], best[0][1]];
   return [bestCx / (3 * bestArea), bestCy / (3 * bestArea)];
+}
+
+export function mixColor(from: string, to: string, ratio: number) {
+  const parse = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const start = parse(from);
+  const end = parse(to);
+  return `#${start
+  .map((value, i) => Math.round(value + (end[i] - value) * ratio).toString(16).padStart(2, "0"))
+  .join("")}`;
+}
+
+export const TIME_BANDS: { value: TimeBand; label: string; swatch: string[] }[] = [
+  { value: "DAWN", label: "새벽", swatch: ["#8a86c8", "#a9a3d6", "#6f7fbf", "#c3b3dc"] },
+  { value: "DAY", label: "낮", swatch: ["#8fb5d9", "#9cc28c", "#d6c58a", "#e6cf8f"] },
+  { value: "SUNSET", label: "노을", swatch: ["#f28b4b", "#f5a96a", "#e07a5f", "#f2a38a"] },
+  { value: "NIGHT", label: "밤", swatch: ["#3d4a80", "#2e3558", "#5a4f8c", "#6b64a8"] },
+];
+
+const SEASONS: Record<string, { name: string; months: string }> = {
+  SPRING: { name: "봄", months: "3–5월" },
+  SUMMER: { name: "여름", months: "6–8월" },
+  AUTUMN: { name: "가을", months: "9–11월" },
+  WINTER: { name: "겨울", months: "12–2월" },
+};
+
+export function bandLabel(value: TimeBand) {
+  return TIME_BANDS.find((band) => band.value === value)?.label ?? "";
+}
+
+export function seasonOf(season: string | null) {
+  return season ? SEASONS[season] : undefined;
+}
+
+const TONE_MAX_SATURATION = 0.55;
+const TONE_MIN_LIGHTNESS = 0.5;
+const TONE_MAX_LIGHTNESS = 0.84;
+
+export function toneColor(hex: string) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  const delta = max - min;
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+
+  let hue = 0;
+  if (delta !== 0) {
+    if (max === r) hue = ((g - b) / delta) % 6;
+    else if (max === g) hue = (b - r) / delta + 2;
+    else hue = (r - g) / delta + 4;
+    hue = (hue * 60 + 360) % 360;
+  }
+
+  const s = Math.min(saturation, TONE_MAX_SATURATION);
+  const l = Math.min(TONE_MAX_LIGHTNESS, Math.max(TONE_MIN_LIGHTNESS, 0.66 + (lightness - 0.5) * 0.6));
+  return `hsl(${Math.round(hue)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%)`;
 }
