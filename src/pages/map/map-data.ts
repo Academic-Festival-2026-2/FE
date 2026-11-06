@@ -5,7 +5,8 @@ import {
   type BoundaryFeature,
   type Boundaries,
   type DongColor,
-  type TimeBand, type TopDong,
+  type TimeBand,
+  type TopDong,
 } from "../../api/map";
 
 export const PAGE_BG = "#f7f5f0";
@@ -48,7 +49,12 @@ type MapDongsState = {
   season: string | null;
 };
 
-const EMPTY_MAP_DONGS: MapDongsState = { timeBand: null, dongs: new Map(), topDongs: [], season: null };
+const EMPTY_MAP_DONGS: MapDongsState = {
+  timeBand: null,
+  dongs: new Map(),
+  topDongs: [],
+  season: null,
+};
 
 export function useDongColors(timeBand: TimeBand) {
   const [data, setData] = useState<MapDongsState>(EMPTY_MAP_DONGS);
@@ -57,16 +63,21 @@ export function useDongColors(timeBand: TimeBand) {
   useEffect(() => {
     let cancelled = false;
     getMapDongs(timeBand)
-    .then(({ dongs, topDongs, season }) => {
-      if (cancelled) return;
-      setData({ timeBand, dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])), topDongs, season });
-      setError(null);
-    })
-    .catch(() => {
-      if (cancelled) return;
-      setData({ ...EMPTY_MAP_DONGS, timeBand });
-      setError("동 색을 불러오지 못했어요.");
-    });
+      .then(({ dongs, topDongs, season }) => {
+        if (cancelled) return;
+        setData({
+          timeBand,
+          dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
+          topDongs,
+          season,
+        });
+        setError(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setData({ ...EMPTY_MAP_DONGS, timeBand });
+        setError("동 색을 불러오지 못했어요.");
+      });
     return () => {
       cancelled = true;
     };
@@ -153,6 +164,9 @@ export function toneColor(hex: string) {
   }
 
   const s = Math.min(saturation, TONE_MAX_SATURATION);
-  const l = Math.min(TONE_MAX_LIGHTNESS, Math.max(TONE_MIN_LIGHTNESS, 0.66 + (lightness - 0.5) * 0.6));
+  const l = Math.min(
+    TONE_MAX_LIGHTNESS,
+    Math.max(TONE_MIN_LIGHTNESS, 0.66 + (lightness - 0.5) * 0.6),
+  );
   return `hsl(${Math.round(hue)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%)`;
 }

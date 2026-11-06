@@ -42,14 +42,7 @@ function zoomAround(view: View, x: number, y: number, factor: number): View {
   return clampView({ x: x - (x - view.x) * ratio, y: y - (y - view.y) * ratio, size });
 }
 
-export function SvgMap({
-                         boundaries,
-                         dongs,
-                         hoveredCode,
-                         onHover,
-                         onSelect,
-                         tooltip,
-                       }: Props) {
+export function SvgMap({ boundaries, dongs, hoveredCode, onHover, onSelect, tooltip }: Props) {
   const shapes = useMemo(() => toShapes(boundaries), [boundaries]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [view, setView] = useState<View>(FULL_VIEW);
@@ -136,7 +129,12 @@ export function SvgMap({
       event.preventDefault();
       cancelAnimationFrame(frameRef.current);
       const point = toSvgPoint(svg, event.clientX, event.clientY);
-      const next = zoomAround(viewRef.current, point.x, point.y, event.deltaY > 0 ? 1.15 : 1 / 1.15);
+      const next = zoomAround(
+        viewRef.current,
+        point.x,
+        point.y,
+        event.deltaY > 0 ? 1.15 : 1 / 1.15,
+      );
       viewRef.current = next;
       setView(next);
     };
@@ -145,204 +143,211 @@ export function SvgMap({
   }, []);
 
   const fills = shapes.map((shape) => (
-      <path key={shape.dongCode} d={shape.path} fill={fillOf(shape.dongCode)} fillRule="evenodd" />
+    <path key={shape.dongCode} d={shape.path} fill={fillOf(shape.dongCode)} fillRule="evenodd" />
   ));
 
   return (
-      <div
-        className="relative h-full w-full"
-        onPointerMove={moveTooltip}
-        onPointerEnter={() => setPointerInside(true)}
-        onPointerLeave={() => setPointerInside(false)}
+    <div
+      className="relative h-full w-full"
+      onPointerMove={moveTooltip}
+      onPointerEnter={() => setPointerInside(true)}
+      onPointerLeave={() => setPointerInside(false)}
+    >
+      <svg
+        ref={svgRef}
+        viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
+        className="h-full w-full select-none"
+        role="group"
+        aria-label="부천 동별 대표색 지도"
+        onPointerDown={(event) => {
+          if (event.pointerType === "touch") return;
+          dragRef.current = {
+            x: event.clientX,
+            y: event.clientY,
+            view: viewRef.current,
+            moved: false,
+          };
+          movedRef.current = false;
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current;
+          const svg = svgRef.current;
+          if (!drag || !svg) return;
+          const dx = event.clientX - drag.x;
+          const dy = event.clientY - drag.y;
+          if (!drag.moved) {
+            if (Math.hypot(dx, dy) < 5) return;
+            drag.moved = true;
+            movedRef.current = true;
+            svg.setPointerCapture(event.pointerId);
+            cancelAnimationFrame(frameRef.current);
+          }
+          const rect = svg.getBoundingClientRect();
+          const ratio = drag.view.size / Math.min(rect.width, rect.height);
+          applyView(
+            clampView({ ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio }),
+          );
+        }}
+        onPointerUp={() => {
+          dragRef.current = null;
+        }}
+        onPointerCancel={() => {
+          dragRef.current = null;
+        }}
       >
-        <svg
-            ref={svgRef}
-            viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
-            className="h-full w-full select-none"
-            role="group"
-            aria-label="부천 동별 대표색 지도"
-            onPointerDown={(event) => {
-              if (event.pointerType === "touch") return;
-              dragRef.current = { x: event.clientX, y: event.clientY, view: viewRef.current, moved: false };
-              movedRef.current = false;
-            }}
-            onPointerMove={(event) => {
-              const drag = dragRef.current;
-              const svg = svgRef.current;
-              if (!drag || !svg) return;
-              const dx = event.clientX - drag.x;
-              const dy = event.clientY - drag.y;
-              if (!drag.moved) {
-                if (Math.hypot(dx, dy) < 5) return;
-                drag.moved = true;
-                movedRef.current = true;
-                svg.setPointerCapture(event.pointerId);
-                cancelAnimationFrame(frameRef.current);
-              }
-              const rect = svg.getBoundingClientRect();
-              const ratio = drag.view.size / Math.min(rect.width, rect.height);
-              applyView(clampView({ ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio }));
-            }}
-            onPointerUp={() => {
-              dragRef.current = null;
-            }}
-            onPointerCancel={() => {
-              dragRef.current = null;
-            }}
-        >
-          <defs>
-            <clipPath id={clipId}>
-              {shapes.map((shape) => (
-                  <path key={shape.dongCode} d={shape.path} />
-              ))}
-            </clipPath>
-            <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation={EDGE_BLUR} />
-            </filter>
-            <filter id={featherId} x="-10%" y="-10%" width="120%" height="120%">
-              <feGaussianBlur stdDeviation={EDGE_WIDTH / 4} />
-            </filter>
-            <mask
-                id={edgesId}
-                maskUnits="userSpaceOnUse"
-                x={-100}
-                y={-100}
-                width={VIEW_SIZE + 200}
-                height={VIEW_SIZE + 200}
-            >
-              <g
-                  fill="none"
-                  stroke="#ffffff"
-                  strokeWidth={EDGE_WIDTH}
-                  strokeLinejoin="round"
-                  filter={`url(#${featherId})`}
-              >
-                {shapes.map((shape) => (
-                    <path key={shape.dongCode} d={shape.path} />
-                ))}
-              </g>
-            </mask>
-          </defs>
-
-          <g clipPath={`url(#${clipId})`}>
-            <g>
-              {shapes.map((shape) => (
-                  <path
-                      key={shape.dongCode}
-                      d={shape.path}
-                      fill={fillOf(shape.dongCode)}
-                      fillRule="evenodd"
-                      className="cursor-pointer outline-none"
-                      tabIndex={0}
-                      role="button"
-                      aria-label={shape.name}
-                      onPointerEnter={() => onHover(shape.dongCode)}
-                      onPointerLeave={() => onHover(null)}
-                      onFocus={() => onHover(shape.dongCode)}
-                      onBlur={() => onHover(null)}
-                      onClick={() => select(shape)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") onSelect(shape.dongCode);
-                      }}
-                  />
-              ))}
-            </g>
-            <g mask={`url(#${edgesId})`} pointerEvents="none">
-              <g filter={`url(#${blurId})`}>{fills}</g>
-            </g>
-          </g>
-
-          <g pointerEvents="none">
+        <defs>
+          <clipPath id={clipId}>
             {shapes.map((shape) => (
-                <path
-                    key={shape.dongCode}
-                    d={shape.path}
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeOpacity={0.45}
-                    strokeWidth={0.8}
-                    vectorEffect="non-scaling-stroke"
-                />
+              <path key={shape.dongCode} d={shape.path} />
+            ))}
+          </clipPath>
+          <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation={EDGE_BLUR} />
+          </filter>
+          <filter id={featherId} x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation={EDGE_WIDTH / 4} />
+          </filter>
+          <mask
+            id={edgesId}
+            maskUnits="userSpaceOnUse"
+            x={-100}
+            y={-100}
+            width={VIEW_SIZE + 200}
+            height={VIEW_SIZE + 200}
+          >
+            <g
+              fill="none"
+              stroke="#ffffff"
+              strokeWidth={EDGE_WIDTH}
+              strokeLinejoin="round"
+              filter={`url(#${featherId})`}
+            >
+              {shapes.map((shape) => (
+                <path key={shape.dongCode} d={shape.path} />
+              ))}
+            </g>
+          </mask>
+        </defs>
+
+        <g clipPath={`url(#${clipId})`}>
+          <g>
+            {shapes.map((shape) => (
+              <path
+                key={shape.dongCode}
+                d={shape.path}
+                fill={fillOf(shape.dongCode)}
+                fillRule="evenodd"
+                className="cursor-pointer outline-none"
+                tabIndex={0}
+                role="button"
+                aria-label={shape.name}
+                onPointerEnter={() => onHover(shape.dongCode)}
+                onPointerLeave={() => onHover(null)}
+                onFocus={() => onHover(shape.dongCode)}
+                onBlur={() => onHover(null)}
+                onClick={() => select(shape)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") onSelect(shape.dongCode);
+                }}
+              />
             ))}
           </g>
+          <g mask={`url(#${edgesId})`} pointerEvents="none">
+            <g filter={`url(#${blurId})`}>{fills}</g>
+          </g>
+        </g>
 
-          {hovered && (
-              <path
-                  d={`M-1000,-1000H1600V1600H-1000Z${hovered.path}`}
-                  fill="#ffffff"
-                  fillOpacity={0.55}
-                  fillRule="evenodd"
-                  pointerEvents="none"
-              />
-          )}
+        <g pointerEvents="none">
+          {shapes.map((shape) => (
+            <path
+              key={shape.dongCode}
+              d={shape.path}
+              fill="none"
+              stroke="#ffffff"
+              strokeOpacity={0.45}
+              strokeWidth={0.8}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </g>
 
-          {hovered && (
-              <path
-                  d={hovered.path}
-                  fill={colorOf(hovered.dongCode) ?? EMPTY_FILL}
-                  fillRule="evenodd"
-                  stroke="#ffffff"
-                  strokeWidth={2.5}
-                  vectorEffect="non-scaling-stroke"
-                  pointerEvents="none"
-              />
-          )}
+        {hovered && (
+          <path
+            d={`M-1000,-1000H1600V1600H-1000Z${hovered.path}`}
+            fill="#ffffff"
+            fillOpacity={0.55}
+            fillRule="evenodd"
+            pointerEvents="none"
+          />
+        )}
 
-          <g pointerEvents="none">
-            {shapes
+        {hovered && (
+          <path
+            d={hovered.path}
+            fill={colorOf(hovered.dongCode) ?? EMPTY_FILL}
+            fillRule="evenodd"
+            stroke="#ffffff"
+            strokeWidth={2.5}
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+        )}
+
+        <g pointerEvents="none">
+          {shapes
             .filter((shape) => shape.area / (scale * scale) > LABEL_MIN_AREA)
             .map((shape) => (
-                <text
-                    key={shape.dongCode}
-                    x={shape.label[0]}
-                    y={shape.label[1]}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={8.5 * scale}
-                    fontWeight={700}
-                    fill="#3d3830"
-                    stroke="#ffffff"
-                    strokeWidth={2.4 * scale}
-                    strokeLinejoin="round"
-                    paintOrder="stroke"
-                >
-                  {shape.name}
-                </text>
+              <text
+                key={shape.dongCode}
+                x={shape.label[0]}
+                y={shape.label[1]}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={8.5 * scale}
+                fontWeight={700}
+                fill="#3d3830"
+                stroke="#ffffff"
+                strokeWidth={2.4 * scale}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              >
+                {shape.name}
+              </text>
             ))}
-          </g>
-        </svg>
+        </g>
+      </svg>
 
-        <div ref={tooltipRef} className="pointer-events-none absolute left-0 top-0 z-10">
-          {hoveredCode && pointerInside && tooltip}
-        </div>
-
-        <div className="absolute right-2 top-2 flex flex-col gap-1.5">
-          <button
-              type="button"
-              aria-label="확대"
-              onClick={() => zoomBy(1 / 1.5)}
-              className="h-9 w-9 rounded-lg bg-white/90 text-lg text-gray-900 shadow"
-          >
-            +
-          </button>
-
-          <button
-              type="button"
-              aria-label="축소"
-              onClick={() => zoomBy(1.5)}
-              className="h-9 w-9 rounded-lg bg-white/90 text-lg text-gray-900 shadow"
-          >
-            −
-          </button>
-          <button
-              type="button"
-              aria-label="처음 크기로"
-              onClick={reset}
-              className="h-9 w-9 rounded-lg bg-white/90 text-xs font-semibold text-gray-900 shadow"
-          >
-            전체
-          </button>
-        </div>
+      <div ref={tooltipRef} className="pointer-events-none absolute left-0 top-0 z-10">
+        {hoveredCode && pointerInside && tooltip}
       </div>
+
+      <div className="absolute right-2 top-2 flex flex-col gap-1.5">
+        <button
+          type="button"
+          aria-label="확대"
+          onClick={() => zoomBy(1 / 1.5)}
+          className="h-9 w-9 rounded-lg bg-white/90 text-lg text-gray-900 shadow"
+        >
+          +
+        </button>
+
+        <button
+          type="button"
+          aria-label="축소"
+          onClick={() => zoomBy(1.5)}
+          className="h-9 w-9 rounded-lg bg-white/90 text-lg text-gray-900 shadow"
+        >
+          −
+        </button>
+        <button
+          type="button"
+          aria-label="처음 크기로"
+          onClick={reset}
+          className="h-9 w-9 rounded-lg bg-white/90 text-xs font-semibold text-gray-900 shadow"
+        >
+          전체
+        </button>
+      </div>
+    </div>
   );
 }
