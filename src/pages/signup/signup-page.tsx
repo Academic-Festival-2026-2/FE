@@ -132,18 +132,23 @@ export function SignUpPage() {
   }
 
   return (
-    <AuthLayout cardClassName="max-w-[1000px] px-5 py-8 sm:px-12 sm:py-12">
-      <h1 className="text-3xl font-extrabold tracking-[-0.5px] text-gray-900">회원가입</h1>
-      <p className="mt-2 text-[15px] text-[#55524c]">
-        내 사진이 동네의 색이 되도록, 계정을 만들어 주세요.
+    // 시안: 모바일 Signup-A, PC Signup-B
+    <AuthLayout cardClassName="max-w-[1000px] rounded-[20px] px-5 pt-7 pb-6 sm:rounded-3xl sm:px-[46px] sm:pt-11 sm:pb-[34px]">
+      <h1 className="text-[26px] font-extrabold tracking-[-0.5px] text-gray-900 sm:text-[32px]">
+        회원가입
+      </h1>
+      <p className="mt-2 text-[15px] text-[#55524c] sm:mt-2.5">
+        내 사진이 동네의 색이 되도록,
+        <br className="sm:hidden" /> 계정을 만들어 주세요.
       </p>
 
+      {/* 폼 폭이 680px(320px × 2 + 간격 40px) 이상이면 2단 */}
       <form
-        className="mt-8 grid gap-x-10 gap-y-5 md:grid-cols-2"
+        className="@container mt-6 grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-x-10 gap-y-[18px] sm:mt-[30px]"
         onSubmit={handleSubmit}
         noValidate
       >
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-[18px]">
           <TextField
             id="email"
             label="이메일"
@@ -155,28 +160,35 @@ export function SignUpPage() {
             onBlur={() => markTouched("email")}
             error={errorOf("email")}
           />
-          <TextField
-            id="password"
-            label="비밀번호"
-            type="password"
-            autoComplete="new-password"
-            placeholder="8~20자, 영문+숫자"
-            value={values.password}
-            onChange={(value) => handleChange("password", value)}
-            onBlur={() => markTouched("password")}
-            error={errorOf("password")}
-          />
-          <TextField
-            id="passwordConfirm"
-            label="비밀번호 확인"
-            type="password"
-            autoComplete="new-password"
-            placeholder="한 번 더"
-            value={values.passwordConfirm}
-            onChange={(value) => handleChange("passwordConfirm", value)}
-            onBlur={() => markTouched("passwordConfirm")}
-            error={errorOf("passwordConfirm")}
-          />
+          {/* 1단이고 폭이 넉넉하면 비밀번호 두 칸을 나란히, 2단에서는 세로로 */}
+          <div className="flex flex-wrap gap-x-3 gap-y-[18px] @min-[680px]:flex-col">
+            <div className="min-w-0 flex-[1_1_200px] @min-[680px]:flex-none">
+              <TextField
+                id="password"
+                label="비밀번호"
+                type="password"
+                autoComplete="new-password"
+                placeholder="8~20자, 영문+숫자"
+                value={values.password}
+                onChange={(value) => handleChange("password", value)}
+                onBlur={() => markTouched("password")}
+                error={errorOf("password")}
+              />
+            </div>
+            <div className="min-w-0 flex-[1_1_200px] @min-[680px]:flex-none">
+              <TextField
+                id="passwordConfirm"
+                label="비밀번호 확인"
+                type="password"
+                autoComplete="new-password"
+                placeholder="한 번 더"
+                value={values.passwordConfirm}
+                onChange={(value) => handleChange("passwordConfirm", value)}
+                onBlur={() => markTouched("passwordConfirm")}
+                error={errorOf("passwordConfirm")}
+              />
+            </div>
+          </div>
           <TextField
             id="nickname"
             label="닉네임"
@@ -189,51 +201,49 @@ export function SignUpPage() {
           />
         </div>
 
-        <div className="flex flex-col gap-5">
-          {/* 약관 박스가 남는 높이를 채워 버튼 아랫선을 왼쪽 닉네임 칸과 맞춤 */}
-          <fieldset className="flex-1 rounded-2xl border border-[#e2ded5] px-5 pt-1 pb-4">
+        <div className="flex flex-col gap-[18px]">
+          {/* 약관 박스가 남는 높이를 채우고(줄 간격은 고르게) 버튼 아랫선을 왼쪽 닉네임 칸과 맞춤 */}
+          <fieldset className="flex flex-1 flex-col justify-between gap-2 rounded-xl border border-[#e2ded5] px-3.5 pt-1.5 pb-3.5 text-sm sm:px-4">
             <legend className="px-1 text-sm font-bold text-gray-900">약관 동의</legend>
-            <label className="flex cursor-pointer items-center gap-3 border-b border-[#ece8e1] py-3 font-bold text-gray-900">
+            <label className="flex cursor-pointer items-center gap-2.5 border-b border-[#ece8e1] pt-1.5 pb-3 font-bold text-gray-900">
               <input
                 type="checkbox"
                 checked={allAgreed}
                 onChange={(event) => toggleAll(event.target.checked)}
-                className="h-5 w-5 shrink-0 accent-[#ff8a3d]"
+                className="h-[18px] w-[18px] shrink-0 accent-[#ff8a3d]"
               />
               전체 동의
             </label>
-            <div className="mt-2 flex flex-col">
-              {TERMS.map((term) => (
-                <div key={term.key} className="flex items-center justify-between gap-3 py-1.5">
-                  <label className="flex min-w-0 cursor-pointer items-center gap-3 text-gray-800">
-                    <input
-                      type="checkbox"
-                      checked={agreements[term.key]}
-                      onChange={(event) =>
-                        setAgreements((prev) => ({ ...prev, [term.key]: event.target.checked }))
-                      }
-                      className="h-5 w-5 shrink-0 accent-[#ff8a3d]"
-                    />
-                    <span>
-                      <b className={term.required ? "text-[#b5470e]" : "text-[#6b675f]"}>
-                        {term.required ? "[필수]" : "[선택]"}
-                      </b>{" "}
-                      {term.label}
-                    </span>
-                  </label>
-                  {/* 약관 본문이 아직 없어 안내만 표시 */}
-                  <button
-                    type="button"
-                    onClick={() => showNotReady("약관 보기")}
-                    className="shrink-0 text-[13px] whitespace-nowrap text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
-                  >
-                    보기
-                  </button>
-                </div>
-              ))}
-            </div>
+            {TERMS.map((term) => (
+              <div key={term.key} className="flex items-center justify-between gap-3">
+                <label className="flex min-w-0 cursor-pointer items-center gap-2.5 text-gray-900">
+                  <input
+                    type="checkbox"
+                    checked={agreements[term.key]}
+                    onChange={(event) =>
+                      setAgreements((prev) => ({ ...prev, [term.key]: event.target.checked }))
+                    }
+                    className="h-[18px] w-[18px] shrink-0 accent-[#ff8a3d]"
+                  />
+                  <span>
+                    <b className={term.required ? "text-[#b5470e]" : "text-[#6b675f]"}>
+                      {term.required ? "[필수]" : "[선택]"}
+                    </b>{" "}
+                    {term.label}
+                  </span>
+                </label>
+                {/* 약관 본문이 아직 없어 안내만 표시 */}
+                <button
+                  type="button"
+                  onClick={() => showNotReady("약관 보기")}
+                  className="shrink-0 text-[13px] whitespace-nowrap text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
+                >
+                  보기
+                </button>
+              </div>
+            ))}
             {notice && (
-              <p role="status" className="mt-2 text-sm text-gray-500">
+              <p role="status" className="text-sm text-gray-500">
                 {notice}
               </p>
             )}
@@ -248,14 +258,14 @@ export function SignUpPage() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-12 w-full shrink-0 rounded-xl bg-[#ff8a3d] font-extrabold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-[52px] w-full shrink-0 rounded-xl bg-[#ff8a3d] font-extrabold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? "가입 중..." : "가입하기"}
           </button>
         </div>
       </form>
 
-      <p className="mt-8 text-center text-sm text-[#55524c]">
+      <p className="mt-[26px] text-center text-sm text-[#55524c]">
         이미 계정이 있으신가요?{" "}
         <Link to="/login" className="font-bold text-[#b5470e] underline underline-offset-4 hover:text-[#8a350a]">
           로그인
