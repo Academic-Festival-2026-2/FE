@@ -5,7 +5,7 @@ import { ApiError } from "../../api/client";
 import { TextField } from "../../components/form/text-field";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { useAuthStore } from "../../stores/auth-store";
-import loginHero from "../../assets/login-hero.png";
+import loginHero from "../../assets/login-hero.webp";
 
 export function LoginPage() {
   const navigate = useNavigate();
