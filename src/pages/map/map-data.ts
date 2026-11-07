@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { getMyMap, type MyMapCell } from "../../api/mymap";
+import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { useAuthStore } from "../../stores/auth-store";
 import {
   getBoundaries,
   getMapDongs,
@@ -88,6 +91,52 @@ export function useDongColors(timeBand: TimeBand) {
 
 export function toKakaoPath(rings: number[][][]) {
   return rings.map((ring) => ring.map(([lng, lat]) => new kakao.maps.LatLng(lat, lng)));
+}
+
+export function useMyMap(enabled: boolean, timeBand: TimeBand) {
+  const accessToken = useAuthStore((state) => state.tokens?.accessToken);
+  const expireSession = useExpireSession();
+  const [cells, setCells] = useState<MyMapCell[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !accessToken) return;
+    let cancelled = false;
+    getMyMap(accessToken)
+      .then((data) => {
+        if (cancelled) return;
+        setCells(data.cells);
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (isSessionExpired(err)) expireSession();
+        else setError("내 지도를 불러오지 못했어요.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, accessToken, expireSession]);
+
+  const dongs = useMemo(() => {
+    const result = new Map<string, DongColor>();
+    for (const cell of cells ?? []) {
+      if (cell.timeBand !== timeBand) continue;
+      result.set(cell.dongCode, {
+        dongCode: cell.dongCode,
+        name: cell.name,
+        dominantColor: cell.filled ? cell.myColor : null,
+        photoCount: cell.myPhotoCount,
+        status: cell.filled ? "OK" : "EMPTY",
+        colorRatio: cell.myColor ? [{ hex: cell.myColor, ratio: 1 }] : [],
+      });
+    }
+    return result;
+  }, [cells, timeBand]);
+
+  const filledCount = [...dongs.values()].filter((dong) => dong.dominantColor).length;
+
+  return { dongs, filledCount, loading: enabled && cells === null && !error, error };
 }
 
 export function labelPoint(feature: BoundaryFeature): [number, number] {
