@@ -27,6 +27,7 @@ export type DongColor = {
   dominantColor: string | null;
   photoCount: number;
   status: CellStatus;
+  colorRatio: ColorRatio[];
 };
 
 export type ColorRatio = {

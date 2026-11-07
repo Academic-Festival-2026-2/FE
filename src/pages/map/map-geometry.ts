@@ -55,8 +55,8 @@ export function toShapes(boundaries: Boundaries): DongShape[] {
     const [minX, maxX] = extent(rings.flat().map(([x]) => x));
     const [minY, maxY] = extent(rings.flat().map(([, y]) => y));
     const path = rings
-    .map((ring) => `M${ring.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join("L")}Z`)
-    .join("");
+      .map((ring) => `M${ring.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join("L")}Z`)
+      .join("");
 
     return {
       dongCode: feature.properties.dongCode,
@@ -64,7 +64,7 @@ export function toShapes(boundaries: Boundaries): DongShape[] {
       path,
       label: project(labelPoint(feature)),
       bounds: [minX, minY, maxX, maxY],
-      area : rings.reduce((sum, ring) => sum + ringArea(ring), 0),
+      area: rings.reduce((sum, ring) => sum + ringArea(ring), 0),
     };
   });
 }

@@ -5,7 +5,8 @@ import {
   type BoundaryFeature,
   type Boundaries,
   type DongColor,
-  type TimeBand, type TopDong,
+  type TimeBand,
+  type TopDong,
 } from "../../api/map";
 
 export const PAGE_BG = "#f7f5f0";
@@ -42,12 +43,18 @@ export function useBoundaries() {
 }
 
 type MapDongsState = {
+  timeBand: TimeBand | null;
   dongs: Map<string, DongColor>;
   topDongs: TopDong[];
   season: string | null;
 };
 
-const EMPTY_MAP_DONGS: MapDongsState = { dongs: new Map(), topDongs: [], season: null };
+const EMPTY_MAP_DONGS: MapDongsState = {
+  timeBand: null,
+  dongs: new Map(),
+  topDongs: [],
+  season: null,
+};
 
 export function useDongColors(timeBand: TimeBand) {
   const [data, setData] = useState<MapDongsState>(EMPTY_MAP_DONGS);
@@ -56,22 +63,27 @@ export function useDongColors(timeBand: TimeBand) {
   useEffect(() => {
     let cancelled = false;
     getMapDongs(timeBand)
-    .then(({ dongs, topDongs, season }) => {
-      if (cancelled) return;
-      setData({ dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])), topDongs, season });
-      setError(null);
-    })
-    .catch(() => {
-      if (cancelled) return;
-      setData(EMPTY_MAP_DONGS);
-      setError("동 색을 불러오지 못했어요.");
-    });
+      .then(({ dongs, topDongs, season }) => {
+        if (cancelled) return;
+        setData({
+          timeBand,
+          dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
+          topDongs,
+          season,
+        });
+        setError(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setData({ ...EMPTY_MAP_DONGS, timeBand });
+        setError("동 색을 불러오지 못했어요.");
+      });
     return () => {
       cancelled = true;
     };
   }, [timeBand]);
 
-  return { ...data, error };
+  return { ...data, error, loading: data.timeBand !== timeBand };
 }
 
 export function toKakaoPath(rings: number[][][]) {
@@ -107,15 +119,6 @@ export function labelPoint(feature: BoundaryFeature): [number, number] {
 
   if (bestArea === 0) return [best[0][0], best[0][1]];
   return [bestCx / (3 * bestArea), bestCy / (3 * bestArea)];
-}
-
-export function mixColor(from: string, to: string, ratio: number) {
-  const parse = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  const start = parse(from);
-  const end = parse(to);
-  return `#${start
-  .map((value, i) => Math.round(value + (end[i] - value) * ratio).toString(16).padStart(2, "0"))
-  .join("")}`;
 }
 
 export const TIME_BANDS: { value: TimeBand; label: string; swatch: string[] }[] = [
@@ -161,6 +164,9 @@ export function toneColor(hex: string) {
   }
 
   const s = Math.min(saturation, TONE_MAX_SATURATION);
-  const l = Math.min(TONE_MAX_LIGHTNESS, Math.max(TONE_MIN_LIGHTNESS, 0.66 + (lightness - 0.5) * 0.6));
+  const l = Math.min(
+    TONE_MAX_LIGHTNESS,
+    Math.max(TONE_MIN_LIGHTNESS, 0.66 + (lightness - 0.5) * 0.6),
+  );
   return `hsl(${Math.round(hue)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%)`;
 }
