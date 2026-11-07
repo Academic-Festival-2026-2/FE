@@ -48,7 +48,7 @@ export function DongPage() {
   useEffect(() => {
     tintRef.current = tint;
     outlinePolygonsRef.current.forEach((polygon) =>
-        polygon.setOptions({ fillColor: tint ?? PAGE_BG, fillOpacity: tint ? DONG_TINT_OPACITY : 0 }),
+      polygon.setOptions({ fillColor: tint ?? PAGE_BG, fillOpacity: tint ? DONG_TINT_OPACITY : 0 }),
     );
   }, [tint]);
 
