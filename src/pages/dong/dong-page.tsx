@@ -19,6 +19,7 @@ const TIME_BAND_LABEL: Record<TimeBand, string> = {
 };
 
 const SELECTED_STROKE = "#1f1d1a";
+const DONG_TINT_OPACITY = 0.14;
 
 function signedArea(path: kakao.maps.LatLng[]) {
   let area = 0;
@@ -40,6 +41,16 @@ export function DongPage() {
 
   const feature = boundaries?.features.find((item) => item.properties.dongCode === dongCode);
   const dong = dongs.get(dongCode);
+  const outlinePolygonsRef = useRef<kakao.maps.Polygon[]>([]);
+  const tintRef = useRef<string | null>(null);
+  const tint = dong?.dominantColor ?? null;
+
+  useEffect(() => {
+    tintRef.current = tint;
+    outlinePolygonsRef.current.forEach((polygon) =>
+      polygon.setOptions({ fillColor: tint ?? PAGE_BG, fillOpacity: tint ? DONG_TINT_OPACITY : 0 }),
+    );
+  }, [tint]);
 
   useEffect(() => {
     if (!boundaries || !feature || KAKAO_UNAVAILABLE) return;
@@ -77,23 +88,24 @@ export function DongPage() {
           path: [frame, ...holes],
           strokeWeight: 0,
           fillColor: PAGE_BG,
-          fillOpacity: 1,
+          fillOpacity: 0.7,
           zIndex: 1,
         }),
       );
 
       for (const outline of outlines) {
-        overlays.push(
-          new kakao.maps.Polygon({
-            map,
-            path: outline,
-            strokeWeight: 3,
-            strokeColor: SELECTED_STROKE,
-            strokeOpacity: 1,
-            fillOpacity: 0,
-            zIndex: 2,
-          }),
-        );
+        const polygon = new kakao.maps.Polygon({
+          map,
+          path: outline,
+          strokeWeight: 2,
+          strokeColor: SELECTED_STROKE,
+          strokeOpacity: 0.6,
+          fillColor: tintRef.current ?? PAGE_BG,
+          fillOpacity: tintRef.current ? DONG_TINT_OPACITY : 0,
+          zIndex: 2,
+        });
+        overlays.push(polygon);
+        outlinePolygonsRef.current.push(polygon);
       }
 
       map.setBounds(bounds, 40, 40, 40, 40);
@@ -102,6 +114,7 @@ export function DongPage() {
     return () => {
       cancelled = true;
       overlays.forEach((overlay) => overlay.setMap(null));
+      outlinePolygonsRef.current = [];
     };
   }, [boundaries, feature]);
 
