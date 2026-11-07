@@ -12,6 +12,7 @@ import {
   SeasonChip,
   TimeBandTabs,
   UploadCta,
+  MyMapPanel,
 } from "./map-ui";
 import { SvgMap } from "./svg-map";
 
@@ -128,9 +129,15 @@ export function MapPage() {
           </section>
 
           <aside
-            className={`flex flex-col gap-4 transition-opacity ${loading ? "opacity-50" : ""}`}
+            className={`flex flex-col gap-4 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
           >
-            {!mine && (
+            {mine ? (
+              <MyMapPanel
+                timeBand={timeBand}
+                dongs={[...shownDongs.values()]}
+                onHover={setHoveredCode}
+              />
+            ) : (
               <RankPanel
                 timeBand={timeBand}
                 season={seasonInfo}
