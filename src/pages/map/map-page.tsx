@@ -16,7 +16,8 @@ import {
 import { SvgMap } from "./svg-map";
 
 export function MapPage() {
-  const { timeBand } = useSearch({ from: "/map" });
+  const { timeBand, mode } = useSearch({ from: "/map" });
+  const mine = mode === "mine";
   const navigate = useNavigate();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
@@ -32,7 +33,15 @@ export function MapPage() {
   )?.properties.guName;
 
   function changeTimeBand(value: TimeBand) {
-    navigate({ to: "/map", search: { timeBand: value }, replace: true });
+    navigate({ to: "/map", search: (prev) => ({ ...prev, timeBand: value }), replace: true });
+  }
+
+  function changeMode(nextMine: boolean) {
+    if (nextMine && !loggedIn) {
+      navigate({ to: "/login" });
+      return;
+    }
+    navigate({ to: "/map", search: { timeBand, mode: nextMine ? "mine" : undefined } });
   }
 
   return (
@@ -73,7 +82,7 @@ export function MapPage() {
             </div>
 
             <div className="mt-4">
-              <MapModeToggle />
+              <MapModeToggle mine={mine} onChange={changeMode} />
             </div>
 
             <div

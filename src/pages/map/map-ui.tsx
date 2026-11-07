@@ -56,22 +56,31 @@ export function SeasonChip({ season }: { season: { name: string; months: string 
   );
 }
 
-export function MapModeToggle() {
+export function MapModeToggle({
+  mine,
+  onChange,
+}: {
+  mine: boolean;
+  onChange: (mine: boolean) => void;
+}) {
+  const tab = (active: boolean) =>
+    `h-9 rounded-lg px-4 text-sm ${active ? "bg-gray-900 font-bold text-white" : "text-gray-500 hover:text-gray-900"}`;
+
   return (
     <div className="inline-flex rounded-xl border border-[#e8e4dc] bg-white p-1">
       <button
         type="button"
-        aria-pressed
-        className="h-9 rounded-lg bg-gray-900 px-4 text-sm font-bold text-white"
+        aria-pressed={!mine}
+        onClick={() => onChange(false)}
+        className={tab(!mine)}
       >
         공유 지도
       </button>
       <button
         type="button"
-        aria-pressed={false}
-        disabled
-        title="준비 중이에요"
-        className="h-9 rounded-lg px-4 text-sm text-gray-500"
+        aria-pressed={mine}
+        onClick={() => onChange(true)}
+        className={tab(mine)}
       >
         내 지도
       </button>
