@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
-import { bandLabel, seasonOf, useBoundaries, useDongColors } from "./map-data";
+import { bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
 import {
   ErrorBanner,
@@ -17,17 +17,23 @@ import { SvgMap } from "./svg-map";
 
 export function MapPage() {
   const { timeBand, mode } = useSearch({ from: "/map" });
-  const mine = mode === "mine";
   const navigate = useNavigate();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
+  const mine = mode === "mine" && loggedIn;
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
   const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
+  const myMap = useMyMap(mine, timeBand);
+  const shownDongs = mine ? myMap.dongs : dongs;
+  const shownLoading = mine ? myMap.loading : loading;
+  const shownError = mine ? myMap.error : colorError;
 
   const seasonInfo = seasonOf(season);
-  const totalPhotos = [...dongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
-  const title = [seasonInfo?.name, `${bandLabel(timeBand)}의 부천`].filter(Boolean).join(" ");
-  const hoveredDong = hoveredCode ? dongs.get(hoveredCode) : undefined;
+  const totalPhotos = [...shownDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
+  const title = [seasonInfo?.name, `${bandLabel(timeBand)}의 ${mine ? "내 " : ""}부천`]
+    .filter(Boolean)
+    .join(" ");
+  const hoveredDong = hoveredCode ? shownDongs.get(hoveredCode) : undefined;
   const hoveredGu = boundaries?.features.find(
     (feature) => feature.properties.dongCode === hoveredCode,
   )?.properties.guName;
@@ -72,7 +78,9 @@ export function MapPage() {
               <div>
                 <h1 className="text-[26px] font-extrabold text-gray-900">{title}</h1>
                 <p className="mt-1 text-sm text-gray-500">
-                  사진 {totalPhotos.toLocaleString()}장 · 동 {dongs.size}곳
+                  {mine
+                    ? `내 사진 ${totalPhotos}장 · 칠한 동 ${myMap.filledCount}/${shownDongs.size}곳`
+                    : `사진 ${totalPhotos.toLocaleString()}장 · 동 ${shownDongs.size}곳`}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -86,12 +94,12 @@ export function MapPage() {
             </div>
 
             <div
-              className={`relative mt-2 h-[560px] transition-opacity ${loading ? "opacity-50" : ""}`}
+              className={`relative mt-2 h-[560px] transition-opacity ${shownLoading ? "opacity-50" : ""}`}
             >
               {boundaries && (
                 <SvgMap
                   boundaries={boundaries}
-                  dongs={dongs}
+                  dongs={shownDongs}
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}
                   onSelect={(dongCode) =>
@@ -102,7 +110,7 @@ export function MapPage() {
                       <MapTooltip
                         dong={hoveredDong}
                         guName={hoveredGu ?? ""}
-                        bandLabel={bandLabel(timeBand)}
+                        bandLabel={`${mine ? "내 " : ""}${bandLabel(timeBand)}`}
                         hint="눌러서 확대 →"
                       />
                     )
@@ -110,7 +118,7 @@ export function MapPage() {
                 />
               )}
               <div className="absolute left-2 top-2">
-                <ErrorBanner message={boundaryError ?? colorError} />
+                <ErrorBanner message={boundaryError ?? shownError} />
               </div>
             </div>
 
@@ -122,12 +130,14 @@ export function MapPage() {
           <aside
             className={`flex flex-col gap-4 transition-opacity ${loading ? "opacity-50" : ""}`}
           >
-            <RankPanel
-              timeBand={timeBand}
-              season={seasonInfo}
-              topDongs={topDongs}
-              onHover={setHoveredCode}
-            />
+            {!mine && (
+              <RankPanel
+                timeBand={timeBand}
+                season={seasonInfo}
+                topDongs={topDongs}
+                onHover={setHoveredCode}
+              />
+            )}
             <UploadCta />
           </aside>
         </div>
