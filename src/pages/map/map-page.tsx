@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useAuthStore } from "../../stores/auth-store";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { bandLabel, seasonOf, useBoundaries, useDongColors } from "./map-data";
@@ -17,6 +18,7 @@ import { SvgMap } from "./svg-map";
 export function MapPage() {
   const { timeBand } = useSearch({ from: "/map" });
   const navigate = useNavigate();
+  const loggedIn = useAuthStore((state) => state.tokens !== null);
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
   const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
@@ -35,7 +37,25 @@ export function MapPage() {
 
   return (
     <div className="min-h-screen bg-[#f7f5f0]">
-      <AuthHeader />
+      <AuthHeader>
+        {loggedIn ? (
+          <Link to="/mypage" className="text-sm font-bold text-gray-900 hover:text-[#b5470e]">
+            내 정보
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3 text-sm">
+            <Link to="/login" className="text-[#55524c] hover:text-gray-900">
+              로그인
+            </Link>
+            <Link
+              to="/signup"
+              className="rounded-lg bg-[#ff8a3d] px-3 py-1.5 font-bold text-gray-900 hover:bg-[#f57a2a]"
+            >
+              회원가입
+            </Link>
+          </div>
+        )}
+      </AuthHeader>
       <main className="mx-auto w-full max-w-[1192px] px-4 pt-7 pb-12">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
           <section className="flex min-w-0 flex-col rounded-3xl border border-[#e8e4dc] bg-white p-6">
