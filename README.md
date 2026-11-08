@@ -51,11 +51,10 @@ pnpm lint    # 코드 검사
 ## BE 연결
 
 - 개발 서버(`pnpm dev`)는 `/api`로 시작하는 요청을 `http://localhost:8080`으로 전달합니다. (`vite.config.ts`의 `server.proxy`)
-- 배포할 때는 `.env.example`을 참고해 `.env`에 BE 주소를 넣습니다.
-
-```bash
-VITE_API_BASE_URL=https://api.example.com
-```
+- 배포(Vercel)에서는 `vercel.json`이 `/api` 요청을 EC2 BE로 전달합니다. 그래서 **`VITE_API_BASE_URL`은 비워 둡니다.**
+    - 값을 넣으면 브라우저가 BE를 직접 불러서 CORS·mixed content로 막힙니다. 로컬 `.env.local`도 마찬가지입니다.
+- Vercel 환경변수에는 `VITE_KAKAO_MAP_KEY`만 넣습니다. `VITE_` 값은 빌드할 때 파일에 들어가므로, 바꾼 뒤에는 **Redeploy**가 필요합니다.
+- EC2 주소가 바뀌면 `vercel.json`의 `destination`을 수정합니다.
 
 ## 폴더 구조
 
