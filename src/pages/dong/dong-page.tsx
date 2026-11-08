@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { TimeBand } from "../../api/map";
 import {
@@ -11,6 +11,7 @@ import {
   useDongColors,
 } from "../map/map-data";
 import { DongCard, ErrorBanner, TimeBandTabs } from "../map/map-ui";
+import { getDongDetail, type DongDetail, type DongPoint } from "../../api/dong";
 
 const SELECTED_STROKE = "#1f1d1a";
 const DONG_TINT_OPACITY = 0.14;
@@ -25,6 +26,44 @@ function signedArea(path: kakao.maps.LatLng[]) {
   return area;
 }
 
+function pixelElement(color: string, count: number) {
+  const pixel = document.createElement("div");
+  pixel.className = "relative h-4 w-4 rounded-[3px] border-2 border-white shadow";
+  pixel.style.backgroundColor = color;
+  if (count > 1) {
+    const badge = document.createElement("span");
+    badge.className =
+      "absolute -top-2 -right-4 rounded-full bg-gray-900 px-1 text-[10px] leading-4 font-bold text-white";
+    badge.textContent = `+${count - 1}`;
+    pixel.appendChild(badge);
+  }
+  return pixel;
+}
+
+function useDongDetail(dongCode: string, timeBand: TimeBand) {
+  const [detail, setDetail] = useState<DongDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getDongDetail(dongCode, timeBand)
+      .then((data) => {
+        if (cancelled) return;
+        setDetail(data);
+        setError(null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError("동 정보를 불러오지 못했어요.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dongCode, timeBand]);
+
+  return { detail, error };
+}
+
 export function DongPage() {
   const { dongCode } = useParams({ from: "/dong/$dongCode" });
   const { timeBand } = useSearch({ from: "/dong/$dongCode" });
@@ -32,6 +71,8 @@ export function DongPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
   const { dongs, error: colorError } = useDongColors(timeBand);
+  const { detail, error: detailError } = useDongDetail(dongCode, timeBand);
+  const [map, setMap] = useState<kakao.maps.Map | null>(null);
 
   const feature = boundaries?.features.find((item) => item.properties.dongCode === dongCode);
   const dong = dongs.get(dongCode);
@@ -103,6 +144,7 @@ export function DongPage() {
       }
 
       map.setBounds(bounds, 40, 40, 40, 40);
+      setMap(map);
     });
 
     return () => {
@@ -111,6 +153,28 @@ export function DongPage() {
       outlinePolygonsRef.current = [];
     };
   }, [boundaries, feature]);
+
+  useEffect(() => {
+    if (!map || !detail) return;
+
+    const groups = new Map<string, DongPoint[]>();
+    for (const point of detail.points) {
+      const key = `${point.lat},${point.lng}`;
+      groups.set(key, [...(groups.get(key) ?? []), point]);
+    }
+
+    const pixels = [...groups.values()].map(
+      (group) =>
+        new kakao.maps.CustomOverlay({
+          map,
+          position: new kakao.maps.LatLng(group[0].lat, group[0].lng),
+          content: pixelElement(group[0].color, group.length),
+          zIndex: 3,
+        }),
+    );
+
+    return () => pixels.forEach((pixel) => pixel.setMap(null));
+  }, [map, detail]);
 
   function changeTimeBand(value: TimeBand) {
     navigate({
@@ -155,7 +219,7 @@ export function DongPage() {
               ? KAKAO_ERROR
               : notFound
                 ? "없는 동이에요."
-                : (boundaryError ?? colorError)
+                : (boundaryError ?? colorError ?? detailError)
           }
         />
       </div>
