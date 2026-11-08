@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { TimeBand } from "../../api/map";
 import {
+  bandLabel,
   KAKAO_ERROR,
   KAKAO_UNAVAILABLE,
   PAGE_BG,
@@ -10,13 +11,6 @@ import {
   useDongColors,
 } from "../map/map-data";
 import { DongCard, ErrorBanner, TimeBandTabs } from "../map/map-ui";
-
-const TIME_BAND_LABEL: Record<TimeBand, string> = {
-  DAWN: "새벽",
-  DAY: "낮",
-  SUNSET: "노을",
-  NIGHT: "밤",
-};
 
 const SELECTED_STROKE = "#1f1d1a";
 const DONG_TINT_OPACITY = 0.14;
@@ -143,12 +137,10 @@ export function DongPage() {
           </p>
           {feature && (
             <h1 className="mt-1 text-2xl font-extrabold text-gray-900">
-              {feature.properties.name}의 {TIME_BAND_LABEL[timeBand]}
+              {feature.properties.name}의 {bandLabel(timeBand)}
             </h1>
           )}
-          {dong && (
-            <p className="mt-1 text-sm text-gray-500">가을 · 사진 {dong.photoCount}장</p>
-          )}
+          {dong && <p className="mt-1 text-sm text-gray-500">가을 · 사진 {dong.photoCount}장</p>}
         </div>
         <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
       </div>
