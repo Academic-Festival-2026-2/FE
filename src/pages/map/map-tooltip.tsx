@@ -16,7 +16,7 @@ export function MapTooltip({ dong, guName, bandLabel, hint }: Props) {
         <span className="text-xs text-gray-500">{guName}</span>
       </div>
       <div className="mt-2">
-        <ColorBar colors={dong.colorRatio.slice(0, 4)} />
+        <ColorBar colors={(dong.colorRatio ?? []).slice(0, 4)} />
       </div>
       <p className="mt-2 text-xs text-gray-600">
         {bandLabel} 사진 {dong.photoCount}장

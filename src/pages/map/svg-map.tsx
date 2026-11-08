@@ -160,6 +160,7 @@ export function SvgMap({ boundaries, dongs, hoveredCode, onHover, onSelect, tool
         role="group"
         aria-label="부천 동별 대표색 지도"
         onPointerDown={(event) => {
+          movedRef.current = false;
           if (event.pointerType === "touch") return;
           dragRef.current = {
             x: event.clientX,
@@ -167,7 +168,6 @@ export function SvgMap({ boundaries, dongs, hoveredCode, onHover, onSelect, tool
             view: viewRef.current,
             moved: false,
           };
-          movedRef.current = false;
         }}
         onPointerMove={(event) => {
           const drag = dragRef.current;
@@ -321,7 +321,7 @@ export function SvgMap({ boundaries, dongs, hoveredCode, onHover, onSelect, tool
         {hoveredCode && pointerInside && tooltip}
       </div>
 
-      <div className="absolute right-2 top-2 flex flex-col gap-1.5">
+      <div className="absolute top-2 right-2 flex flex-col gap-1.5 pointer-coarse:hidden">
         <button
           type="button"
           aria-label="확대"
