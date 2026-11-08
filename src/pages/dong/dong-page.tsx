@@ -10,6 +10,7 @@ import {
   useBoundaries,
   useDongColors,
 } from "../map/map-data";
+import { PhotoCard } from "./photo-card";
 import { DongCard, ErrorBanner, TimeBandTabs } from "../map/map-ui";
 import { getDongDetail, type DongDetail, type DongPoint } from "../../api/dong";
 
@@ -28,7 +29,7 @@ function signedArea(path: kakao.maps.LatLng[]) {
 
 function pixelElement(color: string, count: number) {
   const pixel = document.createElement("div");
-  pixel.className = "relative h-4 w-4 rounded-[3px] border-2 border-white shadow";
+  pixel.className = "relative h-4 w-4 cursor-pointer rounded-[3px] border-2 border-white shadow";
   pixel.style.backgroundColor = color;
   if (count > 1) {
     const badge = document.createElement("span");
@@ -73,6 +74,7 @@ export function DongPage() {
   const { dongs, error: colorError } = useDongColors(timeBand);
   const { detail, error: detailError } = useDongDetail(dongCode, timeBand);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
+  const [selected, setSelected] = useState<DongPoint[] | null>(null);
 
   const feature = boundaries?.features.find((item) => item.properties.dongCode === dongCode);
   const dong = dongs.get(dongCode);
@@ -163,20 +165,23 @@ export function DongPage() {
       groups.set(key, [...(groups.get(key) ?? []), point]);
     }
 
-    const pixels = [...groups.values()].map(
-      (group) =>
-        new kakao.maps.CustomOverlay({
-          map,
-          position: new kakao.maps.LatLng(group[0].lat, group[0].lng),
-          content: pixelElement(group[0].color, group.length),
-          zIndex: 3,
-        }),
-    );
+    const pixels = [...groups.values()].map((group) => {
+      const content = pixelElement(group[0].color, group.length);
+      content.addEventListener("click", () => setSelected(group));
+      return new kakao.maps.CustomOverlay({
+        map,
+        position: new kakao.maps.LatLng(group[0].lat, group[0].lng),
+        content,
+        clickable: true,
+        zIndex: 3,
+      });
+    });
 
     return () => pixels.forEach((pixel) => pixel.setMap(null));
   }, [map, detail]);
 
   function changeTimeBand(value: TimeBand) {
+    setSelected(null);
     navigate({
       to: "/dong/$dongCode",
       params: { dongCode },
@@ -212,6 +217,15 @@ export function DongPage() {
       <div className="absolute bottom-6 left-4 z-10">
         <DongCard dong={dong} />
       </div>
+      {selected && (
+        <div className="absolute top-4 right-4 z-10">
+          <PhotoCard
+            key={selected[0].photoId}
+            points={selected}
+            onClose={() => setSelected(null)}
+          />
+        </div>
+      )}
       <div className="absolute bottom-6 right-4 z-10">
         <ErrorBanner
           message={
