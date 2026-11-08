@@ -96,7 +96,7 @@ export function toKakaoPath(rings: number[][][]) {
 export function useMyMap(enabled: boolean, timeBand: TimeBand) {
   const accessToken = useAuthStore((state) => state.tokens?.accessToken);
   const expireSession = useExpireSession();
-  const [cells, setCells] = useState<MyMapCell[] | null>(null);
+  const [loaded, setLoaded] = useState<{ token: string; cells: MyMapCell[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,7 +105,7 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
     getMyMap(accessToken)
       .then((data) => {
         if (cancelled) return;
-        setCells(data.cells);
+        setLoaded({ token: accessToken, cells: data.cells });
         setError(null);
       })
       .catch((err) => {
@@ -117,6 +117,8 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
       cancelled = true;
     };
   }, [enabled, accessToken, expireSession]);
+
+  const cells = loaded && loaded.token === accessToken ? loaded.cells : null;
 
   const dongs = useMemo(() => {
     const result = new Map<string, DongColor>();
@@ -134,7 +136,9 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
     return result;
   }, [cells, timeBand]);
 
-  const filledCount = [...dongs.values()].filter((dong) => dong.dominantColor).length;
+  const filledCount = (cells ?? []).filter(
+    (cell) => cell.timeBand === timeBand && cell.filled,
+  ).length;
 
   return { dongs, filledCount, loading: enabled && cells === null && !error, error };
 }

@@ -27,7 +27,7 @@ function signedArea(path: kakao.maps.LatLng[]) {
 
 export function DongPage() {
   const { dongCode } = useParams({ from: "/dong/$dongCode" });
-  const { timeBand } = useSearch({ from: "/dong/$dongCode" });
+  const { timeBand, mode } = useSearch({ from: "/dong/$dongCode" });
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
@@ -116,7 +116,7 @@ export function DongPage() {
     navigate({
       to: "/dong/$dongCode",
       params: { dongCode },
-      search: { timeBand: value },
+      search: (prev) => ({ ...prev, timeBand: value }),
       replace: true,
     });
   }
@@ -130,7 +130,7 @@ export function DongPage() {
       <div className="absolute left-4 top-4 z-10 flex flex-col items-start gap-3">
         <div className="rounded-2xl bg-white/90 px-5 py-4 shadow">
           <p className="text-sm text-gray-500">
-            <Link to="/map" search={{ timeBand }} className="hover:text-gray-900">
+            <Link to="/map" search={{ timeBand, mode }} className="hover:text-gray-900">
               ← 부천시
             </Link>
             {feature && <span> / {feature.properties.guName}</span>}

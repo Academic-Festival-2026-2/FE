@@ -80,7 +80,7 @@ export function MapPage() {
                 <h1 className="text-[26px] font-extrabold text-gray-900">{title}</h1>
                 <p className="mt-1 text-sm text-gray-500">
                   {mine
-                    ? `내 사진 ${totalPhotos}장 · 칠한 동 ${myMap.filledCount}/${shownDongs.size}곳`
+                    ? `내 사진 ${totalPhotos.toLocaleString()}장 · 칠한 동 ${myMap.filledCount}/${shownDongs.size}곳`
                     : `사진 ${totalPhotos.toLocaleString()}장 · 동 ${shownDongs.size}곳`}
                 </p>
               </div>
@@ -104,7 +104,11 @@ export function MapPage() {
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}
                   onSelect={(dongCode) =>
-                    navigate({ to: "/dong/$dongCode", params: { dongCode }, search: { timeBand } })
+                    navigate({
+                      to: "/dong/$dongCode",
+                      params: { dongCode },
+                      search: { timeBand, mode },
+                    })
                   }
                   tooltip={
                     !shownLoading &&
