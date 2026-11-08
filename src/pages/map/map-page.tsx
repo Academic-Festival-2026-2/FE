@@ -107,7 +107,7 @@ export function MapPage() {
                     navigate({ to: "/dong/$dongCode", params: { dongCode }, search: { timeBand } })
                   }
                   tooltip={
-                    !loading &&
+                    !shownLoading &&
                     hoveredDong && (
                       <MapTooltip
                         dong={hoveredDong}
