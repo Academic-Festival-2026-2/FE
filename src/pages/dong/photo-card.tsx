@@ -7,7 +7,15 @@ function formatTakenAt(value: string) {
   return `${value.slice(0, 10).replaceAll("-", ".")} ${value.slice(11, 16)}`;
 }
 
-export function PhotoCard({ points, onClose }: { points: DongPoint[]; onClose: () => void }) {
+export function PhotoCard({
+  points,
+  mine,
+  onClose,
+}: {
+  points: DongPoint[];
+  mine: boolean;
+  onClose: () => void;
+}) {
   const [index, setIndex] = useState(0);
   const [photo, setPhoto] = useState<PhotoDetail | null>(null);
   const [failedId, setFailedId] = useState<number | null>(null);
@@ -16,7 +24,7 @@ export function PhotoCard({ points, onClose }: { points: DongPoint[]; onClose: (
 
   useEffect(() => {
     let cancelled = false;
-    getPhotoDetail(photoId)
+    getPhotoDetail(photoId, mine)
       .then((data) => {
         if (cancelled) return;
         setPhoto(data);
@@ -28,7 +36,7 @@ export function PhotoCard({ points, onClose }: { points: DongPoint[]; onClose: (
     return () => {
       cancelled = true;
     };
-  }, [photoId]);
+  }, [photoId, mine]);
 
   const current = photo?.photoId === photoId ? photo : null;
   const showImage = current?.imageUrl && current.imageUrl !== failedUrl;

@@ -11,8 +11,8 @@ export type DongTimeBand = {
 
 export type DongPoint = {
   photoId: number;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   color: string;
   timeBand: TimeBand;
 };

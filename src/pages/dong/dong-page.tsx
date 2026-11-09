@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { getDongDetail, type DongDetail, type DongPoint } from "../../api/dong";
+import { getDongDetail, type DongPoint } from "../../api/dong";
 import type { TimeBand } from "../../api/map";
+import { getMyDongPhotos } from "../../api/mymap";
+import { useAuthStore } from "../../stores/auth-store";
 import {
   bandLabel,
   KAKAO_ERROR,
@@ -10,6 +12,7 @@ import {
   toKakaoPath,
   useBoundaries,
   useDongColors,
+  useMyMap,
 } from "../map/map-data";
 import { DongCard, ErrorBanner, TimeBandTabs } from "../map/map-ui";
 import { PhotoCard } from "./photo-card";
@@ -41,17 +44,18 @@ function pixelElement(color: string, count: number) {
   return pixel;
 }
 
-function useDongDetail(dongCode: string, timeBand: TimeBand) {
-  const key = `${dongCode}:${timeBand}`;
-  const [loaded, setLoaded] = useState<{ key: string; detail: DongDetail } | null>(null);
+function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean) {
+  const key = `${dongCode}:${timeBand}:${mine ? "mine" : "shared"}`;
+  const [loaded, setLoaded] = useState<{ key: string; points: DongPoint[] } | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getDongDetail(dongCode, timeBand)
+    const request = mine ? getMyDongPhotos(dongCode, timeBand) : getDongDetail(dongCode, timeBand);
+    request
       .then((data) => {
         if (cancelled) return;
-        setLoaded({ key, detail: data });
+        setLoaded({ key, points: data.points });
       })
       .catch(() => {
         if (cancelled) return;
@@ -60,10 +64,10 @@ function useDongDetail(dongCode: string, timeBand: TimeBand) {
     return () => {
       cancelled = true;
     };
-  }, [key, dongCode, timeBand]);
+  }, [key, dongCode, timeBand, mine]);
 
   return {
-    detail: loaded && loaded.key === key ? loaded.detail : null,
+    points: loaded && loaded.key === key ? loaded.points : null,
     error: failedKey === key ? "동 정보를 불러오지 못했어요." : null,
   };
 }
@@ -74,13 +78,17 @@ export function DongPage() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
+  const loggedIn = useAuthStore((state) => state.tokens !== null);
+  const mine = mode === "mine" && loggedIn;
   const { dongs, error: colorError } = useDongColors(timeBand);
-  const { detail, error: detailError } = useDongDetail(dongCode, timeBand);
+  const myMap = useMyMap(mine, timeBand);
+  const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
   const [selected, setSelected] = useState<DongPoint[] | null>(null);
 
   const feature = boundaries?.features.find((item) => item.properties.dongCode === dongCode);
-  const dong = dongs.get(dongCode);
+  const dong = (mine ? myMap.dongs : dongs).get(dongCode);
+  const unlocated = (points ?? []).filter((point) => point.lat === null || point.lng === null);
   const outlinePolygonsRef = useRef<kakao.maps.Polygon[]>([]);
   const tintRef = useRef<string | null>(null);
   const tint = dong?.dominantColor ?? null;
@@ -160,10 +168,11 @@ export function DongPage() {
   }, [boundaries, feature]);
 
   useEffect(() => {
-    if (!map || !detail) return;
+    if (!map || !points) return;
 
     const groups = new Map<string, DongPoint[]>();
-    for (const point of detail.points) {
+    for (const point of points) {
+      if (point.lat === null || point.lng === null) continue;
       const key = `${point.lat},${point.lng}`;
       groups.set(key, [...(groups.get(key) ?? []), point]);
     }
@@ -173,7 +182,7 @@ export function DongPage() {
       content.addEventListener("click", () => setSelected(group));
       return new kakao.maps.CustomOverlay({
         map,
-        position: new kakao.maps.LatLng(group[0].lat, group[0].lng),
+        position: new kakao.maps.LatLng(group[0].lat as number, group[0].lng as number),
         content,
         clickable: true,
         zIndex: 3,
@@ -181,7 +190,7 @@ export function DongPage() {
     });
 
     return () => pixels.forEach((pixel) => pixel.setMap(null));
-  }, [map, detail]);
+  }, [map, points]);
 
   function changeTimeBand(value: TimeBand) {
     setSelected(null);
@@ -209,10 +218,24 @@ export function DongPage() {
           </p>
           {feature && (
             <h1 className="mt-1 text-2xl font-extrabold text-gray-900">
-              {feature.properties.name}의 {bandLabel(timeBand)}
+              {feature.properties.name}의 {mine ? "내 " : ""}
+              {bandLabel(timeBand)}
             </h1>
           )}
-          {dong && <p className="mt-1 text-sm text-gray-500">가을 · 사진 {dong.photoCount}장</p>}
+          {dong && (
+            <p className="mt-1 text-sm text-gray-500">
+              {mine ? "내 사진" : "가을 · 사진"} {dong.photoCount}장
+            </p>
+          )}
+          {mine && unlocated.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelected(unlocated)}
+              className="mt-2 text-sm font-bold text-[#b5470e] underline underline-offset-4"
+            >
+              위치 없는 사진 {unlocated.length}장 보기
+            </button>
+          )}
         </div>
         <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
       </div>
@@ -225,6 +248,7 @@ export function DongPage() {
           <PhotoCard
             key={selected[0].photoId}
             points={selected}
+            mine={mine}
             onClose={() => setSelected(null)}
           />
         </div>
