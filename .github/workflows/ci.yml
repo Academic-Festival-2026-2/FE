@@ -1,0 +1,41 @@
+name: FE CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+# PR: 같은 PR에 새 커밋이 올라오면 이전 실행 취소
+# dev push: 커밋마다 따로 실행(취소·대기열 교체 없음) → 어느 머지에서 깨졌는지 확인 가능
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # 이 이름이 dev 보호 규칙의 필수 체크 이름. 바꾸면 보호 규칙도 같이 수정
+    name: FE lint & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      # pnpm을 먼저 설치해야 setup-node가 pnpm 캐시를 쓸 수 있음
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # lock 파일과 package.json이 안 맞으면 실패 (의존성 추가 후 lock 커밋 누락 방지)
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      # vite build + tsc -b (타입 오류도 여기서 걸림)
+      - run: pnpm build

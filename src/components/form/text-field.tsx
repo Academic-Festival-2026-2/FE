@@ -1,0 +1,76 @@
+import type { HTMLInputTypeAttribute, ReactNode } from "react";
+import { cn } from "../../utils/cn";
+
+type TextFieldProps = {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  onBlur?: () => void;
+  type?: HTMLInputTypeAttribute;
+  placeholder?: string;
+  autoComplete?: string;
+  error?: string | null;
+  hint?: string;
+  // 입력칸 오른쪽에 붙는 버튼 등
+  action?: ReactNode;
+  // md: 로그인·회원가입, sm: 마이페이지처럼 카드 안에 들어가는 작은 입력칸
+  size?: "md" | "sm";
+};
+
+export function TextField({
+  id,
+  label,
+  value,
+  onChange,
+  onBlur,
+  type = "text",
+  placeholder,
+  autoComplete,
+  error,
+  hint,
+  action,
+  size = "md",
+}: TextFieldProps) {
+  const messageId = `${id}-message`;
+  const message = error ?? hint;
+  const isSmall = size === "sm";
+
+  return (
+    <div className={cn("flex flex-col", isSmall ? "gap-1.5" : "gap-2")}>
+      <label
+        htmlFor={id}
+        className={isSmall ? "text-[13px] font-bold text-gray-900" : "text-sm font-bold text-gray-900"}
+      >
+        {label}
+      </label>
+      <div className="flex gap-2">
+        <input
+          id={id}
+          type={type}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onBlur={onBlur}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={message ? messageId : undefined}
+          className={cn(
+            "w-full min-w-0 border px-4 text-gray-900 outline-none transition-colors focus:border-[#ff8a3d] focus:bg-white",
+            isSmall
+              ? "h-10 rounded-[10px] border-[#ddd8ce] bg-white text-sm placeholder:text-gray-400"
+              : // 브라우저 자동 완성의 노란 배경 대신 입력칸 배경색 유지
+                "h-12 rounded-[10px] border-[#e2ded5] bg-[#f6f4ef] text-[15px] placeholder:text-[#7a766e] autofill:shadow-[inset_0_0_0_1000px_#f6f4ef]",
+            error && "border-red-400 focus:border-red-400",
+          )}
+        />
+        {action}
+      </div>
+      {message && (
+        <p id={messageId} className={cn("text-xs", error ? "text-red-500" : "text-gray-500")}>
+          {message}
+        </p>
+      )}
+    </div>
+  );
+}

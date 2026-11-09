@@ -10,73 +10,90 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as MyInfoRouteImport } from './routes/my-info'
-import { Route as ProjectsRouteImport } from './routes/projects'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as StudyRouteImport } from './routes/study'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MapRouteImport } from './routes/map'
+import { Route as MypageRouteImport } from './routes/mypage'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as DongDongCodeRouteImport } from './routes/dong.$dongCode'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MyInfoRoute = MyInfoRouteImport.update({
-  id: '/my-info',
-  path: '/my-info',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProjectsRoute = ProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const MypageRoute = MypageRouteImport.update({
+  id: '/mypage',
+  path: '/mypage',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudyRoute = StudyRouteImport.update({
-  id: '/study',
-  path: '/study',
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DongDongCodeRoute = DongDongCodeRouteImport.update({
+  id: '/dong/$dongCode',
+  path: '/dong/$dongCode',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/my-info': typeof MyInfoRoute
-  '/projects': typeof ProjectsRoute
-  '/settings': typeof SettingsRoute
-  '/study': typeof StudyRoute
+  '/login': typeof LoginRoute
+  '/map': typeof MapRoute
+  '/mypage': typeof MypageRoute
+  '/signup': typeof SignupRoute
+  '/dong/$dongCode': typeof DongDongCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/my-info': typeof MyInfoRoute
-  '/projects': typeof ProjectsRoute
-  '/settings': typeof SettingsRoute
-  '/study': typeof StudyRoute
+  '/login': typeof LoginRoute
+  '/map': typeof MapRoute
+  '/mypage': typeof MypageRoute
+  '/signup': typeof SignupRoute
+  '/dong/$dongCode': typeof DongDongCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/my-info': typeof MyInfoRoute
-  '/projects': typeof ProjectsRoute
-  '/settings': typeof SettingsRoute
-  '/study': typeof StudyRoute
+  '/login': typeof LoginRoute
+  '/map': typeof MapRoute
+  '/mypage': typeof MypageRoute
+  '/signup': typeof SignupRoute
+  '/dong/$dongCode': typeof DongDongCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/my-info' | '/projects' | '/settings' | '/study'
+  fullPaths: '/' | '/login' | '/map' | '/mypage' | '/signup' | '/dong/$dongCode'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/my-info' | '/projects' | '/settings' | '/study'
-  id: '__root__' | '/' | '/my-info' | '/projects' | '/settings' | '/study'
+  to: '/' | '/login' | '/map' | '/mypage' | '/signup' | '/dong/$dongCode'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/map'
+    | '/mypage'
+    | '/signup'
+    | '/dong/$dongCode'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  MyInfoRoute: typeof MyInfoRoute
-  ProjectsRoute: typeof ProjectsRoute
-  SettingsRoute: typeof SettingsRoute
-  StudyRoute: typeof StudyRoute
+  LoginRoute: typeof LoginRoute
+  MapRoute: typeof MapRoute
+  MypageRoute: typeof MypageRoute
+  SignupRoute: typeof SignupRoute
+  DongDongCodeRoute: typeof DongDongCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -88,32 +105,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/my-info': {
-      id: '/my-info'
-      path: '/my-info'
-      fullPath: '/my-info'
-      preLoaderRoute: typeof MyInfoRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/projects': {
-      id: '/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof ProjectsRouteImport
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/mypage': {
+      id: '/mypage'
+      path: '/mypage'
+      fullPath: '/mypage'
+      preLoaderRoute: typeof MypageRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/study': {
-      id: '/study'
-      path: '/study'
-      fullPath: '/study'
-      preLoaderRoute: typeof StudyRouteImport
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dong/$dongCode': {
+      id: '/dong/$dongCode'
+      path: '/dong/$dongCode'
+      fullPath: '/dong/$dongCode'
+      preLoaderRoute: typeof DongDongCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -121,10 +145,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  MyInfoRoute: MyInfoRoute,
-  ProjectsRoute: ProjectsRoute,
-  SettingsRoute: SettingsRoute,
-  StudyRoute: StudyRoute,
+  LoginRoute: LoginRoute,
+  MapRoute: MapRoute,
+  MypageRoute: MypageRoute,
+  SignupRoute: SignupRoute,
+  DongDongCodeRoute: DongDongCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
