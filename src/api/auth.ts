@@ -1,4 +1,4 @@
-import { request } from "./client";
+import { authRequest, request } from "./client";
 
 export type SignUpRequest = {
   email: string;
@@ -26,11 +26,9 @@ export function signUp(body: SignUpRequest) {
   });
 }
 
-export function logout(accessToken: string) {
-  return request<void>("/api/auth/logout", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+// access token이 만료됐으면 재발급 후 로그아웃해서 서버의 refresh token까지 지움
+export function logout() {
+  return authRequest<void>("/api/auth/logout", { method: "POST" });
 }
 
 export function login(body: LoginRequest) {
