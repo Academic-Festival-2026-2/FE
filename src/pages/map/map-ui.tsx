@@ -1,6 +1,7 @@
 import type { ColorRatio, DongColor, TimeBand, TopDong } from "../../api/map";
 import { cn } from "../../utils/cn";
 import { EMPTY_FILL, TIME_BANDS, bandLabel, toneColor } from "./map-data";
+import { Link } from "@tanstack/react-router";
 
 const THEMES = ["전체", "블루아워", "물안개", "야경"];
 
@@ -223,19 +224,23 @@ export function MyMapPanel({
   );
 }
 
+
 export function UploadCta() {
   return (
     <section className="rounded-3xl border border-[#fbe0cc] bg-[#fff1e6] p-5">
-      <p className="font-bold text-gray-900">내 사진으로 이 지도를 채워 주세요</p>
-      <button
-        type="button"
-        className="mt-4 h-11 rounded-xl bg-[#ff8a3d] px-5 text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a]"
+      <p className="font-bold text-gray-900">
+        내 사진으로 이 지도를 채워 주세요
+      </p>
+      <Link
+        to="/upload"
+        className="mt-4 inline-flex h-11 items-center rounded-xl bg-[#ff8a3d] px-5 text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a]"
       >
         사진 올리기
-      </button>
+      </Link>
     </section>
   );
 }
+
 
 export function DongCard({ dong }: { dong: DongColor | undefined }) {
   if (!dong) return null;
