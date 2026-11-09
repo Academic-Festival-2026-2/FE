@@ -10,7 +10,7 @@ function formatTakenAt(value: string) {
 export function PhotoCard({ points, onClose }: { points: DongPoint[]; onClose: () => void }) {
   const [index, setIndex] = useState(0);
   const [photo, setPhoto] = useState<PhotoDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failedId, setFailedId] = useState<number | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const photoId = points[index].photoId;
 
@@ -20,11 +20,10 @@ export function PhotoCard({ points, onClose }: { points: DongPoint[]; onClose: (
       .then((data) => {
         if (cancelled) return;
         setPhoto(data);
-        setError(null);
       })
       .catch(() => {
         if (cancelled) return;
-        setError("사진을 불러오지 못했어요.");
+        setFailedId(photoId);
       });
     return () => {
       cancelled = true;
@@ -35,7 +34,7 @@ export function PhotoCard({ points, onClose }: { points: DongPoint[]; onClose: (
   const showImage = current?.imageUrl && current.imageUrl !== failedUrl;
 
   return (
-    <section className="w-72 overflow-hidden rounded-2xl bg-white shadow-lg">
+    <section className="w-full overflow-hidden rounded-2xl bg-white shadow-lg sm:w-72">
       <div className="flex items-center justify-between px-4 pt-3">
         <span className="text-xs text-gray-500">
           {points.length > 1 ? `${index + 1} / ${points.length}` : "사진"}
@@ -50,8 +49,8 @@ export function PhotoCard({ points, onClose }: { points: DongPoint[]; onClose: (
         </button>
       </div>
 
-      {error ? (
-        <p className="px-4 py-6 text-sm text-red-500">{error}</p>
+      {failedId === photoId ? (
+        <p className="px-4 py-6 text-sm text-red-500">사진을 불러오지 못했어요.</p>
       ) : !current ? (
         <p className="px-4 py-6 text-sm text-gray-500">불러오는 중...</p>
       ) : (

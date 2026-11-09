@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { getDongDetail, type DongDetail, type DongPoint } from "../../api/dong";
 import type { TimeBand } from "../../api/map";
 import {
   bandLabel,
@@ -10,9 +11,8 @@ import {
   useBoundaries,
   useDongColors,
 } from "../map/map-data";
-import { PhotoCard } from "./photo-card";
 import { DongCard, ErrorBanner, TimeBandTabs } from "../map/map-ui";
-import { getDongDetail, type DongDetail, type DongPoint } from "../../api/dong";
+import { PhotoCard } from "./photo-card";
 
 const SELECTED_STROKE = "#1f1d1a";
 const DONG_TINT_OPACITY = 0.14;
@@ -42,27 +42,30 @@ function pixelElement(color: string, count: number) {
 }
 
 function useDongDetail(dongCode: string, timeBand: TimeBand) {
-  const [detail, setDetail] = useState<DongDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const key = `${dongCode}:${timeBand}`;
+  const [loaded, setLoaded] = useState<{ key: string; detail: DongDetail } | null>(null);
+  const [failedKey, setFailedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     getDongDetail(dongCode, timeBand)
       .then((data) => {
         if (cancelled) return;
-        setDetail(data);
-        setError(null);
+        setLoaded({ key, detail: data });
       })
       .catch(() => {
         if (cancelled) return;
-        setError("동 정보를 불러오지 못했어요.");
+        setFailedKey(key);
       });
     return () => {
       cancelled = true;
     };
-  }, [dongCode, timeBand]);
+  }, [key, dongCode, timeBand]);
 
-  return { detail, error };
+  return {
+    detail: loaded && loaded.key === key ? loaded.detail : null,
+    error: failedKey === key ? "동 정보를 불러오지 못했어요." : null,
+  };
 }
 
 export function DongPage() {
@@ -218,7 +221,7 @@ export function DongPage() {
         <DongCard dong={dong} />
       </div>
       {selected && (
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute inset-x-4 bottom-4 z-20 sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-auto">
           <PhotoCard
             key={selected[0].photoId}
             points={selected}
