@@ -1,6 +1,6 @@
 import type { ColorRatio, DongColor, TimeBand, TopDong } from "../../api/map";
 import { cn } from "../../utils/cn";
-import { EMPTY_FILL, TIME_BANDS, bandLabel } from "./map-data";
+import { EMPTY_FILL, TIME_BANDS, bandLabel, toneColor } from "./map-data";
 
 const THEMES = ["전체", "블루아워", "물안개", "야경"];
 
@@ -56,22 +56,31 @@ export function SeasonChip({ season }: { season: { name: string; months: string 
   );
 }
 
-export function MapModeToggle() {
+export function MapModeToggle({
+  mine,
+  onChange,
+}: {
+  mine: boolean;
+  onChange: (mine: boolean) => void;
+}) {
+  const tab = (active: boolean) =>
+    `h-9 rounded-lg px-4 text-sm ${active ? "bg-gray-900 font-bold text-white" : "text-gray-500 hover:text-gray-900"}`;
+
   return (
     <div className="inline-flex rounded-xl border border-[#e8e4dc] bg-white p-1">
       <button
         type="button"
-        aria-pressed
-        className="h-9 rounded-lg bg-gray-900 px-4 text-sm font-bold text-white"
+        aria-pressed={!mine}
+        onClick={() => onChange(false)}
+        className={tab(!mine)}
       >
         공유 지도
       </button>
       <button
         type="button"
-        aria-pressed={false}
-        disabled
-        title="준비 중이에요"
-        className="h-9 rounded-lg px-4 text-sm text-gray-500"
+        aria-pressed={mine}
+        onClick={() => onChange(true)}
+        className={tab(mine)}
       >
         내 지도
       </button>
@@ -152,6 +161,64 @@ export function RankPanel({
           ))}
         </ol>
       )}
+    </section>
+  );
+}
+
+export function MyMapPanel({
+  timeBand,
+  dongs,
+  onHover,
+}: {
+  timeBand: TimeBand;
+  dongs: DongColor[];
+  onHover: (dongCode: string | null) => void;
+}) {
+  const filled = dongs
+    .filter((dong) => dong.dominantColor)
+    .sort((a, b) => b.photoCount - a.photoCount);
+  const empty = dongs.length - filled.length;
+  const percent = dongs.length ? (filled.length / dongs.length) * 100 : 0;
+
+  return (
+    <section className="rounded-3xl border border-[#e8e4dc] bg-white p-5">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-lg font-extrabold text-gray-900">내가 칠한 동</h2>
+        <span className="text-sm font-bold text-gray-900">
+          {filled.length}
+          <span className="font-normal text-gray-500">/{dongs.length}곳</span>
+        </span>
+      </div>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f2f0eb]">
+        <div className="h-full rounded-full bg-[#ff8a3d]" style={{ width: `${percent}%` }} />
+      </div>
+
+      {filled.length === 0 ? (
+        <p className="mt-6 text-sm text-gray-500">
+          아직 {bandLabel(timeBand)} 사진으로 칠한 동이 없어요.
+        </p>
+      ) : (
+        <ul className="mt-2">
+          {filled.map((dong) => (
+            <li
+              key={dong.dongCode}
+              onMouseEnter={() => onHover(dong.dongCode)}
+              onMouseLeave={() => onHover(null)}
+              className="flex items-center gap-3 border-t border-[#f0ede6] py-3 first:border-t-0"
+            >
+              <span
+                className="h-5 w-5 shrink-0 rounded-md border border-black/10"
+                style={{ backgroundColor: toneColor(dong.dominantColor ?? EMPTY_FILL) }}
+              />
+              <span className="flex-1 font-bold text-gray-900">{dong.name}</span>
+              <span className="text-xs text-gray-500">{dong.photoCount}장</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {empty > 0 && <p className="mt-3 text-xs text-gray-500">{empty}개 동이 아직 비어 있어요</p>}
     </section>
   );
 }

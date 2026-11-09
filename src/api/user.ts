@@ -7,7 +7,10 @@ export type MyInfoResponse = {
   locationAgreed: boolean;
   // 예) "2026-10-01T12:34:56"
   createdAt: string;
-  // photoCount, filledCellCount는 BE에 추가된 뒤에 넣기
+  // 내가 올린 사진 전체 수
+  photoCount: number;
+  // 나의 지도(GET /api/users/me/map)의 filledCellCount와 같은 값
+  filledCellCount: number;
 };
 
 export type UpdateMyInfoRequest = {

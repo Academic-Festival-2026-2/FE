@@ -1,5 +1,8 @@
 import type { MyInfoResponse } from "../../api/user";
 
+// 부천 37개 동 × 시간대 4개
+const TOTAL_CELLS = 148;
+
 // "2026-10-01T12:34:56" → "2026.10.01"
 function formatDate(value: string) {
   return value.slice(0, 10).replaceAll("-", ".");
@@ -31,9 +34,9 @@ export function ProfileSummary({ info }: { info: MyInfoResponse }) {
           가입일 <span className="font-mono">{formatDate(info.createdAt)}</span>
         </p>
       </div>
-      {/* BE에 photoCount, filledCellCount가 추가되면 값 연결 */}
-      <Stat label="내 사진" value="-" />
-      <Stat label="채운 칸" value="- / 148" />
+      {/* BE #92 배포 전이면 필드가 없어서 0으로 표시 */}
+      <Stat label="내 사진" value={`${(info.photoCount ?? 0).toLocaleString()}장`} />
+      <Stat label="채운 칸" value={`${info.filledCellCount ?? 0} / ${TOTAL_CELLS}`} />
       <button
         type="button"
         disabled
