@@ -1,3 +1,4 @@
+
 import { request } from "./client";
 import type { TimeBand } from "./map";
 
@@ -27,9 +28,24 @@ export function uploadPhoto(image: File, data: PhotoUploadData, accessToken: str
   const body = new FormData();
   body.append("image", image);
   body.append("data", new Blob([JSON.stringify(data)], { type: "application/json" }));
+
   return request<PhotoUploadResult>("/api/photos", {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
     body,
   });
+}
+
+export type PhotoDetail = {
+  photoId: number;
+  imageUrl: string | null;
+  nickname: string;
+  name: string;
+  takenAt: string;
+  timeBand: TimeBand;
+  palette: string[];
+};
+
+export function getPhotoDetail(photoId: number) {
+  return request<PhotoDetail>(`/api/photos/${photoId}`);
 }
