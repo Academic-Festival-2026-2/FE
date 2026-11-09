@@ -1,5 +1,4 @@
-
-import { request } from "./client";
+import { authRequest, request } from "./client";
 import type { TimeBand } from "./map";
 
 export type PhotoUploadData = {
@@ -24,14 +23,13 @@ export type PhotoUploadResult = {
   firstInCell: boolean;
 };
 
-export function uploadPhoto(image: File, data: PhotoUploadData, accessToken: string) {
+export function uploadPhoto(image: File, data: PhotoUploadData) {
   const body = new FormData();
   body.append("image", image);
   body.append("data", new Blob([JSON.stringify(data)], { type: "application/json" }));
 
-  return request<PhotoUploadResult>("/api/photos", {
+  return authRequest<PhotoUploadResult>("/api/photos", {
     method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
     body,
   });
 }

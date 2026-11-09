@@ -224,7 +224,6 @@ export function MyMapPanel({
   );
 }
 
-
 export function UploadCta() {
   return (
     <section className="rounded-3xl border border-[#fbe0cc] bg-[#fff1e6] p-5">
@@ -240,7 +239,6 @@ export function UploadCta() {
     </section>
   );
 }
-
 
 export function DongCard({ dong }: { dong: DongColor | undefined }) {
   if (!dong) return null;

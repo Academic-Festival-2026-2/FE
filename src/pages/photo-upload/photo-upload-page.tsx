@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
-import { ApiError } from "../../api/client";
+import { getMyInfo } from "../../api/user";
 import { uploadPhoto, type PhotoUploadResult } from "../../api/photo";
 import { AuthHeader } from "../../components/layout/auth-header";
-import { useAuthStore } from "../../stores/auth-store";
+import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useBoundaries } from "../map/map-data";
 import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
@@ -32,7 +32,7 @@ export function PhotoUploadPage() {
   const urls = useRef(new Set<string>());
   const alive = useRef(true);
   const sending = useRef(false);
-  const tokens = useAuthStore((s) => s.tokens);
+  const expireSession = useExpireSession();
   const { boundaries, error: boundaryError } = useBoundaries();
   const photo = photos[index];
   const uploading = photos.some((p) => p.status === "uploading");
@@ -82,16 +82,16 @@ export function PhotoUploadPage() {
 
   async function submit() {
     if (!photo || sending.current || !photo.colors || !selectedFeature || locationMismatch || outside) return;
-    if (!tokens) { update(photo.id, { needsLogin: true, error: "로그인이 만료되었어요. 다시 로그인해 주세요." }); return; }
     const takenAt = parseLocalTime(photo.takenAt);
     if (!takenAt || !validateColors(photo.colors.palette, photo.colors.bins)) { update(photo.id, { error: "촬영 시각 또는 색상 분석 결과를 확인해 주세요." }); return; }
     sending.current = true;
     update(photo.id, { status: "uploading", error: undefined });
     try {
+      await getMyInfo();
       const result = await uploadPhoto(photo.file, {
         dongCode: selectedFeature.properties.dongCode, latitude: photo.latitude, longitude: photo.longitude,
         takenAt, isPublic: photo.isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
-      }, tokens.accessToken);
+      });
       update(photo.id, { status: "success", result });
       const following = photos.findIndex((p, i) => i > index && p.status !== "success");
       const next = following >= 0 ? following
@@ -99,8 +99,10 @@ export function PhotoUploadPage() {
       if (next >= 0) setIndex(next);
       else if (photos.every((p) => p.id === photo.id || p.status === "success")) setFinished(true);
     } catch (error) {
-      const message = error instanceof ApiError && error.status === 401 ? "로그인이 만료되었어요. 다시 로그인해 주세요." : error instanceof Error ? error.message : "업로드하지 못했어요. 다시 시도해 주세요.";
-      update(photo.id, { status: "error", needsLogin: error instanceof ApiError && error.status === 401, error: message });
+      const expired = isSessionExpired(error);
+      const message = expired ? "로그인이 만료되었어요. 다시 로그인해 주세요." : error instanceof Error ? error.message : "업로드하지 못했어요. 다시 시도해 주세요.";
+      update(photo.id, { status: "error", needsLogin: expired, error: message });
+      if (expired) expireSession();
     } finally { sending.current = false; }
   }
 

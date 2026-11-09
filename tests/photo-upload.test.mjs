@@ -55,10 +55,10 @@ test('행정동 탐색은 위경도 순서와 내부 구멍을 구분한다', ()
   assert.equal(findDong([feature],40,129),undefined);
 });
 
-// Vite 환경 치환만 수행하고 실제 API 클라이언트와 FormData 생성 함수를 검증합니다.
+// Vite 환경 치환과 인증 저장소 mock으로 실제 API 클라이언트와 FormData 생성 함수를 검증합니다.
 const moduleUrl = source => 'data:text/javascript;base64,' + Buffer.from(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
 test('실제 업로드 함수의 image/data 파트·JWT·응답·409 오류', async () => {
-  const client = moduleUrl((await readFile(new URL('../src/api/client.ts',import.meta.url),'utf8')).replace('import.meta.env.VITE_API_BASE_URL', '""'));
+  const client = moduleUrl((await readFile(new URL('../src/api/client.ts',import.meta.url),'utf8')).replace('import.meta.env.VITE_API_BASE_URL', '""').replace('import { useAuthStore } from "../stores/auth-store";', 'const useAuthStore = { getState: () => ({ tokens: { accessToken: "test-token" } }) };'));
   const photo = moduleUrl((await readFile(new URL('../src/api/photo.ts',import.meta.url),'utf8')).replace('"./client"',JSON.stringify(client)));
   const { uploadPhoto } = await import(photo);
   const original = globalThis.fetch;
@@ -74,9 +74,9 @@ test('실제 업로드 함수의 image/data 파트·JWT·응답·409 오류', as
       assert.deepEqual(JSON.parse(await init.body.get('data').text()),data);
       return Response.json({isSuccess:true,code:'PHOTO201_1',result:{photoId:1}},{status:201});
     };
-    assert.deepEqual(await uploadPhoto(new File(['fixture'],'test.jpg'),data,'test-token'),{photoId:1});
+    assert.deepEqual(await uploadPhoto(new File(['fixture'],'test.jpg'),data),{photoId:1});
     globalThis.fetch = async () => Response.json({isSuccess:false,code:'PHOTO409_1',message:'중복 사진'},{status:409});
-    await assert.rejects(uploadPhoto(new File(['fixture'],'test.jpg'),data,'test-token'),error => error.status===409 && error.code==='PHOTO409_1');
+    await assert.rejects(uploadPhoto(new File(['fixture'],'test.jpg'),data),error => error.status===409 && error.code==='PHOTO409_1');
   } finally { globalThis.fetch = original; }
 });
 
