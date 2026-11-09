@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLogout } from "../../hooks/use-logout";
 import { WithdrawDialog } from "./withdraw-dialog";
 
-export function AccountSection({ accessToken }: { accessToken: string }) {
+export function AccountSection() {
   const { logout, isLoggingOut } = useLogout();
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
@@ -27,11 +27,7 @@ export function AccountSection({ accessToken }: { accessToken: string }) {
       >
         {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
       </button>
-      <WithdrawDialog
-        open={isWithdrawOpen}
-        accessToken={accessToken}
-        onClose={() => setIsWithdrawOpen(false)}
-      />
+      <WithdrawDialog open={isWithdrawOpen} onClose={() => setIsWithdrawOpen(false)} />
     </section>
   );
 }

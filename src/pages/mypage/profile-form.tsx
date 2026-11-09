@@ -7,12 +7,11 @@ import { cn } from "../../utils/cn";
 import { validateNickname } from "../../utils/validation";
 
 type ProfileFormProps = {
-  accessToken: string;
   info: MyInfoResponse;
   onUpdated: (changes: Partial<MyInfoResponse>) => void;
 };
 
-export function ProfileForm({ accessToken, info, onUpdated }: ProfileFormProps) {
+export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
   const expireSession = useExpireSession();
 
   // 닉네임
@@ -38,7 +37,7 @@ export function ProfileForm({ accessToken, info, onUpdated }: ProfileFormProps) 
 
     setIsSavingNickname(true);
     try {
-      await updateMyInfo(accessToken, { nickname: trimmed });
+      await updateMyInfo({ nickname: trimmed });
       onUpdated({ nickname: trimmed });
       setNickname(trimmed);
       setNicknameNotice("닉네임을 바꿨어요.");
@@ -64,7 +63,7 @@ export function ProfileForm({ accessToken, info, onUpdated }: ProfileFormProps) 
     setLocationError(null);
     setIsSavingLocation(true);
     try {
-      await updateMyInfo(accessToken, { locationAgreed: next });
+      await updateMyInfo({ locationAgreed: next });
       onUpdated({ locationAgreed: next });
     } catch (error) {
       setLocationAgreed(!next);
