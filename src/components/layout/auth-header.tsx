@@ -18,6 +18,10 @@ export function AuthHeader({ link }: AuthHeaderProps) {
           </span>
           <span className="text-xl font-extrabold text-gray-900">픽셀</span>
         </Link>
+        {!link && <nav aria-label="주 메뉴" className="flex items-center gap-1 rounded-full border border-[#e3dfd6] bg-white p-1 text-sm">
+          <Link to="/map" search={{ timeBand: "SUNSET" }} className="rounded-full px-4 py-2" activeProps={{ className: "bg-[#16161a] text-white" }}>지도</Link>
+          <Link to="/upload" className="rounded-full px-4 py-2" activeProps={{ className: "bg-[#16161a] text-white" }}>사진 올리기</Link>
+        </nav>}
         {link && (
           <Link to={link.to} className="text-sm text-gray-600 underline underline-offset-4 hover:text-gray-900">
             {link.label}
