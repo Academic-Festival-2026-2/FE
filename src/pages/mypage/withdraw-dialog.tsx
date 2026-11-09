@@ -8,11 +8,10 @@ import { useAuthStore } from "../../stores/auth-store";
 
 type WithdrawDialogProps = {
   open: boolean;
-  accessToken: string;
   onClose: () => void;
 };
 
-export function WithdrawDialog({ open, accessToken, onClose }: WithdrawDialogProps) {
+export function WithdrawDialog({ open, onClose }: WithdrawDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const navigate = useNavigate();
   const clearTokens = useAuthStore((state) => state.clearTokens);
@@ -44,7 +43,7 @@ export function WithdrawDialog({ open, accessToken, onClose }: WithdrawDialogPro
     setIsSubmitting(true);
     setError(null);
     try {
-      await withdraw(accessToken, password);
+      await withdraw(password);
       clearTokens();
       navigate({ to: "/login", search: { withdrawn: true } });
     } catch (error) {

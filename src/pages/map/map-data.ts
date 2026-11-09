@@ -102,7 +102,7 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
   useEffect(() => {
     if (!enabled || !accessToken) return;
     let cancelled = false;
-    getMyMap(accessToken)
+    getMyMap()
       .then((data) => {
         if (cancelled) return;
         setLoaded({ token: accessToken, cells: data.cells });

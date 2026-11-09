@@ -25,6 +25,8 @@ function clearStorage() {
 type AuthStore = {
   tokens: TokenResponse | null;
   setTokens: (tokens: TokenResponse, remember: boolean) => void;
+  // 재발급: 로그인 때 고른 저장소(local/session)에 그대로 덮어씀
+  updateTokens: (tokens: TokenResponse) => void;
   clearTokens: () => void;
 };
 
@@ -36,6 +38,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
       (remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(tokens));
     } catch {
       // 저장에 실패해도 현재 탭에서는 로그인 상태를 유지
+    }
+    set({ tokens });
+  },
+  updateTokens: (tokens) => {
+    try {
+      const storage = localStorage.getItem(STORAGE_KEY) ? localStorage : sessionStorage;
+      storage.setItem(STORAGE_KEY, JSON.stringify(tokens));
+    } catch {
+      // 저장에 실패해도 현재 탭에서는 새 토큰 사용
     }
     set({ tokens });
   },

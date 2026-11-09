@@ -11,7 +11,7 @@ const FIELDS = ["currentPassword", "newPassword", "newPasswordConfirm"] as const
 type Field = (typeof FIELDS)[number];
 type Errors = Partial<Record<Field, string>>;
 
-export function PasswordForm({ accessToken }: { accessToken: string }) {
+export function PasswordForm() {
   const navigate = useNavigate();
   const clearTokens = useAuthStore((state) => state.clearTokens);
   const expireSession = useExpireSession();
@@ -47,7 +47,7 @@ export function PasswordForm({ accessToken }: { accessToken: string }) {
 
     setIsSubmitting(true);
     try {
-      await changePassword(accessToken, {
+      await changePassword({
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
       });
