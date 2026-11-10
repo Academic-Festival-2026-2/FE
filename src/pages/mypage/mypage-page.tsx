@@ -3,23 +3,20 @@ import { ApiError } from "../../api/client";
 import { getMyInfo, type MyInfoResponse } from "../../api/user";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
-import { useAuthStore } from "../../stores/auth-store";
 import { AccountSection } from "./account-section";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 import { ProfileSummary } from "./profile-summary";
 
 export function MyPage() {
-  const accessToken = useAuthStore((state) => state.tokens?.accessToken);
   const expireSession = useExpireSession();
   const [info, setInfo] = useState<MyInfoResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!accessToken) return;
     // 화면을 떠난 뒤 도착한 응답은 무시
     let ignore = false;
-    getMyInfo(accessToken)
+    getMyInfo()
       .then((data) => {
         if (!ignore) setInfo(data);
       })
@@ -31,7 +28,7 @@ export function MyPage() {
     return () => {
       ignore = true;
     };
-  }, [accessToken, expireSession]);
+  }, [expireSession]);
 
   // 수정 API는 결과를 돌려주지 않아서 보낸 값으로 화면을 갱신
   function handleUpdated(changes: Partial<MyInfoResponse>) {
@@ -54,15 +51,15 @@ export function MyPage() {
           </p>
         )}
         {!info && !loadError && <p className="mt-6 text-sm text-gray-500">불러오는 중...</p>}
-        {info && accessToken && (
+        {info && (
           <div className="mt-4 flex flex-col gap-4">
             <ProfileSummary info={info} />
             {/* 시안 비율 프로필 5 : 비밀번호 6, 두 카드 높이는 같게(stretch) */}
             <div className="grid gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-              <ProfileForm accessToken={accessToken} info={info} onUpdated={handleUpdated} />
-              <PasswordForm accessToken={accessToken} />
+              <ProfileForm info={info} onUpdated={handleUpdated} />
+              <PasswordForm />
             </div>
-            <AccountSection accessToken={accessToken} />
+            <AccountSection />
           </div>
         )}
       </main>

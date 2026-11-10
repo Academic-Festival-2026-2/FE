@@ -1,4 +1,4 @@
-import { request } from "./client";
+import { authRequest } from "./client";
 
 export type MyInfoResponse = {
   userId: number;
@@ -23,37 +23,29 @@ export type ChangePasswordRequest = {
   newPassword: string;
 };
 
-function authHeader(accessToken: string) {
-  return { Authorization: `Bearer ${accessToken}` };
-}
-
-export function getMyInfo(accessToken: string) {
-  return request<MyInfoResponse>("/api/users/me", {
-    headers: authHeader(accessToken),
-  });
+// 로그인 필요: 토큰은 authRequest가 스토어에서 꺼내고, 만료되면 재발급
+export function getMyInfo() {
+  return authRequest<MyInfoResponse>("/api/users/me");
 }
 
 // 아래 세 API는 성공해도 result가 없음(BE ApiResponse<Void>)
-export function updateMyInfo(accessToken: string, body: UpdateMyInfoRequest) {
-  return request<void>("/api/users/me", {
+export function updateMyInfo(body: UpdateMyInfoRequest) {
+  return authRequest<void>("/api/users/me", {
     method: "PATCH",
-    headers: authHeader(accessToken),
     body: JSON.stringify(body),
   });
 }
 
-export function changePassword(accessToken: string, body: ChangePasswordRequest) {
-  return request<void>("/api/users/me/password", {
+export function changePassword(body: ChangePasswordRequest) {
+  return authRequest<void>("/api/users/me/password", {
     method: "PATCH",
-    headers: authHeader(accessToken),
     body: JSON.stringify(body),
   });
 }
 
-export function withdraw(accessToken: string, password: string) {
-  return request<void>("/api/users/me", {
+export function withdraw(password: string) {
+  return authRequest<void>("/api/users/me", {
     method: "DELETE",
-    headers: authHeader(accessToken),
     body: JSON.stringify({ password }),
   });
 }
