@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { currentTimeBand } from "../../utils/time-band";
 
 export function AuthHeader({ children }: { children?: ReactNode }) {
   return (
     <header className="border-b border-[#e3dfd7]">
       <div className="flex h-[66px] items-center justify-between px-5 sm:px-12">
-        <Link to="/map" search={{ timeBand: "SUNSET" }} className="flex items-center gap-2.5">
+        <Link to="/map" search={{ timeBand: currentTimeBand() }} className="flex items-center gap-2.5">
           <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden>
             <rect x="0" y="0" width="14" height="14" fill="#ff8a3d" />
             <rect x="16" y="0" width="14" height="14" fill="#7fb0e0" />

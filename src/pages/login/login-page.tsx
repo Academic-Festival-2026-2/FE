@@ -5,6 +5,7 @@ import { ApiError } from "../../api/client";
 import { TextField } from "../../components/form/text-field";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { useAuthStore } from "../../stores/auth-store";
+import { currentTimeBand } from "../../utils/time-band";
 import loginHero from "../../assets/login-hero.svg";
 
 export function LoginPage() {
@@ -46,7 +47,7 @@ export function LoginPage() {
     try {
       const tokens = await login({ email: email.trim(), password });
       setTokens(tokens, remember);
-      navigate({ to: "/map", search: { timeBand: "SUNSET" }, replace: true });
+      navigate({ to: "/map", search: { timeBand: currentTimeBand() }, replace: true });
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : "로그인 중 오류가 발생했어요.");
     } finally {
@@ -169,10 +170,10 @@ export function LoginPage() {
                 회원가입
               </Link>
             </p>
-            {/* /map은 로그인 없이 볼 수 있음, 시간대는 지도 화면 기본값(SUNSET)과 같게 */}
+            {/* /map은 로그인 없이 볼 수 있음, 시간대는 지금 시각 기준 */}
             <Link
               to="/map"
-              search={{ timeBand: "SUNSET" }}
+              search={{ timeBand: currentTimeBand() }}
               className="text-[13px] text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
             >
               로그인 없이 지도 둘러보기

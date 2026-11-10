@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { AuthLayout } from "../../components/layout/auth-layout";
+import { currentTimeBand } from "../../utils/time-band";
 
 export function NotFoundPage() {
   return (
@@ -8,7 +9,7 @@ export function NotFoundPage() {
       <p className="mt-3 text-gray-600">주소가 바뀌었거나 없는 페이지예요.</p>
       <Link
         to="/map"
-        search={{ timeBand: "SUNSET" }}
+        search={{ timeBand: currentTimeBand() }}
         className="mt-8 flex h-12 w-full items-center justify-center rounded-xl bg-[#ff8a3d] font-bold text-gray-900 transition-colors hover:bg-[#f57a2a]"
       >
         처음으로
