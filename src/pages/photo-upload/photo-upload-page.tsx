@@ -150,8 +150,8 @@ export function PhotoUploadPage() {
             {photo.needsLogin && <Link to="/login" className="mb-4 inline-block text-sm underline">다시 로그인하기</Link>}
             <fieldset disabled={uploading || photo.status === "success" || photo.status === "reading" || photo.status === "invalid"}>
               <div className="flex justify-between gap-3"><h2 className="font-bold">촬영 시간</h2><span className="text-xs text-[#77716a]">{photo.metadata.takenAt ? "사진 정보" : "직접 입력 필요"}</span></div>
-<label className="mt-4 block text-sm">촬영 날짜·시각 (한국 시간)<input type="datetime-local" step="1" value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] px-3 py-3" /></label>
-{photo.metadata.takenAt && <p className="mt-2 text-xs text-[#77716a]">사진에 기록된 촬영 시각이며, 날짜와 시간을 수정할 수 있어요.</p>}
+<label className="mt-4 block text-sm">촬영 날짜·시각 (한국 시간)<input type="datetime-local" step="1" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] px-3 py-3 read-only:bg-[#f4f2ed]" /></label>
+{photo.metadata.takenAt && <p className="mt-2 text-xs text-[#77716a]">사진에 기록된 촬영 시각을 사용해요.</p>}
               <div className="mt-4 grid grid-cols-4 gap-2">{bands.map(([band, label, range]) => <div key={band} className={`rounded-lg border p-2 ${timeBand(photo.takenAt) === band ? "border-[#16161a] bg-[#16161a] text-white" : "border-[#e3dfd6]"}`}><p className="text-sm font-bold">{label}</p><p className="mt-1 text-xs opacity-65">{range}</p></div>)}</div>
               <div className="mb-3 mt-7 flex justify-between"><h2 className="font-bold">촬영 위치</h2><span className="text-xs text-[#77716a]">{photo.metadata.latitude !== undefined ? "사진 정보 · 변경 가능" : "직접 입력 필요"}</span></div>
               {boundaryError && <p role="alert" className="mb-3 text-sm text-red-700">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
@@ -172,3 +172,4 @@ export function PhotoUploadPage() {
     </main>
   </div>;
 }
+
