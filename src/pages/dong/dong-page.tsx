@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 import { getDongDetail, type DongPoint } from "../../api/dong";
 import type { TimeBand } from "../../api/map";
 import { getMyDongPhotos } from "../../api/mymap";
+import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import {
   bandLabel,
@@ -30,6 +31,8 @@ function signedArea(path: kakao.maps.LatLng[]) {
   return area;
 }
 
+type LocatedPoint = DongPoint & { lat: number; lng: number };
+
 function pixelElement(color: string, count: number) {
   const pixel = document.createElement("div");
   pixel.className = "relative h-4 w-4 cursor-pointer rounded-[3px] border-2 border-white shadow";
@@ -46,6 +49,7 @@ function pixelElement(color: string, count: number) {
 
 function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean) {
   const key = `${dongCode}:${timeBand}:${mine ? "mine" : "shared"}`;
+  const expireSession = useExpireSession();
   const [loaded, setLoaded] = useState<{ key: string; points: DongPoint[] } | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
 
@@ -57,14 +61,15 @@ function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean) {
         if (cancelled) return;
         setLoaded({ key, points: data.points });
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        setFailedKey(key);
+        if (isSessionExpired(err)) expireSession();
+        else setFailedKey(key);
       });
     return () => {
       cancelled = true;
     };
-  }, [key, dongCode, timeBand, mine]);
+  }, [key, dongCode, timeBand, mine, expireSession]);
 
   return {
     points: loaded && loaded.key === key ? loaded.points : null,
@@ -170,9 +175,11 @@ export function DongPage() {
   useEffect(() => {
     if (!map || !points) return;
 
-    const groups = new Map<string, DongPoint[]>();
-    for (const point of points) {
-      if (point.lat === null || point.lng === null) continue;
+    const located = points.filter(
+      (point): point is LocatedPoint => point.lat !== null && point.lng !== null,
+    );
+    const groups = new Map<string, LocatedPoint[]>();
+    for (const point of located) {
       const key = `${point.lat},${point.lng}`;
       groups.set(key, [...(groups.get(key) ?? []), point]);
     }
@@ -182,7 +189,7 @@ export function DongPage() {
       content.addEventListener("click", () => setSelected(group));
       return new kakao.maps.CustomOverlay({
         map,
-        position: new kakao.maps.LatLng(group[0].lat as number, group[0].lng as number),
+        position: new kakao.maps.LatLng(group[0].lat, group[0].lng),
         content,
         clickable: true,
         zIndex: 3,
@@ -260,7 +267,7 @@ export function DongPage() {
               ? KAKAO_ERROR
               : notFound
                 ? "없는 동이에요."
-                : (boundaryError ?? colorError ?? detailError)
+                : (boundaryError ?? (mine ? myMap.error : colorError) ?? detailError)
           }
         />
       </div>
