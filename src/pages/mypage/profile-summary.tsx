@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { MyInfoResponse } from "../../api/user";
+import { currentTimeBand } from "../../utils/time-band";
 
 // 부천 37개 동 × 시간대 4개
 const TOTAL_CELLS = 148;
@@ -40,7 +41,7 @@ export function ProfileSummary({ info }: { info: MyInfoResponse }) {
       <Stat label="채운 칸" value={`${info.filledCellCount ?? 0} / ${TOTAL_CELLS}`} />
       <Link
         to="/map"
-        search={{ timeBand: "SUNSET", mode: "mine" }}
+        search={{ timeBand: currentTimeBand(), mode: "mine" }}
         className="grid h-10 place-items-center rounded-xl bg-gray-900 px-4 text-sm font-bold text-white hover:bg-gray-700"
       >
         나의 지도 보기
