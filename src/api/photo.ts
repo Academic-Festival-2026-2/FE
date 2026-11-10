@@ -44,6 +44,7 @@ export type PhotoDetail = {
   palette: string[];
 };
 
-export function getPhotoDetail(photoId: number) {
-  return request<PhotoDetail>(`/api/photos/${photoId}`);
+export function getPhotoDetail(photoId: number, mine = false) {
+  const path = `/api/photos/${photoId}`;
+  return mine ? authRequest<PhotoDetail>(path) : request<PhotoDetail>(path);
 }

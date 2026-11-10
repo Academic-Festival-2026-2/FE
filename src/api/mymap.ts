@@ -1,4 +1,5 @@
-import { request } from "./client";
+import { authRequest } from "./client";
+import type { DongPoint } from "./dong";
 import type { TimeBand } from "./map";
 
 export type MyMapCell = {
@@ -18,8 +19,15 @@ export type MyMap = {
   cells: MyMapCell[];
 };
 
-export function getMyMap(accessToken: string) {
-  return request<MyMap>("/api/users/me/map", {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+export function getMyMap() {
+  return authRequest<MyMap>("/api/users/me/map");
+}
+
+export type MyDongPhotos = {
+  dongCode: string;
+  points: DongPoint[];
+};
+
+export function getMyDongPhotos(dongCode: string, timeBand: TimeBand) {
+  return authRequest<MyDongPhotos>(`/api/users/me/map/dongs/${dongCode}?timeBand=${timeBand}`);
 }
