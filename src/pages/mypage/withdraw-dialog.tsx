@@ -29,7 +29,9 @@ export function WithdrawDialog({ open, onClose }: WithdrawDialogProps) {
     if (!open && dialog.open) dialog.close();
   }, [open]);
 
-  // 취소 버튼, ESC 모두 close 이벤트로 여기에 들어옴
+  // 취소 버튼·ESC는 이 함수를 직접 호출해 state부터 닫음(그러면 위 effect가 dialog.close() 호출).
+  // 일부 브라우저(앱 내장 브라우저 등)는 close 이벤트를 안 보내서, 이벤트에만 기대면
+  // open이 true로 남아 다시 열리지 않음. onClose 이벤트 연결은 대비용(두 번 불려도 문제없음)
   function handleClose() {
     setPassword("");
     setError(null);
@@ -61,11 +63,10 @@ export function WithdrawDialog({ open, onClose }: WithdrawDialogProps) {
       ref={dialogRef}
       aria-labelledby="withdraw-title"
       onClose={handleClose}
-      // ESC: 기본 닫기 대신 직접 close() 호출(일부 브라우저에서 ESC로 닫으면 close 이벤트가 안 와서
-      // 입력값 초기화·부모 상태 갱신이 빠지는 문제가 있음). 요청 중에는 닫지 않음
+      // ESC: 브라우저 기본 닫기를 막고 handleClose로 직접 닫음. 요청 중에는 닫지 않음
       onCancel={(event) => {
         event.preventDefault();
-        if (!isSubmitting) dialogRef.current?.close();
+        if (!isSubmitting) handleClose();
       }}
       // Tailwind 기본 스타일이 margin을 0으로 만들어서 m-auto로 가운데 정렬
       className="m-auto w-[min(420px,calc(100%-32px))] rounded-3xl bg-white p-6 backdrop:bg-black/40"
@@ -99,7 +100,7 @@ export function WithdrawDialog({ open, onClose }: WithdrawDialogProps) {
           <button
             type="button"
             disabled={isSubmitting}
-            onClick={() => dialogRef.current?.close()}
+            onClick={handleClose}
             className="h-11 rounded-[10px] border border-[#ddd8ce] bg-white text-sm text-gray-900 transition-colors hover:bg-[#f7f5f0] disabled:opacity-50"
           >
             취소
