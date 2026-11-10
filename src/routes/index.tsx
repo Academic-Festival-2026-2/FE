@@ -1,11 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { HomePage } from "../pages/home/home-page";
-import { useAuthStore } from "../stores/auth-store";
+import { currentTimeBand } from "../utils/time-band";
 
+// 홈 화면 없음: 로그인 여부와 상관없이 첫 화면은 지도
 export const Route = createFileRoute("/")({
-  // 로그인하지 않았으면 로그인 화면으로 보냄
   beforeLoad: () => {
-    if (!useAuthStore.getState().tokens) throw redirect({ to: "/login" });
+    throw redirect({ to: "/map", search: { timeBand: currentTimeBand() }, replace: true });
   },
-  component: HomePage,
 });

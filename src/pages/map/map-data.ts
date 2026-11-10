@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { getMyMap, type MyMapCell } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
+import { currentTimeBand } from "../../utils/time-band";
 import {
   getBoundaries,
   getMapDongs,
@@ -21,7 +22,7 @@ export const KAKAO_ERROR = "지도를 불러오지 못했어요.";
 const TIME_BAND_VALUES: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
 
 export function parseTimeBand(value: unknown): TimeBand {
-  return TIME_BAND_VALUES.includes(value as TimeBand) ? (value as TimeBand) : "SUNSET";
+  return TIME_BAND_VALUES.includes(value as TimeBand) ? (value as TimeBand) : currentTimeBand();
 }
 
 export function useBoundaries() {
