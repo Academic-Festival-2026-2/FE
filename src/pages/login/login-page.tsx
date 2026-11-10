@@ -46,7 +46,7 @@ export function LoginPage() {
     try {
       const tokens = await login({ email: email.trim(), password });
       setTokens(tokens, remember);
-      navigate({ to: "/" });
+      navigate({ to: "/map", search: { timeBand: "SUNSET" }, replace: true });
     } catch (error) {
       setErrorMessage(error instanceof ApiError ? error.message : "로그인 중 오류가 발생했어요.");
     } finally {

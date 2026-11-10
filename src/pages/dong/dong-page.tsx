@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { getDongDetail, type DongDetail, type DongPoint } from "../../api/dong";
+import { getDongDetail, type DongPoint } from "../../api/dong";
 import type { TimeBand } from "../../api/map";
+import { getMyDongPhotos } from "../../api/mymap";
+import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { useAuthStore } from "../../stores/auth-store";
 import {
   bandLabel,
   KAKAO_ERROR,
@@ -10,6 +13,7 @@ import {
   toKakaoPath,
   useBoundaries,
   useDongColors,
+  useMyMap,
 } from "../map/map-data";
 import { DongCard, ErrorBanner, TimeBandTabs } from "../map/map-ui";
 import { PhotoCard } from "./photo-card";
@@ -27,6 +31,8 @@ function signedArea(path: kakao.maps.LatLng[]) {
   return area;
 }
 
+type LocatedPoint = DongPoint & { lat: number; lng: number };
+
 function pixelElement(color: string, count: number) {
   const pixel = document.createElement("div");
   pixel.className = "relative h-4 w-4 cursor-pointer rounded-[3px] border-2 border-white shadow";
@@ -41,29 +47,32 @@ function pixelElement(color: string, count: number) {
   return pixel;
 }
 
-function useDongDetail(dongCode: string, timeBand: TimeBand) {
-  const key = `${dongCode}:${timeBand}`;
-  const [loaded, setLoaded] = useState<{ key: string; detail: DongDetail } | null>(null);
+function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean) {
+  const key = `${dongCode}:${timeBand}:${mine ? "mine" : "shared"}`;
+  const expireSession = useExpireSession();
+  const [loaded, setLoaded] = useState<{ key: string; points: DongPoint[] } | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getDongDetail(dongCode, timeBand)
+    const request = mine ? getMyDongPhotos(dongCode, timeBand) : getDongDetail(dongCode, timeBand);
+    request
       .then((data) => {
         if (cancelled) return;
-        setLoaded({ key, detail: data });
+        setLoaded({ key, points: data.points });
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        setFailedKey(key);
+        if (isSessionExpired(err)) expireSession();
+        else setFailedKey(key);
       });
     return () => {
       cancelled = true;
     };
-  }, [key, dongCode, timeBand]);
+  }, [key, dongCode, timeBand, mine, expireSession]);
 
   return {
-    detail: loaded && loaded.key === key ? loaded.detail : null,
+    points: loaded && loaded.key === key ? loaded.points : null,
     error: failedKey === key ? "동 정보를 불러오지 못했어요." : null,
   };
 }
@@ -74,13 +83,17 @@ export function DongPage() {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
+  const loggedIn = useAuthStore((state) => state.tokens !== null);
+  const mine = mode === "mine" && loggedIn;
   const { dongs, error: colorError } = useDongColors(timeBand);
-  const { detail, error: detailError } = useDongDetail(dongCode, timeBand);
+  const myMap = useMyMap(mine, timeBand);
+  const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
   const [selected, setSelected] = useState<DongPoint[] | null>(null);
 
   const feature = boundaries?.features.find((item) => item.properties.dongCode === dongCode);
-  const dong = dongs.get(dongCode);
+  const dong = (mine ? myMap.dongs : dongs).get(dongCode);
+  const unlocated = (points ?? []).filter((point) => point.lat === null || point.lng === null);
   const outlinePolygonsRef = useRef<kakao.maps.Polygon[]>([]);
   const tintRef = useRef<string | null>(null);
   const tint = dong?.dominantColor ?? null;
@@ -160,10 +173,13 @@ export function DongPage() {
   }, [boundaries, feature]);
 
   useEffect(() => {
-    if (!map || !detail) return;
+    if (!map || !points) return;
 
-    const groups = new Map<string, DongPoint[]>();
-    for (const point of detail.points) {
+    const located = points.filter(
+      (point): point is LocatedPoint => point.lat !== null && point.lng !== null,
+    );
+    const groups = new Map<string, LocatedPoint[]>();
+    for (const point of located) {
       const key = `${point.lat},${point.lng}`;
       groups.set(key, [...(groups.get(key) ?? []), point]);
     }
@@ -181,7 +197,7 @@ export function DongPage() {
     });
 
     return () => pixels.forEach((pixel) => pixel.setMap(null));
-  }, [map, detail]);
+  }, [map, points]);
 
   function changeTimeBand(value: TimeBand) {
     setSelected(null);
@@ -209,10 +225,24 @@ export function DongPage() {
           </p>
           {feature && (
             <h1 className="mt-1 text-2xl font-extrabold text-gray-900">
-              {feature.properties.name}의 {bandLabel(timeBand)}
+              {feature.properties.name}의 {mine ? "내 " : ""}
+              {bandLabel(timeBand)}
             </h1>
           )}
-          {dong && <p className="mt-1 text-sm text-gray-500">가을 · 사진 {dong.photoCount}장</p>}
+          {dong && (
+            <p className="mt-1 text-sm text-gray-500">
+              {mine ? "내 사진" : "가을 · 사진"} {dong.photoCount}장
+            </p>
+          )}
+          {mine && unlocated.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelected(unlocated)}
+              className="mt-2 text-sm font-bold text-[#b5470e] underline underline-offset-4"
+            >
+              위치 없는 사진 {unlocated.length}장 보기
+            </button>
+          )}
         </div>
         <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
       </div>
@@ -225,6 +255,7 @@ export function DongPage() {
           <PhotoCard
             key={selected[0].photoId}
             points={selected}
+            mine={mine}
             onClose={() => setSelected(null)}
           />
         </div>
@@ -236,7 +267,7 @@ export function DongPage() {
               ? KAKAO_ERROR
               : notFound
                 ? "없는 동이에요."
-                : (boundaryError ?? colorError ?? detailError)
+                : (boundaryError ?? (mine ? myMap.error : colorError) ?? detailError)
           }
         />
       </div>
