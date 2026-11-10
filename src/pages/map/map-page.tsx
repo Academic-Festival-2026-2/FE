@@ -5,6 +5,7 @@ import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
+import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
   ErrorBanner,
   MapModeToggle,
@@ -22,6 +23,7 @@ export function MapPage() {
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const { boundaries, error: boundaryError } = useBoundaries();
   const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
   const myMap = useMyMap(mine, timeBand);
@@ -45,7 +47,7 @@ export function MapPage() {
 
   function changeMode(nextMine: boolean) {
     if (nextMine && !loggedIn) {
-      navigate({ to: "/login" });
+      setLoginPromptOpen(true);
       return;
     }
     navigate({ to: "/map", search: { timeBand, mode: nextMine ? "mine" : undefined } });
@@ -153,6 +155,7 @@ export function MapPage() {
             <UploadCta />
           </aside>
         </div>
+        <LoginPromptDialog open={loginPromptOpen} onClose={() => setLoginPromptOpen(false)} />
       </main>
     </div>
   );
