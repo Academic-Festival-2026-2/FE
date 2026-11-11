@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { ColorRatio, DongColor, TimeBand, TopDong } from "../../api/map";
 import chevronDown from "../../assets/icons/chevron-down-navy.svg";
 import { cn } from "../../utils/cn";
@@ -60,9 +60,84 @@ const GLASS_SOLID =
 
 const glassTab = (active: boolean) =>
   cn(
-    "flex h-8 shrink-0 items-center gap-1.5 px-2 text-[13px] leading-none whitespace-nowrap transition-colors sm:px-3",
-    active ? "bg-navy font-bold text-white" : "font-medium text-ink-sub hover:bg-white/60",
+    "relative z-10 flex h-8 shrink-0 items-center gap-1.5 px-2 text-[13px] leading-none whitespace-nowrap transition-colors duration-300 sm:px-3",
+    active ? "font-bold text-white" : "font-medium text-ink-sub hover:bg-white/50",
   );
+
+const SPRING = "cubic-bezier(0.34, 1.25, 0.64, 1)";
+
+// 고른 칸 표시 (리퀴드 글라스 느낌)
+// - 다른 칸을 누르면 남색 알약이 살짝 튕기듯 미끄러져 이동
+// - 도착하면서 물방울처럼 가로로 늘었다가 제자리로 돌아옴
+// - OS의 "동작 줄이기"가 켜져 있으면 애니메이션 없이 바로 이동
+// 탭 버튼에는 data-liquid-tab을 붙이고, 감싸는 상자(이 표시의 부모)에는 relative를 줌
+// 부모 ref는 자식 effect보다 늦게 연결되므로, 표시 자신의 부모 요소를 직접 사용
+function LiquidIndicator({ activeIndex, className }: { activeIndex: number; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const prevIndexRef = useRef<number | null>(null);
+  const placeRef = useRef<(animate: boolean) => void>(() => {});
+
+  useLayoutEffect(() => {
+    const indicator = ref.current;
+    const container = indicator?.parentElement;
+    if (!indicator || !container) return;
+
+    const place = (animate: boolean) => {
+      const tab = container.querySelectorAll<HTMLElement>("[data-liquid-tab]")[activeIndex];
+      if (!tab) return;
+      indicator.style.transition = animate ? `left 460ms ${SPRING}, width 460ms ${SPRING}` : "none";
+      indicator.style.left = `${tab.offsetLeft}px`;
+      indicator.style.width = `${tab.offsetWidth}px`;
+      indicator.style.top = `${tab.offsetTop}px`;
+      indicator.style.height = `${tab.offsetHeight}px`;
+    };
+    placeRef.current = place;
+
+    const previous = prevIndexRef.current;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const moving = previous !== null && previous !== activeIndex && !reduceMotion;
+    place(moving);
+    if (moving) {
+      indicator.animate(
+        [
+          { transform: "scale(1, 1)" },
+          { transform: "scale(1.07, 0.93)", offset: 0.3 },
+          { transform: "scale(0.985, 1.02)", offset: 0.65 },
+          { transform: "scale(1, 1)" },
+        ],
+        { duration: 480, easing: "ease-out" },
+      );
+    }
+    prevIndexRef.current = activeIndex;
+  }, [activeIndex]);
+
+  // 글꼴이 늦게 뜨거나 화면 폭이 바뀌어 탭 크기가 달라지면 애니메이션 없이 위치만 맞춤
+  useEffect(() => {
+    const container = ref.current?.parentElement;
+    if (!container) return;
+    let first = true;
+    const observer = new ResizeObserver(() => {
+      if (first) {
+        first = false;
+        return;
+      }
+      placeRef.current(false);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <span
+      ref={ref}
+      aria-hidden
+      className={cn(
+        "pointer-events-none absolute bg-navy/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.15),0_2px_8px_rgba(41,54,129,0.3)] backdrop-blur-[2px]",
+        className,
+      )}
+    />
+  );
+}
 
 export function MapTitlePanel({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -81,9 +156,11 @@ export function MapModeToggle({
   onChange: (mine: boolean) => void;
 }) {
   return (
-    <div className={cn(GLASS, "flex gap-0.5 rounded-[14px] p-1")}>
+    <div className={cn(GLASS, "relative flex gap-0.5 rounded-[14px] p-1")}>
+      <LiquidIndicator activeIndex={mine ? 1 : 0} className="rounded-[10px]" />
       <button
         type="button"
+        data-liquid-tab
         aria-pressed={!mine}
         onClick={() => onChange(false)}
         className={cn(glassTab(!mine), "rounded-[10px]")}
@@ -92,6 +169,7 @@ export function MapModeToggle({
       </button>
       <button
         type="button"
+        data-liquid-tab
         aria-pressed={mine}
         onClick={() => onChange(true)}
         className={cn(glassTab(mine), "rounded-[10px]")}
@@ -124,6 +202,7 @@ export function SeasonTimeBar({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = SEASON_OPTIONS.find((option) => option.value === season);
+  const activeIndex = TIME_BANDS.findIndex((band) => band.value === timeBand);
 
   // 바깥 클릭·Esc로 닫기
   useEffect(() => {
@@ -193,13 +272,15 @@ export function SeasonTimeBar({
         />
       </button>
       <span className="h-5 w-px bg-[#c9d0dc]" aria-hidden />
-      <div className="flex gap-0.5">
+      <div className="relative flex gap-0.5">
+        <LiquidIndicator activeIndex={activeIndex} className="rounded-[9px]" />
         {TIME_BANDS.map((band) => {
           const active = band.value === timeBand;
           return (
             <button
               key={band.value}
               type="button"
+              data-liquid-tab
               aria-pressed={active}
               onClick={() => onTimeBandChange(band.value)}
               className={cn(glassTab(active), "rounded-[9px]")}
@@ -207,7 +288,7 @@ export function SeasonTimeBar({
               <span
                 aria-hidden
                 // 좁은 화면에서는 색 픽셀을 숨겨서 바 폭을 줄임
-                className={cn("hidden size-2.5 rounded-[2px] sm:block", active && "border-[1.5px] border-white")}
+                className={cn("hidden size-2.5 rounded-[2px] transition-[border-color] duration-300 sm:block border-[1.5px]", active ? "border-white" : "border-transparent")}
                 style={{ backgroundColor: BAND_PIXEL[band.value] }}
               />
               {band.label}
