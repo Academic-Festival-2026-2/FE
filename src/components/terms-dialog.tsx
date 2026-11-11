@@ -17,19 +17,26 @@ export function TermsDialog({ term, onClose }: TermsDialogProps) {
     if (dialog && !dialog.open) dialog.showModal();
   }, []);
 
+  // 닫기: dialog를 먼저 닫아 연 버튼([보기]·[약관 보기])으로 포커스를 돌려준 뒤 부모에 알림
+  // (close() 없이 바로 화면에서 없애면 포커스가 돌아가지 않음)
+  function close() {
+    dialogRef.current?.close();
+    onClose();
+  }
+
   return (
     <dialog
       ref={dialogRef}
       aria-labelledby="terms-dialog-title"
       onClose={onClose}
-      // ESC: 브라우저 기본 닫기를 막고 직접 닫음
+      // ESC: 브라우저 기본 닫기를 막고 같은 close()로 닫음
       onCancel={(event) => {
         event.preventDefault();
-        onClose();
+        close();
       }}
       // 어두운 바깥 클릭 시 닫기. padding은 안쪽 div에 줘야 흰 상자 여백 클릭으로 안 닫힘
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) close();
       }}
       className="m-auto w-[min(560px,calc(100%-32px))] rounded-3xl bg-white p-0 backdrop:bg-black/40"
     >
@@ -61,7 +68,7 @@ export function TermsDialog({ term, onClose }: TermsDialogProps) {
 
         <button
           type="button"
-          onClick={onClose}
+          onClick={close}
           className="mt-5 h-11 w-full shrink-0 rounded-[10px] bg-[#ff8a3d] text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a]"
         >
           확인
