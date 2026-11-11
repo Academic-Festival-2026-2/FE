@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { login } from "../../api/auth";
 import { ApiError } from "../../api/client";
+import { Checkbox } from "../../components/form/checkbox";
 import { TextField } from "../../components/form/text-field";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { useAuthStore } from "../../stores/auth-store";
@@ -56,7 +57,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f3f1ec]">
+    <div className="flex min-h-screen flex-col bg-page">
       <AuthHeader />
       {/*
         2단일 때 카드 높이 = 화면 높이 - 헤더(67px) - 위아래 여백(56px×2), 단 620~760px 사이.
@@ -67,7 +68,7 @@ export function LoginPage() {
         {/* 소개 그림: 좁은 화면에서는 숨기고 로그인 카드만 표시 */}
         <section
           aria-label="픽셀 소개"
-          className="relative hidden min-h-[620px] overflow-hidden rounded-3xl border border-[#e6e2da] bg-white xl:block"
+          className="relative hidden min-h-[620px] overflow-hidden rounded-3xl border border-card-line bg-white xl:block"
         >
           {/*
             그림은 시안처럼 56px 위로 올리고, 크기는 카드 폭에만 맞춤.
@@ -76,25 +77,25 @@ export function LoginPage() {
           <img
             src={loginHero}
             alt=""
-            className="absolute -top-14 left-0 h-auto w-full max-w-none"
+            className="absolute -top-[57px] -left-px h-auto max-w-[calc(100%+2px)]"
           />
-          <p className="absolute right-10 bottom-10 left-10 text-[clamp(32px,3.5vw,50px)] leading-[1.22] font-extrabold tracking-[-2px] text-gray-900">
+          <p className="absolute right-10 bottom-10 left-10 text-[clamp(32px,3.5vw,50px)] leading-[1.22] font-black tracking-[-2px] text-ink">
             사진의 색으로 그리는
             <br />
-            <span className="mt-1.5 inline-block rounded-lg bg-[#ff8a3d] px-3 pt-0.5 pb-1">
+            <span className="mt-1.5 inline-block rounded-lg bg-brand px-3 pt-0.5 pb-1 text-white">
               동네 여행 지도
             </span>
           </p>
         </section>
 
-        <section className="mx-auto flex w-full max-w-[480px] flex-col rounded-3xl border border-[#e6e2da] bg-white px-6 py-10 sm:px-[46px] sm:pt-9 sm:pb-7 xl:max-w-none">
-          <h1 className="text-[32px] font-extrabold tracking-[-0.5px] text-gray-900">로그인</h1>
-          <p className="mt-2.5 text-[15px] text-[#55524c]">
+        <section className="mx-auto flex w-full max-w-[480px] flex-col rounded-3xl border border-card-line bg-white px-6 py-10 sm:px-[46px] sm:pt-9 sm:pb-7 xl:max-w-none">
+          <h1 className="text-[32px] font-black tracking-[-0.5px] text-ink">로그인</h1>
+          <p className="mt-2.5 text-[15px] text-ink-sub">
             사진을 올리고 내 기록을 보려면 로그인해 주세요.
           </p>
 
           {loginNotice && (
-            <p role="status" className="mt-6 rounded-xl bg-[#fff1e6] px-4 py-3 text-sm text-[#b9541a]">
+            <p role="status" className="mt-6 rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand-strong">
               {loginNotice}
             </p>
           )}
@@ -120,19 +121,14 @@ export function LoginPage() {
             />
 
             <div className="flex items-center justify-between text-sm">
-              <label className="flex cursor-pointer items-center gap-2 text-[#55524c]">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(event) => setRemember(event.target.checked)}
-                  className="h-[18px] w-[18px] accent-[#ff8a3d]"
-                />
+              <label className="flex cursor-pointer items-center gap-2 text-ink-sub">
+                <Checkbox checked={remember} onChange={setRemember} />
                 로그인 유지
               </label>
               <button
                 type="button"
                 onClick={() => showNotReady("비밀번호 찾기")}
-                className="text-[#55524c] underline underline-offset-4 hover:text-gray-900"
+                className="text-ink-sub underline underline-offset-4 hover:text-ink"
               >
                 비밀번호 찾기
               </button>
@@ -147,25 +143,25 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="h-[52px] w-full rounded-xl bg-[#ff8a3d] font-extrabold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-[52px] w-full rounded-xl bg-brand font-black text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting ? "로그인 중..." : "로그인"}
             </button>
           </form>
 
           {notice && (
-            <p role="status" className="mt-3 text-center text-sm text-gray-500">
+            <p role="status" className="mt-3 text-center text-sm text-ink-muted">
               {notice}
             </p>
           )}
 
           {/* 카드 바닥에 붙는 링크 */}
-          <div className="mt-auto flex flex-col items-center gap-2.5 pt-8 text-sm text-[#55524c]">
+          <div className="mt-auto flex flex-col items-center gap-2.5 pt-8 text-sm text-ink-sub">
             <p>
               처음이신가요?{" "}
               <Link
                 to="/signup"
-                className="font-bold text-[#b5470e] underline underline-offset-4 hover:text-[#8a350a]"
+                className="font-bold text-brand-strong underline underline-offset-4 hover:text-brand"
               >
                 회원가입
               </Link>
@@ -174,7 +170,7 @@ export function LoginPage() {
             <Link
               to="/map"
               search={{ timeBand: currentTimeBand() }}
-              className="text-[13px] text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
+              className="text-[13px] text-ink-muted underline underline-offset-4 hover:text-ink"
             >
               로그인 없이 지도 둘러보기
             </Link>

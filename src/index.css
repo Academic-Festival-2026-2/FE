@@ -1,9 +1,28 @@
 @import "tailwindcss";
 
+/* 픽셀 디자인 토큰 (피그마 "Pixel - Website UI/UX", 블루 #4274D9) */
+@theme {
+  --color-brand: #4274d9;
+  --color-brand-hover: #3563c4;
+  --color-brand-strong: #2f5bb8;
+  --color-brand-soft: #eaf0fb;
+  --color-page: #f5f7fa;
+  --color-line: #e2e6ee;
+  --color-card-line: #e4e8ef;
+  --color-field: #f3f5f9;
+  --color-field-line: #dce1ea;
+  --color-divider: #e9ecf2;
+  --color-check-line: #8b93a3;
+  --color-ink: #1a1a1a;
+  --color-ink-sub: #4e5462;
+  --color-ink-muted: #636a79;
+  --color-ink-placeholder: #666d7c;
+}
+
 :root {
   font-family: "Noto Sans KR", system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  color: #111827;
-  background: #f7f5f0;
+  color: #1a1a1a;
+  background: #f5f7fa;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
