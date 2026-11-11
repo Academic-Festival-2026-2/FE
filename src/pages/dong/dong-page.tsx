@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams, useRouter, useSearch } from "@tanstack/react-router";
 import { getDongDetail, type DongPoint } from "../../api/dong";
 import type { TimeBand } from "../../api/map";
@@ -43,10 +44,27 @@ function signedArea(path: kakao.maps.LatLng[]) {
 }
 
 type LocatedPoint = DongPoint & { lat: number; lng: number };
+// 고른 사진 묶음. anchor가 있으면 데스크톱에서 그 픽셀 위에 말풍선으로 띄움 (위치 없는 사진은 null)
+type Selection = { points: DongPoint[]; anchor: { key: string; lat: number; lng: number } | null };
+
+// 고른 픽셀 강조 (조금 크게 + 남색 테두리)
+const PIXEL_SELECTED = ["scale-150", "ring-2", "ring-navy", "z-10"];
+
+// 데스크톱(sm 이상)인지. 말풍선은 데스크톱에서만, 모바일은 아래 카드
+const DESKTOP_QUERY = "(min-width: 640px)";
+function subscribeDesktop(onChange: () => void) {
+  const media = window.matchMedia(DESKTOP_QUERY);
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+function useIsDesktop() {
+  return useSyncExternalStore(subscribeDesktop, () => window.matchMedia(DESKTOP_QUERY).matches);
+}
 
 function pixelElement(color: string, count: number) {
   const pixel = document.createElement("div");
-  pixel.className = "relative h-4 w-4 cursor-pointer rounded-[3px] border-2 border-white shadow";
+  pixel.className =
+    "relative h-4 w-4 cursor-pointer rounded-[3px] border-2 border-white shadow transition-transform";
   pixel.style.backgroundColor = color;
   if (count > 1) {
     const badge = document.createElement("span");
@@ -107,7 +125,10 @@ export function DongPage() {
   const [tilesReadyFor, setTilesReadyFor] = useState<string | null>(null);
   // "전체" 버튼으로 처음 보던 범위(동 전체)로 되돌릴 때 씀
   const dongBoundsRef = useRef<kakao.maps.LatLngBounds | null>(null);
-  const [selected, setSelected] = useState<DongPoint[] | null>(null);
+  const [selected, setSelected] = useState<Selection | null>(null);
+  const isDesktop = useIsDesktop();
+  // 지도에 찍은 픽셀 요소 (위치 키 → 요소). 고른 픽셀 강조용
+  const pixelElementsRef = useRef(new Map<string, HTMLElement>());
 
   // 지도로 이동이 시작될 때 어느 동이었는지 기억 → 지도가 이 동에서 줄어들며 시작 (링크·뒤로 가기 모두).
   // 화면이 사라질 때(언마운트) 기록하면 지도 화면이 먼저 그려진 뒤라 늦어서, 이동 시작 이벤트에서 기록함
@@ -150,6 +171,8 @@ export function DongPage() {
 
       // 지도 화면의 확대 전환이 이 값을 기준으로 계산함 (kakao-fit.ts)
       map.setMaxLevel(DONG_MAX_LEVEL);
+      // 지도 빈 곳을 누르면 사진 말풍선·카드 닫기 (픽셀·말풍선은 clickable이라 여기로 안 옴)
+      kakao.maps.event.addListener(map, "click", () => setSelected(null));
 
       const bounds = new kakao.maps.LatLngBounds();
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
@@ -264,9 +287,13 @@ export function DongPage() {
       groups.set(key, [...(groups.get(key) ?? []), point]);
     }
 
-    const pixels = [...groups.values()].map((group) => {
+    const elements = pixelElementsRef.current;
+    const pixels = [...groups.entries()].map(([key, group]) => {
       const content = pixelElement(group[0].color, group.length);
-      content.addEventListener("click", () => setSelected(group));
+      elements.set(key, content);
+      content.addEventListener("click", () =>
+        setSelected({ points: group, anchor: { key, lat: group[0].lat, lng: group[0].lng } }),
+      );
       return new kakao.maps.CustomOverlay({
         map,
         position: new kakao.maps.LatLng(group[0].lat, group[0].lng),
@@ -276,8 +303,77 @@ export function DongPage() {
       });
     });
 
-    return () => pixels.forEach((pixel) => pixel.setMap(null));
+    return () => {
+      pixels.forEach((pixel) => pixel.setMap(null));
+      elements.clear();
+    };
   }, [map, points]);
+
+  // 고른 픽셀 강조
+  const selectedKey = selected?.anchor?.key ?? null;
+  useEffect(() => {
+    if (!selectedKey) return;
+    const element = pixelElementsRef.current.get(selectedKey);
+    element?.classList.add(...PIXEL_SELECTED);
+    return () => element?.classList.remove(...PIXEL_SELECTED);
+  }, [selectedKey, points]);
+
+  // 데스크톱: 고른 픽셀 위에 말풍선 (카카오 CustomOverlay 안에 React로 그림)
+  const anchor = isDesktop ? (selected?.anchor ?? null) : null;
+  // 카카오 오버레이는 처음 크기로만 위치를 잡아서, 크기 0인 점(host)을 픽셀에 놓고
+  // 그 안에서 말풍선(inner)을 아래 가운데 기준으로 위로 펼침 → 사진을 받아 커져도 항상 픽셀 위
+  const bubble = useMemo(() => {
+    if (!anchor) return null;
+    const host = document.createElement("div");
+    host.style.position = "relative";
+    const inner = document.createElement("div");
+    inner.style.cssText = "position:absolute;left:0;bottom:0;transform:translateX(-50%)";
+    host.appendChild(inner);
+    return { host, inner };
+  }, [anchor]);
+  const bubbleHost = bubble?.inner ?? null;
+
+  useEffect(() => {
+    if (!map || !anchor || !bubble) return;
+    const overlay = new kakao.maps.CustomOverlay({
+      map,
+      position: new kakao.maps.LatLng(anchor.lat, anchor.lng),
+      content: bubble.host,
+      clickable: true,
+      zIndex: 10,
+    });
+    const bubbleHost = bubble.inner;
+
+    // 말풍선이 화면 밖으로 나가면 지도를 그만큼 옮김 (사진을 다 받아 크기가 바뀔 때도 다시 확인)
+    // 열림 애니메이션(크기 변화) 중에도 흔들리지 않게 화면상 크기 대신 실제 레이아웃 크기로 계산
+    const fit = () => {
+      const container = containerRef.current;
+      if (!container) return;
+      const point = map
+        .getProjection()
+        .containerPointFromCoords(new kakao.maps.LatLng(anchor.lat, anchor.lng));
+      const width = bubbleHost.offsetWidth;
+      const height = bubbleHost.offsetHeight;
+      const top = point.y - height;
+      const left = point.x - width / 2;
+      const margin = 16;
+      let dx = 0;
+      let dy = 0;
+      if (top < margin) dy = top - margin;
+      else if (point.y > container.clientHeight - margin) dy = point.y - (container.clientHeight - margin);
+      if (left < margin) dx = left - margin;
+      else if (left + width > container.clientWidth - margin)
+        dx = left + width - (container.clientWidth - margin);
+      if (dx || dy) map.panBy(Math.round(dx), Math.round(dy));
+    };
+    const observer = new ResizeObserver(fit);
+    observer.observe(bubbleHost);
+
+    return () => {
+      observer.disconnect();
+      overlay.setMap(null);
+    };
+  }, [map, anchor, bubble]);
 
   function changeTimeBand(value: TimeBand) {
     setSelected(null);
@@ -289,10 +385,10 @@ export function DongPage() {
     });
   }
 
-  // 카카오 지도 레벨은 숫자가 작을수록 확대 (최대 축소는 setMaxLevel(8))
+  // 카카오 지도 레벨은 숫자가 작을수록 확대 (최대 축소는 DONG_MAX_LEVEL)
   function zoomBy(delta: number) {
     if (!map) return;
-    map.setLevel(Math.min(8, Math.max(1, map.getLevel() + delta)), { animate: true });
+    map.setLevel(Math.min(DONG_MAX_LEVEL, Math.max(1, map.getLevel() + delta)), { animate: true });
   }
 
   function resetView() {
@@ -362,7 +458,7 @@ export function DongPage() {
           {mine && unlocated.length > 0 && (
             <button
               type="button"
-              onClick={() => setSelected(unlocated)}
+              onClick={() => setSelected({ points: unlocated, anchor: null })}
               className="mt-1.5 text-xs font-bold text-brand-strong underline underline-offset-4"
             >
               위치 없는 사진 {unlocated.length}장 보기
@@ -377,16 +473,30 @@ export function DongPage() {
         <TimeBandBar season={season} timeBand={timeBand} onChange={changeTimeBand} />
       </div>
 
-      {selected && (
-        <div className="absolute inset-x-4 bottom-4 z-20 sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-auto">
-          <PhotoCard
-            key={selected[0].photoId}
-            points={selected}
-            mine={mine}
-            onClose={() => setSelected(null)}
-          />
-        </div>
-      )}
+      {selected &&
+        (bubbleHost ? (
+          // 데스크톱 + 위치 있는 사진: 픽셀 위 말풍선
+          createPortal(
+            <PhotoCard
+              key={selected.points[0].photoId}
+              points={selected.points}
+              mine={mine}
+              variant="bubble"
+              onClose={() => setSelected(null)}
+            />,
+            bubbleHost,
+          )
+        ) : (
+          // 모바일, 또는 위치 없는 사진: 화면에 고정된 카드
+          <div className="absolute inset-x-4 bottom-4 z-20 sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-auto">
+            <PhotoCard
+              key={selected.points[0].photoId}
+              points={selected.points}
+              mine={mine}
+              onClose={() => setSelected(null)}
+            />
+          </div>
+        ))}
       {/* 확대·축소 (지도 화면과 같은 유리 버튼). 터치 기기는 두 손가락으로 확대하므로 숨김 */}
       {map && (
         <div className="liquid-glass absolute right-4 bottom-6 z-10 flex flex-col gap-0.5 rounded-xl p-1 pointer-coarse:hidden">
