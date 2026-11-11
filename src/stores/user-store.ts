@@ -17,15 +17,19 @@ export const useUserStore = create<UserStore>((set, get) => ({
   me: null,
   loadMe: async () => {
     if (get().me) return;
-    set({ me: await getMyInfo() });
+    const session = useAuthStore.getState().session;
+    const me = await getMyInfo();
+    // 응답을 기다리는 동안 로그아웃·다른 계정 로그인으로 세션이 바뀌었으면 늦게 온 응답은 버림
+    // (토큰 자체를 비교하면 같은 계정의 토큰 재발급에도 버려져서 세션 번호로 비교)
+    if (useAuthStore.getState().session === session) set({ me });
   },
   setMe: (me) => set({ me }),
   updateMe: (changes) => set((s) => (s.me ? { me: { ...s.me, ...changes } } : s)),
   clearMe: () => set({ me: null }),
 }));
 
-// 로그아웃·세션 만료·탈퇴 등으로 토큰이 지워지면 내 정보도 비움
+// 로그인·로그아웃·세션 만료·탈퇴로 세션이 바뀌면 내 정보도 비움 (토큰 재발급은 제외)
 // (다른 계정으로 다시 로그인했을 때 이전 정보가 보이지 않게)
-useAuthStore.subscribe((state) => {
-  if (!state.tokens) useUserStore.getState().clearMe();
+useAuthStore.subscribe((state, prev) => {
+  if (state.session !== prev.session) useUserStore.getState().clearMe();
 });

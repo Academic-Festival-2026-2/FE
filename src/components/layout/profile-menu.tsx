@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { isSessionExpired } from "../../hooks/use-expire-session";
 import { useLogout } from "../../hooks/use-logout";
+import { useAuthStore } from "../../stores/auth-store";
 import { useUserStore } from "../../stores/user-store";
 import { Avatar } from "../avatar";
 
@@ -9,17 +10,18 @@ import { Avatar } from "../avatar";
 export function ProfileMenu() {
   const me = useUserStore((state) => state.me);
   const loadMe = useUserStore((state) => state.loadMe);
-  const expireSession = useExpireSession();
+  const clearTokens = useAuthStore((state) => state.clearTokens);
   const { logout, isLoggingOut } = useLogout();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadMe().catch((error: unknown) => {
-      // 토큰 만료·탈퇴 회원이면 로그인 화면으로, 그 외 실패는 빈 원으로 표시
-      if (isSessionExpired(error)) expireSession();
+      // 헤더는 화면을 옮기지 않고 토큰만 지움 → 공개 지도는 그대로 보이고 헤더만 비로그인으로 바뀜
+      // 로그인이 꼭 필요한 화면은 각자 처리. 그 외 실패는 빈 원으로 표시
+      if (isSessionExpired(error)) clearTokens();
     });
-  }, [loadMe, expireSession]);
+  }, [loadMe, clearTokens]);
 
   // 바깥 클릭·Esc로 닫기
   useEffect(() => {
