@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import type { ColorRatio, DongColor, TimeBand, TopDong } from "../../api/map";
 import chevronDown from "../../assets/icons/chevron-down-navy.svg";
 import { cn } from "../../utils/cn";
-import { SEASON_OPTIONS, TIME_BANDS, bandLabel } from "./map-data";
+import { BAND_PIXEL, SEASON_OPTIONS, TIME_BANDS, bandLabel } from "./map-data";
 
 // 지도 위에 띄우는 유리 패널 (리퀴드 글라스 느낌). 값은 index.css의 liquid-glass에서 조정
 export const GLASS = "liquid-glass";
@@ -135,13 +135,6 @@ export function MapModeToggle({
   );
 }
 
-// 시간대 한 칸의 대표 픽셀 색 (로고 4색과 같음: logo-mark.tsx)
-const BAND_PIXEL: Record<TimeBand, string> = {
-  DAWN: "#c4b7e9",
-  DAY: "#8ab4e9",
-  SUNSET: "#ee8156",
-  NIGHT: "#2d2670",
-};
 
 // 계절 선택 (지도 아래 시간대 바 왼쪽, 목록은 위로 펼침)
 // 계절은 지금 서버가 주는 시즌만 고를 수 있음 (다른 계절 조회 API가 생기면 onChange 연결)

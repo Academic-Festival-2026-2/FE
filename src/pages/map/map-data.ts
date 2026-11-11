@@ -258,6 +258,14 @@ const SEASONS: Record<string, { name: string; months: string }> = {
   WINTER: { name: "겨울", months: "12–2월" },
 };
 
+// 시간대를 나타내는 작은 색 칸 (로고 4색과 같음: logo-mark.tsx). 지도 아래 시간대 바, 사진 카드 시간대 표시
+export const BAND_PIXEL: Record<TimeBand, string> = {
+  DAWN: "#c4b7e9",
+  DAY: "#8ab4e9",
+  SUNSET: "#ee8156",
+  NIGHT: "#2d2670",
+};
+
 export function bandLabel(value: TimeBand) {
   return TIME_BANDS.find((band) => band.value === value)?.label ?? "";
 }

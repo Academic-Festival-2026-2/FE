@@ -44,6 +44,8 @@ export type PhotoDetail = {
   takenAt: string;
   timeBand: TimeBand;
   palette: string[];
+  // 업로드 때 보낸 40칸 색 비율. 서버 응답에 아직 없을 수 있음 (없으면 5색 같은 폭으로 표시)
+  bins?: number[];
 };
 
 export function getPhotoDetail(photoId: number, mine = false) {
