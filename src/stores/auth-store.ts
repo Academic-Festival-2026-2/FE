@@ -24,6 +24,9 @@ function clearStorage() {
 
 type AuthStore = {
   tokens: TokenResponse | null;
+  // 로그인·로그아웃마다 1씩 늘어남 (재발급은 같은 세션이라 그대로)
+  // 응답을 기다리는 동안 계정이 바뀌었는지 확인할 때 사용
+  session: number;
   setTokens: (tokens: TokenResponse, remember: boolean) => void;
   // 재발급: 로그인 때 고른 저장소(local/session)에 그대로 덮어씀
   updateTokens: (tokens: TokenResponse) => void;
@@ -32,6 +35,7 @@ type AuthStore = {
 
 export const useAuthStore = create<AuthStore>((set) => ({
   tokens: loadTokens(),
+  session: 0,
   setTokens: (tokens, remember) => {
     clearStorage();
     try {
@@ -39,7 +43,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     } catch {
       // 저장에 실패해도 현재 탭에서는 로그인 상태를 유지
     }
-    set({ tokens });
+    set((state) => ({ tokens, session: state.session + 1 }));
   },
   updateTokens: (tokens) => {
     try {
@@ -52,6 +56,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
   clearTokens: () => {
     clearStorage();
-    set({ tokens: null });
+    set((state) => ({ tokens: null, session: state.session + 1 }));
   },
 }));

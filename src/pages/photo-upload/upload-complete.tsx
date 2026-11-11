@@ -9,7 +9,7 @@ const labels = { DAWN: "새벽", DAY: "낮", SUNSET: "노을", NIGHT: "밤" };
 export function UploadComplete({ photos, boundaries, onAdd }: {
   photos: CompletedPhoto[]; boundaries: Boundaries | null; onAdd: () => void;
 }) {
-  const shared = photos.filter((photo) => photo.result.exifVerified).length;
+  const shared = photos.filter((photo) =>photo.result.exifVerified &&(photo.result.aiVerdict ?? "PUBLIC") === "PUBLIC").length;
   const features = boundaries?.features ?? [];
   const points = features.flatMap((feature) => feature.geometry.coordinates.flat(2));
   const extent = points.reduce((bounds, [x, y]) => ({
@@ -51,7 +51,7 @@ export function UploadComplete({ photos, boundaries, onAdd }: {
       <section className="flex-1 rounded-[20px] border border-[#e3dfd6] bg-white p-6">
         <ul className="max-h-80 divide-y divide-[#e3dfd6] overflow-auto">{photos.map((photo, i) => <li key={photo.id} className="flex items-center gap-3 py-4">
           <span className="font-mono text-xs">{i + 1}</span><span className="h-9 w-9 shrink-0 rounded-md" style={{ background: photo.color }} />
-          <div className="min-w-0"><p className="text-sm font-bold">{photo.result.name} · {labels[photo.result.timeBand]}</p><p className="truncate text-xs text-[#77716a]">{photo.filename}</p><p className="mt-1 text-xs">{photo.result.exifVerified ? "사진 정보 확인됨" : "직접 입력 포함"} · {photo.result.isPublic ? "공개" : "비공개"}</p></div>
+          <div className="min-w-0"><p className="text-sm font-bold">{photo.result.name} · {labels[photo.result.timeBand]}</p><p className="truncate text-xs text-[#77716a]">{photo.filename}</p><p className="mt-1 text-xs">{photo.result.exifVerified ? "사진 정보 확인됨" : "직접 입력 포함"} ·{" "}{photo.result.isPublic ? "공개" : "비공개"}</p>{photo.result.aiVerdict === "PERSONAL_ONLY" && (<p className="mt-1 text-xs text-[#b5470e]">개인 지도에만 반영 ·{" "}{photo.result.aiReason === "PRIVACY"? "얼굴·번호판 포함": photo.result.aiReason === "NOT_SCENERY"? "풍경 사진 아님": "검수 결과에 따라 공개 제외"}</p>)}{photo.result.aiVerdict === "UNCHECKED" && (<p className="mt-1 text-xs text-[#b5470e]">검수 미완료 · 개인 지도에만 반영</p>)}</div>
         </li>)}</ul>
         <div className="mt-5 grid grid-cols-2 gap-2 text-center text-sm font-bold"><Link to="/map" search={{ timeBand: photos[0]?.result.timeBand ?? "SUNSET" }} className="rounded-xl bg-[#ff8a3d] px-3 py-4">지도에서 보기</Link><button type="button" onClick={onAdd} className="rounded-xl border border-[#ddd7ce] px-3 py-4">사진 더 올리기</button></div>
       </section>

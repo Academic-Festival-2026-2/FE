@@ -119,6 +119,7 @@ export function DongPage() {
       });
 
       map.setMaxLevel(8);
+      map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.BOTTOMRIGHT);
 
       const bounds = new kakao.maps.LatLngBounds();
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
@@ -213,7 +214,7 @@ export function DongPage() {
 
   return (
     <div className="relative h-screen w-full">
-      <div ref={containerRef} className="h-full w-full" />
+      <div ref={containerRef} className="h-full w-full [&_svg]:pointer-events-none" />
 
       <div className="absolute left-4 top-4 z-10 flex flex-col items-start gap-3">
         <div className="rounded-2xl bg-white/90 px-5 py-4 shadow">

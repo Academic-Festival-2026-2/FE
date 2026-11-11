@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { ApiError } from "../../api/client";
 import { updateMyInfo, type MyInfoResponse } from "../../api/user";
 import { TextField } from "../../components/form/text-field";
+import { TermsDialog } from "../../components/terms-dialog";
+import { LOCATION_TERMS } from "../../constants/terms/location-terms";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { cn } from "../../utils/cn";
 import { validateNickname } from "../../utils/validation";
@@ -55,6 +57,7 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
   const [locationAgreed, setLocationAgreed] = useState(info.locationAgreed);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isSavingLocation, setIsSavingLocation] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   async function handleToggleLocation() {
     const next = !locationAgreed;
@@ -108,7 +111,16 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
           <p className="font-bold text-gray-900">
             위치정보 이용 동의 <span className="font-normal text-gray-500">(선택)</span>
           </p>
-          <p className="mt-1 text-xs text-gray-500">[위치정보 이용 목적 안내 문구]</p>
+          <p className="mt-1 text-xs text-gray-500">
+            사진이 찍힌 동을 찾고, 모두의 지도 색칠과 지도의 사진 위치 점 표시에 써요.{" "}
+            <button
+              type="button"
+              onClick={() => setIsTermsOpen(true)}
+              className="whitespace-nowrap text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
+            >
+              약관 보기
+            </button>
+          </p>
           {locationError && (
             <p role="alert" className="mt-1 text-xs text-red-500">
               {locationError}
@@ -135,6 +147,8 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
           />
         </button>
       </div>
+
+      {isTermsOpen && <TermsDialog term={LOCATION_TERMS} onClose={() => setIsTermsOpen(false)} />}
     </section>
   );
 }

@@ -3,6 +3,7 @@ import { ApiError } from "../../api/client";
 import { getMyInfo, type MyInfoResponse } from "../../api/user";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { useUserStore } from "../../stores/user-store";
 import { AccountSection } from "./account-section";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
@@ -18,7 +19,10 @@ export function MyPage() {
     let ignore = false;
     getMyInfo()
       .then((data) => {
-        if (!ignore) setInfo(data);
+        if (ignore) return;
+        setInfo(data);
+        // 헤더 프로필 메뉴도 최신 정보로
+        useUserStore.getState().setMe(data);
       })
       .catch((error: unknown) => {
         if (ignore) return;
@@ -33,6 +37,7 @@ export function MyPage() {
   // 수정 API는 결과를 돌려주지 않아서 보낸 값으로 화면을 갱신
   function handleUpdated(changes: Partial<MyInfoResponse>) {
     setInfo((prev) => (prev ? { ...prev, ...changes } : prev));
+    useUserStore.getState().updateMe(changes);
   }
 
   return (
@@ -53,7 +58,7 @@ export function MyPage() {
         {!info && !loadError && <p className="mt-6 text-sm text-gray-500">불러오는 중...</p>}
         {info && (
           <div className="mt-4 flex flex-col gap-4">
-            <ProfileSummary info={info} />
+            <ProfileSummary info={info} onUpdated={handleUpdated} />
             {/* 시안 비율 프로필 5 : 비밀번호 6, 두 카드 높이는 같게(stretch) */}
             <div className="grid gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
               <ProfileForm info={info} onUpdated={handleUpdated} />

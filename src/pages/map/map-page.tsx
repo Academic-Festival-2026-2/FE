@@ -3,8 +3,10 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
+import { ProfileMenu } from "../../components/layout/profile-menu";
 import { bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
+import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
   ErrorBanner,
   MapModeToggle,
@@ -22,6 +24,7 @@ export function MapPage() {
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const { boundaries, error: boundaryError } = useBoundaries();
   const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
   const myMap = useMyMap(mine, timeBand);
@@ -45,7 +48,7 @@ export function MapPage() {
 
   function changeMode(nextMine: boolean) {
     if (nextMine && !loggedIn) {
-      navigate({ to: "/login" });
+      setLoginPromptOpen(true);
       return;
     }
     navigate({ to: "/map", search: { timeBand, mode: nextMine ? "mine" : undefined } });
@@ -55,9 +58,7 @@ export function MapPage() {
     <div className="min-h-screen bg-[#f7f5f0]">
       <AuthHeader>
         {loggedIn ? (
-          <Link to="/mypage" className="text-sm font-bold text-gray-900 hover:text-[#b5470e]">
-            내 정보
-          </Link>
+          <ProfileMenu />
         ) : (
           <div className="flex items-center gap-3 text-sm">
             <Link to="/login" className="text-[#55524c] hover:text-gray-900">
@@ -153,6 +154,7 @@ export function MapPage() {
             <UploadCta />
           </aside>
         </div>
+        <LoginPromptDialog open={loginPromptOpen} onClose={() => setLoginPromptOpen(false)} />
       </main>
     </div>
   );
