@@ -38,8 +38,10 @@ export function PhotoUploadPage() {
   const expireSession = useExpireSession();
   // 헤더 프로필 메뉴가 세션 만료로 토큰을 지우면 로그인 링크로 바뀜
   const loggedIn = useAuthStore((state) => state.tokens !== null);
-  // 위치정보 이용에 동의한 회원만 좌표를 써요. 내 정보(헤더 프로필 메뉴가 불러옴)가 오기 전에는 미동의로 봐요.
+  // 위치정보 이용에 동의한 회원만 좌표를 써요. 내 정보가 오기 전에는 미동의로 보고, 올리기 직전에 다시 확인해요.
   const locationAgreed = useUserStore((state) => state.me?.locationAgreed === true);
+  const loadMe = useUserStore((state) => state.loadMe);
+  const setMe = useUserStore((state) => state.setMe);
   const { boundaries, error: boundaryError } = useBoundaries();
   const photo = photos[index];
   // 미동의면 사진 속 GPS·지도에서 고른 위치를 모두 무시하고 동만 받아요
@@ -55,6 +57,11 @@ export function PhotoUploadPage() {
     alive.current = true;
     return () => { alive.current = false; currentUrls.forEach((url) => URL.revokeObjectURL(url)); currentUrls.clear(); };
   }, []);
+
+  // 헤더와 상관없이 이 화면에서도 내 정보를 불러와요 (이미 있으면 다시 안 부름, 세션 만료 처리는 헤더가 함)
+  useEffect(() => {
+    loadMe().catch(() => {});
+  }, [loadMe]);
 
   function update(id: string, changes: Partial<Photo>) {
     if (alive.current) setPhotos((list) => list.map((p) => p.id === id ? { ...p, ...changes } : p));
@@ -97,12 +104,17 @@ export function PhotoUploadPage() {
     sending.current = true;
     update(photo.id, { status: "uploading", error: undefined });
     try {
-      // 토큰 재발급 겸 최신 동의 상태 확인 (다른 탭에서 동의를 바꿨을 수 있음)
+      // 토큰 재발급 겸 최신 동의 상태 확인
       const me = await getMyInfo();
-      const sendLocation = me.locationAgreed && locationAgreed;
+      setMe(me);
+      // 화면에 보인 동의 상태와 다르면(내 정보를 불러오기 전이거나 다른 탭에서 바꾼 경우) 화면을 맞추고 다시 확인받아요.
+      // 서버 값만 보고 좌표를 보내면, 동만 고르던 화면에서 GPS와 다른 동을 고른 경우 DONG_GPS_MISMATCH로 실패해요.
+      if (me.locationAgreed !== locationAgreed) {
+        update(photo.id, { status: "ready", error: "위치정보 동의 상태가 바뀌어 화면을 다시 맞췄어요. 촬영 위치를 확인한 뒤 다시 눌러 주세요." });
+        return;
+      }
       const result = await uploadPhoto(photo.file, {
-        dongCode: selectedFeature.properties.dongCode,
-        latitude: sendLocation ? latitude : undefined, longitude: sendLocation ? longitude : undefined,
+        dongCode: selectedFeature.properties.dongCode, latitude, longitude,
         takenAt, isPublic: photo.isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
       });
       update(photo.id, { status: "success", result });
