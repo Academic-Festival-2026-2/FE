@@ -42,25 +42,27 @@ export function PhotoCard({
   const showImage = current?.imageUrl && current.imageUrl !== failedUrl;
 
   return (
-    <section className="w-full overflow-hidden rounded-2xl bg-white shadow-lg sm:w-72">
+    <section className="w-full overflow-hidden rounded-[18px] border border-card-line bg-white shadow-[0_12px_32px_rgba(26,36,64,0.14)] sm:w-72">
       <div className="flex items-center justify-between px-4 pt-3">
-        <span className="text-xs text-gray-500">
+        <span className="font-mono text-xs text-ink-muted">
           {points.length > 1 ? `${index + 1} / ${points.length}` : "사진"}
         </span>
         <button
           type="button"
           aria-label="닫기"
           onClick={onClose}
-          className="text-lg leading-none text-gray-500 hover:text-gray-900"
+          className="flex size-7 items-center justify-center rounded-lg border border-line text-ink-sub hover:bg-field"
         >
-          ×
+          <svg width="12" height="12" viewBox="0 0 14 14" aria-hidden>
+            <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
         </button>
       </div>
 
       {failedId === photoId ? (
-        <p className="px-4 py-6 text-sm text-red-500">사진을 불러오지 못했어요.</p>
+        <p className="px-4 py-6 text-sm text-[#c2402f]">사진을 불러오지 못했어요.</p>
       ) : !current ? (
-        <p className="px-4 py-6 text-sm text-gray-500">불러오는 중...</p>
+        <p className="px-4 py-6 text-sm text-ink-muted">불러오는 중...</p>
       ) : (
         <>
           {showImage ? (
@@ -78,11 +80,11 @@ export function PhotoCard({
             </div>
           )}
           <div className="px-4 py-3">
-            <p className="font-bold text-gray-900">{current.nickname}</p>
-            <p className="mt-0.5 text-xs text-gray-500">
+            <p className="font-bold text-ink">{current.nickname}</p>
+            <p className="mt-0.5 text-xs text-ink-muted">
               {formatTakenAt(current.takenAt)} · {bandLabel(current.timeBand)}
             </p>
-            <div className="mt-3 flex h-5 overflow-hidden rounded-md">
+            <div className="mt-3 flex h-5 overflow-hidden rounded-[6px]">
               {current.palette.map((color, i) => (
                 <span key={i} className="flex-1" style={{ backgroundColor: color }} />
               ))}
@@ -92,12 +94,12 @@ export function PhotoCard({
       )}
 
       {points.length > 1 && (
-        <div className="flex justify-between border-t border-[#f0ede6] px-4 py-2 text-sm">
+        <div className="flex justify-between border-t border-divider px-4 py-2 text-sm">
           <button
             type="button"
             disabled={index === 0}
             onClick={() => setIndex(index - 1)}
-            className="text-gray-700 disabled:text-gray-300"
+            className="font-medium text-brand-strong disabled:text-ink-faint"
           >
             ‹ 이전
           </button>
@@ -105,7 +107,7 @@ export function PhotoCard({
             type="button"
             disabled={index === points.length - 1}
             onClick={() => setIndex(index + 1)}
-            className="text-gray-700 disabled:text-gray-300"
+            className="font-medium text-brand-strong disabled:text-ink-faint"
           >
             다음 ›
           </button>

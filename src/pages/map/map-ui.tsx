@@ -11,47 +11,6 @@ const STATUS_LABEL = {
   EMPTY: "사진 없음",
 } as const;
 
-// 시간대 탭·지도 종류 토글 공통 모양 (피그마: 흰 상자 안에서 고른 칸만 남색)
-const TAB_GROUP = "flex rounded-xl border border-card-line bg-white p-1";
-const tabClass = (active: boolean) =>
-  cn(
-    "flex h-[38px] items-center gap-2 rounded-[9px] px-3.5 text-sm transition-colors",
-    active ? "bg-navy font-bold text-white" : "text-ink-sub hover:bg-field",
-  );
-
-export function TimeBandTabs({
-  value,
-  onChange,
-}: {
-  value: TimeBand;
-  onChange: (value: TimeBand) => void;
-}) {
-  return (
-    <div className={TAB_GROUP}>
-      {TIME_BANDS.map((band) => (
-        <button
-          key={band.value}
-          type="button"
-          aria-pressed={band.value === value}
-          onClick={() => onChange(band.value)}
-          className={tabClass(band.value === value)}
-        >
-          <span className="flex gap-0.5" aria-hidden>
-            {band.swatch.map((color) => (
-              <span
-                key={color}
-                className="h-3.5 w-1.5 rounded-[2px]"
-                style={{ backgroundColor: color }}
-              />
-            ))}
-          </span>
-          {band.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // 지도 위에 띄우는 유리 패널 (리퀴드 글라스 느낌). 값은 index.css의 liquid-glass에서 조정
 export const GLASS = "liquid-glass";
 
@@ -486,14 +445,14 @@ export function MyMapGuidePanel({ regionName, dongCount }: { regionName: string;
 export function DongCard({ dong }: { dong: DongColor | undefined }) {
   if (!dong) return null;
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-card-line bg-white/95 px-4 py-3">
+    <div className={cn(GLASS, "flex items-center gap-3 rounded-[14px] px-4 py-3")}>
       <span
-        className="h-8 w-8 rounded-md border border-black/10"
+        className="size-8 rounded-md border border-white/70"
         style={{ backgroundColor: dong.dominantColor ?? EMPTY_FILL }}
       />
       <div>
-        <p className="font-bold text-ink">{dong.name}</p>
-        <p className="text-sm text-ink-sub">
+        <p className="text-[15px] font-bold text-ink">{dong.name}</p>
+        <p className="text-[13px] text-ink-sub">
           사진 {dong.photoCount}장{STATUS_LABEL[dong.status] && ` · ${STATUS_LABEL[dong.status]}`}
         </p>
       </div>

@@ -4,7 +4,7 @@ import { useAuthStore } from "../../stores/auth-store";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
-import { bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
+import { REGION_NAME, bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
 import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
@@ -18,9 +18,6 @@ import {
   MyMapPanel,
 } from "./map-ui";
 import { SvgMap } from "./svg-map";
-
-// 지도 제목에 들어가는 지역 이름. 경기도 전체로 확장하면 고른 지역 값으로 바꿀 자리
-const REGION_NAME = "부천";
 
 export function MapPage() {
   const { timeBand, mode } = useSearch({ from: "/map" });

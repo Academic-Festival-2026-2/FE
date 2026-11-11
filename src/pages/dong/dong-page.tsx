@@ -10,15 +10,18 @@ import {
   KAKAO_ERROR,
   KAKAO_UNAVAILABLE,
   PAGE_BG,
+  REGION_NAME,
+  seasonOf,
   toKakaoPath,
   useBoundaries,
   useDongColors,
   useMyMap,
 } from "../map/map-data";
-import { DongCard, ErrorBanner, TimeBandTabs } from "../map/map-ui";
+import { DongCard, ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
+import { cn } from "../../utils/cn";
 import { PhotoCard } from "./photo-card";
 
-const SELECTED_STROKE = "#1f1d1a";
+const SELECTED_STROKE = "#1a1a1a";
 const DONG_TINT_OPACITY = 0.14;
 
 function signedArea(path: kakao.maps.LatLng[]) {
@@ -40,7 +43,7 @@ function pixelElement(color: string, count: number) {
   if (count > 1) {
     const badge = document.createElement("span");
     badge.className =
-      "absolute -top-2 -right-4 rounded-full bg-gray-900 px-1 text-[10px] leading-4 font-bold text-white";
+      "absolute -top-2 -right-4 rounded-full bg-navy px-1 text-[10px] leading-4 font-bold text-white";
     badge.textContent = `+${count - 1}`;
     pixel.appendChild(badge);
   }
@@ -82,10 +85,13 @@ export function DongPage() {
   const { timeBand, mode } = useSearch({ from: "/dong/$dongCode" });
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
+  // 동 경계 밖만 더 흐리게 하는 레이어 (동 모양으로 구멍을 뚫은 마스크를 지도 이동·확대에 맞춰 갱신)
+  const outsideBlurRef = useRef<HTMLDivElement>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
-  const { dongs, error: colorError } = useDongColors(timeBand);
+  const { dongs, season, error: colorError } = useDongColors(timeBand);
+  const seasonName = seasonOf(season)?.name;
   const myMap = useMyMap(mine, timeBand);
   const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
@@ -108,6 +114,7 @@ export function DongPage() {
   useEffect(() => {
     if (!boundaries || !feature || KAKAO_UNAVAILABLE) return;
     let cancelled = false;
+    let removeMaskListeners = () => {};
     const overlays: (kakao.maps.Polygon | kakao.maps.CustomOverlay)[] = [];
 
     kakao.maps.load(() => {
@@ -163,11 +170,47 @@ export function DongPage() {
       }
 
       map.setBounds(bounds, 40, 40, 40, 40);
+
+      // 경계 밖 흐림 레이어 마스크: 화면 전체에서 동 모양만 뺀 영역 (동 안은 흐리지 않음)
+      const updateOutsideMask = () => {
+        const layer = outsideBlurRef.current;
+        const container = containerRef.current;
+        if (!layer || !container) return;
+        const projection = map.getProjection();
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        const holes = outlines
+          .map(
+            (outline) =>
+              "M" +
+              outline
+                .map((latLng) => {
+                  const point = projection.containerPointFromCoords(latLng);
+                  return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+                })
+                .join("L") +
+              "Z",
+          )
+          .join("");
+        // 왼쪽 아래 카카오 로고·축척 자리도 비워 둠 (카카오맵 이용 조건상 로고는 가리지 않음)
+        const logoHole = `M0,${height - 36}H160V${height}H0Z`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><path fill-rule="evenodd" fill="black" d="M0,0H${width}V${height}H0Z${holes}${logoHole}"/></svg>`;
+        const mask = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+        layer.style.maskImage = mask;
+        layer.style.webkitMaskImage = mask;
+      };
+      const maskEvents = ["bounds_changed", "drag", "zoom_changed", "idle"];
+      maskEvents.forEach((name) => kakao.maps.event.addListener(map, name, updateOutsideMask));
+      removeMaskListeners = () =>
+        maskEvents.forEach((name) => kakao.maps.event.removeListener(map, name, updateOutsideMask));
+      updateOutsideMask();
+
       setMap(map);
     });
 
     return () => {
       cancelled = true;
+      removeMaskListeners();
       overlays.forEach((overlay) => overlay.setMap(null));
       outlinePolygonsRef.current = [];
     };
@@ -214,41 +257,55 @@ export function DongPage() {
 
   return (
     <div className="relative h-screen w-full">
-      <div ref={containerRef} className="h-full w-full [&_svg]:pointer-events-none" />
+      <div
+        ref={containerRef}
+        className="h-full w-full [&_svg]:pointer-events-none"
+      />
+      {/* 동 경계 밖만 아주 살짝(1px) 흐리게 (마스크는 지도 이벤트에서 갱신) */}
+      <div
+        ref={outsideBlurRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-[1] backdrop-blur-[1px] [mask-size:100%_100%] [-webkit-mask-size:100%_100%]"
+      />
 
-      <div className="absolute left-4 top-4 z-10 flex flex-col items-start gap-3">
-        <div className="rounded-2xl bg-white/90 px-5 py-4 shadow">
-          <p className="text-sm text-gray-500">
-            <Link to="/map" search={{ timeBand, mode }} className="hover:text-gray-900">
-              ← 부천시
+      {/* 지도 화면과 같은 유리 패널. 제목은 공유·내 지도 같게 ("역곡3동의 새벽") */}
+      <div className="absolute top-4 left-4 z-10">
+        <div className={cn(GLASS, "rounded-[14px] px-4 py-2.5")}>
+          <p className="text-xs leading-[18px] text-ink-muted">
+            <Link to="/map" search={{ timeBand, mode }} className="hover:text-ink">
+              ← {REGION_NAME}시
             </Link>
             {feature && <span> / {feature.properties.guName}</span>}
           </p>
           {feature && (
-            <h1 className="mt-1 text-2xl font-extrabold text-gray-900">
-              {feature.properties.name}의 {mine ? "내 " : ""}
-              {bandLabel(timeBand)}
+            <h1 className="mt-0.5 text-[22px] leading-8 font-extrabold tracking-[-0.66px] text-ink">
+              {feature.properties.name}의 {bandLabel(timeBand)}
             </h1>
           )}
           {dong && (
-            <p className="mt-1 text-sm text-gray-500">
-              {mine ? "내 사진" : "가을 · 사진"} {dong.photoCount}장
+            <p className="text-xs leading-[18px] text-ink-muted">
+              {mine ? "내 사진" : seasonName ? `${seasonName} · 사진` : "사진"}{" "}
+              <b className="text-ink">{dong.photoCount}</b>장
             </p>
           )}
           {mine && unlocated.length > 0 && (
             <button
               type="button"
               onClick={() => setSelected(unlocated)}
-              className="mt-2 text-sm font-bold text-[#b5470e] underline underline-offset-4"
+              className="mt-1.5 text-xs font-bold text-brand-strong underline underline-offset-4"
             >
               위치 없는 사진 {unlocated.length}장 보기
             </button>
           )}
         </div>
-        <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
       </div>
 
-      <div className="absolute bottom-6 left-4 z-10">
+      {/* 지도 화면과 같은 계절 + 시간대 바 (아래 가운데) */}
+      <div className="absolute bottom-6 left-1/2 z-10 w-max -translate-x-1/2">
+        <TimeBandBar season={season} timeBand={timeBand} onChange={changeTimeBand} />
+      </div>
+
+      <div className="absolute bottom-24 left-4 z-10 sm:bottom-6">
         <DongCard dong={dong} />
       </div>
       {selected && (

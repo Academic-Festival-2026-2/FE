@@ -13,7 +13,11 @@ import {
   type TopDong,
 } from "../../api/map";
 
-export const PAGE_BG = "#f7f5f0";
+// 지도 제목·동 상세 경로에 들어가는 지역 이름. 경기도 전체로 확장하면 고른 지역 값으로 바꿀 자리
+export const REGION_NAME = "부천";
+
+// 동 상세 지도에서 고른 동 바깥을 덮는 색 (지도 화면 빈 동 기본색 EMPTY_FILL과 같은 쿨톤 회색)
+export const PAGE_BG = "#e2e6ed";
 // 사진이 없는 동의 기본 색 (살짝 쿨톤 회색)
 export const EMPTY_FILL = "#e2e6ed";
 
