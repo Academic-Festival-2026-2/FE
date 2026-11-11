@@ -37,10 +37,10 @@ export function TextField({
   const isSmall = size === "sm";
 
   return (
-    <div className={cn("flex flex-col", isSmall ? "gap-1.5" : "gap-2")}>
+    <div className={cn("flex flex-col", isSmall ? "gap-1" : "gap-2")}>
       <label
         htmlFor={id}
-        className={isSmall ? "text-[13px] font-bold text-gray-900" : "text-sm font-bold text-ink"}
+        className={isSmall ? "text-[13px] leading-[19px] font-bold text-ink" : "text-sm font-bold text-ink"}
       >
         {label}
       </label>
@@ -58,16 +58,16 @@ export function TextField({
           className={cn(
             "w-full min-w-0 border text-ink outline-none transition-colors focus:border-brand focus:bg-white",
             isSmall
-              ? "h-10 rounded-[10px] border-[#ddd8ce] bg-white px-4 text-sm placeholder:text-gray-400"
+              ? "h-10 rounded-[10px] border-field-line bg-white px-3.5 text-sm placeholder:text-ink-muted"
               : // 브라우저 자동 완성의 노란 배경 대신 입력칸 배경색 유지
                 "h-12 rounded-[10px] border-field-line bg-field px-3.5 text-[15px] placeholder:text-ink-placeholder autofill:shadow-[inset_0_0_0_1000px_var(--color-field)]",
-            error && "border-red-400 focus:border-red-400",
+            error && "border-[#c2402f] focus:border-[#c2402f]",
           )}
         />
         {action}
       </div>
       {message && (
-        <p id={messageId} className={cn("text-xs", error ? "text-red-500" : "text-ink-muted")}>
+        <p id={messageId} className={cn("text-xs leading-[18px]", error ? "text-[#c2402f]" : "text-ink-muted")}>
           {message}
         </p>
       )}

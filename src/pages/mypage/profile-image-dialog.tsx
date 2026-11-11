@@ -68,8 +68,8 @@ export function ProfileImageDialog({ current, onClose, onUpdated }: ProfileImage
         className={cn(
           "grid h-11 w-11 place-items-center rounded-full transition-shadow",
           isSelected
-            ? "ring-2 ring-gray-900 ring-offset-2"
-            : "hover:ring-2 hover:ring-[#e3dfd7] hover:ring-offset-2",
+            ? "ring-2 ring-brand ring-offset-2"
+            : "hover:ring-2 hover:ring-line hover:ring-offset-2",
         )}
       >
         <Avatar image={option.key} size={40} />
@@ -92,29 +92,29 @@ export function ProfileImageDialog({ current, onClose, onUpdated }: ProfileImage
       onClick={(event) => {
         if (event.target === event.currentTarget) handleClose();
       }}
-      className="m-auto w-[min(440px,calc(100%-32px))] rounded-3xl bg-white p-0 backdrop:bg-black/40"
+      className="m-auto w-[min(440px,calc(100%-32px))] rounded-[18px] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.1)] backdrop:bg-black/40"
     >
       <div className="p-6">
-        <p className="font-mono text-xs tracking-[0.15em] text-[#c4581a]">PROFILE</p>
-        <h2 id="profile-image-title" className="mt-1 text-xl font-extrabold text-gray-900">
+        <p className="font-mono text-[11px] tracking-[1.2px] text-brand-strong">PROFILE</p>
+        <h2 id="profile-image-title" className="mt-1 text-xl leading-7 font-bold text-ink">
           프로필 사진 변경
         </h2>
 
-        <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-[#f7f5f0] py-4">
+        <div className="mt-4 flex flex-col items-center gap-2 rounded-[10px] bg-field py-4">
           <Avatar image={draft} size={96} />
-          <p className="text-sm text-gray-600">{profileLabel(draft)}</p>
+          <p className="text-sm text-ink-sub">{profileLabel(draft)}</p>
         </div>
 
         <div className="@container">
-          <p className="mt-4 text-xs text-gray-500">단색</p>
+          <p className="mt-4 text-xs text-ink-muted">단색</p>
           <div className={cn(GRID, "mt-2")}>{PROFILE_COLORS.map(renderOption)}</div>
 
-          <p className="mt-4 text-xs text-gray-500">캐릭터</p>
+          <p className="mt-4 text-xs text-ink-muted">캐릭터</p>
           <div className={cn(GRID, "mt-2")}>{PROFILE_CHARACTERS.map(renderOption)}</div>
         </div>
 
         {error && (
-          <p role="alert" className="mt-3 text-xs text-red-500">
+          <p role="alert" className="mt-3 text-xs text-[#c2402f]">
             {error}
           </p>
         )}
@@ -124,7 +124,7 @@ export function ProfileImageDialog({ current, onClose, onUpdated }: ProfileImage
             type="button"
             disabled={isSaving}
             onClick={handleClose}
-            className="h-11 rounded-[10px] border border-[#ddd8ce] bg-white text-sm text-gray-900 transition-colors hover:bg-[#f7f5f0] disabled:opacity-50"
+            className="h-11 rounded-[10px] border border-card-line bg-white text-sm text-ink transition-colors hover:bg-field disabled:opacity-50"
           >
             취소
           </button>
@@ -132,7 +132,7 @@ export function ProfileImageDialog({ current, onClose, onUpdated }: ProfileImage
             type="button"
             disabled={draft === current || isSaving}
             onClick={handleSave}
-            className="h-11 rounded-[10px] bg-[#ff8a3d] text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-11 rounded-[10px] bg-brand text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSaving ? "저장 중..." : "저장"}
           </button>

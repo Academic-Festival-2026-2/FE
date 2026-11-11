@@ -13,11 +13,14 @@ function formatDate(value: string) {
   return value.slice(0, 10).replaceAll("-", ".");
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
-    <div className="w-[140px] rounded-xl bg-[#f2f0eb] px-3.5 py-2.5">
-      <p className="text-[11px] text-gray-500">{label}</p>
-      <p className="mt-1 text-xl font-bold text-gray-900">{value}</p>
+    <div className="w-[140px] rounded-[10px] bg-field px-3.5 py-2.5">
+      <p className="text-[11px] leading-4 text-ink-muted">{label}</p>
+      <p className="mt-0.5 text-xl font-bold tracking-[-0.4px] text-ink">
+        {value}
+        {unit && <span className="text-[13px] font-bold"> {unit}</span>}
+      </p>
     </div>
   );
 }
@@ -31,15 +34,15 @@ export function ProfileSummary({ info, onUpdated }: ProfileSummaryProps) {
   const [isEditingImage, setIsEditingImage] = useState(false);
 
   return (
-    <section className="flex flex-wrap items-center gap-4 rounded-3xl border border-[#e8e4dc] bg-white px-6 py-5">
+    <section className="flex min-h-[108px] flex-wrap items-center gap-x-3.5 gap-y-4 rounded-2xl border border-card-line bg-white px-6 py-5">
       {/* 마우스를 올리거나 키보드로 포커스하면 연필 표시, 누르면 변경 팝업 */}
       <button
         type="button"
         aria-label="프로필 사진 변경"
         onClick={() => setIsEditingImage(true)}
-        className="group relative shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-gray-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="group relative shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <Avatar image={info.profileImage} size={56} />
+        <Avatar image={info.profileImage} size={48} />
         <span
           className="absolute inset-0 grid place-items-center rounded-full bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
           aria-hidden
@@ -68,19 +71,19 @@ export function ProfileSummary({ info, onUpdated }: ProfileSummaryProps) {
         />
       )}
       <div className="min-w-0 flex-1">
-        <p className="font-bold text-gray-900">{info.nickname}</p>
-        <p className="truncate text-sm text-gray-600">{info.email}</p>
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="text-base leading-6 font-bold text-ink">{info.nickname}</p>
+        <p className="mt-0.5 truncate text-[13px] leading-5 text-ink-sub">{info.email}</p>
+        <p className="mt-0.5 text-xs leading-[18px] text-ink-muted">
           가입일 <span className="font-mono">{formatDate(info.createdAt)}</span>
         </p>
       </div>
       {/* BE #92 배포 전이면 필드가 없어서 0으로 표시 */}
-      <Stat label="내 사진" value={`${(info.photoCount ?? 0).toLocaleString()}장`} />
+      <Stat label="내 사진" value={(info.photoCount ?? 0).toLocaleString()} unit="장" />
       <Stat label="채운 칸" value={`${info.filledCellCount ?? 0} / ${TOTAL_CELLS}`} />
       <Link
         to="/map"
         search={{ timeBand: currentTimeBand(), mode: "mine" }}
-        className="grid h-10 place-items-center rounded-xl bg-gray-900 px-4 text-sm font-bold text-white hover:bg-gray-700"
+        className="grid h-10 place-items-center rounded-[10px] bg-brand px-4 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
       >
         나의 지도 보기
       </Link>
