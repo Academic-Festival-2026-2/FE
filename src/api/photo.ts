@@ -50,3 +50,32 @@ export function getPhotoDetail(photoId: number, mine = false) {
   const path = `/api/photos/${photoId}`;
   return mine ? authRequest<PhotoDetail>(path) : request<PhotoDetail>(path);
 }
+
+// BE: GET /api/users/me/photos?page=0&size=12 (최신 순)
+export type MyPhotoItem = {
+  photoId: number;
+  thumbnailUrl: string | null;
+  dongCode: string;
+  name: string;
+  timeBand: TimeBand;
+  takenAt: string;
+  color: string;
+  isPublic: boolean;
+  aiVerdict: "PUBLIC" | "PERSONAL_ONLY" | "UNCHECKED";
+};
+
+export type MyPhotosResponse = {
+  photos: MyPhotoItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  hasNext: boolean;
+};
+
+export function getMyPhotos(page = 0, size = 12) {
+  return authRequest<MyPhotosResponse>(`/api/users/me/photos?page=${page}&size=${size}`);
+}
+
+export function deletePhoto(photoId: number) {
+  return authRequest<void>(`/api/photos/${photoId}`, { method: "DELETE" });
+}
