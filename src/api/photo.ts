@@ -44,6 +44,7 @@ export type PhotoDetail = {
   takenAt: string;
   timeBand: TimeBand;
   palette: string[];
+  bins?: number[] | null;
 };
 
 export function getPhotoDetail(photoId: number, mine = false) {
