@@ -17,6 +17,23 @@
   --color-ink-sub: #4e5462;
   --color-ink-muted: #636a79;
   --color-ink-placeholder: #666d7c;
+  --color-ink-faint: #9aa1ae;
+  /* 업로드 화면 */
+  --color-navy: #293681;
+  --color-navy-sub: #b8c2da;
+  --color-preview: #e6eaf1;
+  --color-disabled: #e6eaf1;
+  --color-disabled-text: #6e7584;
+  --color-select-line: #9db8ea;
+  --color-ok: #1e6a39;
+  --color-ok-soft: #e6f4ea;
+  --color-ok-dot: #2e9a55;
+  --color-warn: #b4460b;
+  --color-danger: #a3231c;
+  --color-danger-soft: #fdecec;
+  --color-danger-line: #f2b8b5;
+
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 :root {

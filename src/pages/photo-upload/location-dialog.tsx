@@ -30,7 +30,7 @@ export function LocationDialog({ feature, onClose, onConfirm }: Props) {
       const [lng, lat] = labelPoint(feature);
       const map = new kakao.maps.Map(ref.current, { center: new kakao.maps.LatLng(lat, lng), level: 5 });
       const polygons = feature.geometry.coordinates.map((rings) => {
-        const polygon = new kakao.maps.Polygon({ path: toKakaoPath(rings), strokeColor: "#FF8A3D", strokeWeight: 2, fillColor: "#FF8A3D", fillOpacity: 0.12 });
+        const polygon = new kakao.maps.Polygon({ path: toKakaoPath(rings), strokeColor: "#1A1A1A", strokeWeight: 2, fillColor: "#FFFFFF", fillOpacity: 0.55 });
         polygon.setMap(map);
         return polygon;
       });
@@ -59,11 +59,23 @@ export function LocationDialog({ feature, onClose, onConfirm }: Props) {
     return () => { disposed = true; cleanup(); };
   }, [feature]);
 
-  return <dialog ref={dialog} onCancel={onClose} aria-labelledby="location-title" className="m-auto w-[min(640px,94vw)] rounded-2xl bg-white p-6 text-[#16161a] shadow-xl backdrop:bg-black/40">
-    <div className="flex items-center justify-between"><h2 id="location-title" className="text-xl font-bold">사진 찍은 위치 선택</h2><button type="button" onClick={onClose} aria-label="닫기" className="p-2">✕</button></div>
-    <p className="my-3 text-sm text-[#77716a]">{feature.properties.guName} {feature.properties.name} · 지도에서 촬영한 곳을 눌러 주세요.</p>
-    {typeof kakao === "undefined" ? <p role="alert" className="rounded-xl bg-orange-50 p-6">지도를 불러오지 못했어요. 잠시 후 다시 시도해 주세요. 사진에 GPS가 없다면 행정동만 선택해 진행할 수도 있어요.</p> : <div ref={ref} className="h-80 rounded-xl bg-[#e8e3da]" />}
-    <p aria-live="polite" className="my-4 min-h-6 text-sm">{error || (point ? `${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}` : "아직 위치를 선택하지 않았어요.")}</p>
-    <button type="button" disabled={!point} onClick={() => { if (point) onConfirm(point.lat, point.lng); }} className="h-12 w-full rounded-xl bg-[#ff8a3d] font-bold disabled:bg-[#eee8df] disabled:text-[#8c847b]">이 위치로 확정</button>
+  return <dialog ref={dialog} onCancel={onClose} aria-labelledby="location-title" className="m-auto w-[min(900px,94vw)] overflow-hidden rounded-[20px] bg-white p-0 text-ink shadow-xl backdrop:bg-black/40">
+    <div className="grid md:h-[568px] md:grid-cols-[1fr_320px]">
+      {typeof kakao === "undefined" ? <p role="alert" className="m-6 self-center rounded-xl bg-brand-soft p-6 text-sm text-brand-strong">지도를 불러오지 못했어요. 잠시 후 다시 시도해 주세요. 사진에 GPS가 없다면 행정동만 선택해 진행할 수도 있어요.</p> : <div ref={ref} className="h-80 bg-preview md:h-full" />}
+      <div className="flex flex-col p-7">
+        <div className="flex justify-end"><button type="button" onClick={onClose} aria-label="닫기" className="flex size-9 items-center justify-center rounded-lg border border-field-line text-ink-sub hover:bg-field"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg></button></div>
+        <h2 id="location-title" className="mt-2 text-xl font-extrabold tracking-[-0.4px]">사진 찍은 위치 선택</h2>
+        <p className="mt-3 text-sm text-ink-sub">고른 동: {feature.properties.guName} {feature.properties.name}</p>
+        <p className="mt-1 text-sm text-ink-sub">지도에서 촬영한 곳을 눌러 주세요.</p>
+        <div aria-live="polite" className={`mt-5 rounded-xl border p-4 ${point && !error ? "border-[#c9d8f5] bg-brand-soft" : "border-field-line bg-field"}`}>
+          {error ? <p className="text-sm text-danger">{error}</p> : point ? <>
+            <p className="text-xs font-bold text-brand-strong">찍은 위치</p>
+            <p className="mt-1 text-lg font-extrabold">{feature.properties.guName} {feature.properties.name}</p>
+            <p className="mt-1 font-mono text-[13px] text-ink-muted">{point.lat.toFixed(6)}, {point.lng.toFixed(6)}</p>
+          </> : <p className="text-sm text-ink-muted">아직 위치를 선택하지 않았어요.</p>}
+        </div>
+        <button type="button" disabled={!point} onClick={() => { if (point) onConfirm(point.lat, point.lng); }} className="mt-6 h-[52px] w-full rounded-xl bg-brand font-extrabold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-text md:mt-auto">이 위치로 확정</button>
+      </div>
+    </div>
   </dialog>;
 }

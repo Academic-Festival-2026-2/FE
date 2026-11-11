@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
 import { getMyInfo } from "../../api/user";
 import { uploadPhoto, type PhotoUploadResult } from "../../api/photo";
+import chevronDown from "../../assets/icons/chevron-down.svg";
+import mapPin from "../../assets/icons/map-pin.svg";
+import { Checkbox } from "../../components/form/checkbox";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
@@ -19,10 +22,18 @@ type Photo = {
   isPublic: boolean; status: "reading" | "ready" | "invalid" | "uploading" | "success" | "error";
   error?: string; needsLogin?: boolean; colors?: Colors; result?: PhotoUploadResult;
 };
-const button = "rounded-xl border border-[#ddd7ce] bg-white px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40";
-const primary = "w-full rounded-xl bg-[#ff8a3d] px-5 py-4 font-bold text-[#16161a] disabled:cursor-not-allowed disabled:bg-[#eee8df] disabled:text-[#898076]";
+const navButton = "h-11 rounded-[10px] border border-brand bg-white px-4 text-sm text-brand-strong transition-colors hover:bg-brand-soft disabled:cursor-not-allowed disabled:border-line disabled:text-ink-faint disabled:hover:bg-white";
+const field = "h-11 w-full rounded-[10px] border border-field-line bg-white px-3.5 text-sm text-ink outline-none transition-colors focus:border-brand";
+const badgeOk = "rounded-md bg-ok-soft px-2 py-1 text-xs font-bold text-ok";
+const badgeNeed = "rounded-md border border-brand bg-white px-2 py-[3px] text-xs font-bold text-brand-strong";
+const primary = "h-12 w-full rounded-xl bg-brand px-5 text-base font-extrabold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-text";
 const bands = [ ["DAWN", "새벽", "05–08"], ["DAY", "낮", "08–16"], ["SUNSET", "노을", "16–19"], ["NIGHT", "밤", "19–05"] ];
-const squares = ["#7F93B5", "#C9CCD3", "#FFA05A", "#2E3A78", "#FF8A3D", "#9C8DB8", "#E2C07E", "#5E6A8F", "#7FB1E5"];
+const squares = ["#7F93B5", "#C9CCD3", "#FFA05A", "#2E3A78", "", "#9C8DB8", "#E2C07E", "#5E6A8F", "#7FB1E5"];
+const steps = [
+  ["대표색 뽑기", "사진마다 많이 쓰인 색 5개를 비율과 함께 뽑아요."],
+  ["한 장씩 확인", "시간대와 동이 비어 있으면 직접 골라 주세요."],
+  ["지도에 더하기", "공유 지도 또는 내 지도에만 칠해요."],
+];
 
 export function PhotoUploadPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -119,64 +130,85 @@ export function PhotoUploadPage() {
     setIndex(Math.max(0, index - 1));
   }
 
-  return <div className="min-h-screen bg-[#f4f2ed] text-[#16161a]">
+  const previewStatus = photo
+    ? photo.status === "reading" ? { dot: "bg-[#ff8a3d]", text: "text-brand-strong", label: "사진 정보 확인 중…" }
+      : photo.status === "success" ? { dot: "bg-ok-dot", text: "text-ok", label: "업로드 완료" }
+        : photo.status === "invalid" ? { dot: "bg-danger", text: "text-danger", label: "지원하지 않는 사진" }
+          : { dot: "bg-ok-dot", text: "text-ok", label: "사진 미리보기" }
+    : null;
+
+  return <div className="min-h-screen bg-page text-ink">
     <AuthHeader>
       {loggedIn ? (
         <ProfileMenu />
       ) : (
-        <Link to="/login" className="text-sm text-[#55524c] hover:text-gray-900">
+        <Link to="/login" className="text-sm text-ink-sub hover:text-ink">
           로그인
         </Link>
       )}
     </AuthHeader>
-    <main className="mx-auto max-w-[1536px] px-5 py-7 sm:px-12">
+    <main className="mx-auto max-w-[1536px] px-5 pt-4 pb-10 sm:px-12">
       <input ref={input} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple className="sr-only" aria-label="사진 파일 선택" onChange={(e) => { if (e.target.files) void select(e.target.files); e.target.value = ""; }} />
       {!photo ? <>
-        <p className="font-mono text-xs tracking-widest text-[#b4500e]">UPLOAD</p>
-        <h1 className="mt-2 text-3xl font-extrabold">사진 한 장, 픽셀 하나</h1>
-        <p className="mt-3 text-[#77716a]">부천에서 담은 순간을 색으로 남겨 보세요.</p>
-        <div className={`mt-7 flex min-h-[457px] flex-col items-center justify-center rounded-[20px] border-2 border-dashed px-5 py-12 text-center ${dragging ? "border-[#ff8a3d] bg-orange-50" : "border-[#cdc4b4] bg-white"}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); void select(e.dataTransfer.files); }}>
-          <div className="grid grid-cols-3 gap-1.5" aria-hidden>{squares.map((color) => <span key={color} className="h-8 w-8 rounded-md" style={{ background: color }} />)}</div>
-          <h2 className="mt-7 text-2xl font-bold sm:text-[28px]">사진을 끌어다 놓으면, 픽셀이 됩니다</h2>
-          <p className="mt-3 text-sm text-[#77716a]">여러 장을 골라도 한 장씩 확인해요. JPEG · PNG, 한 장당 10MB 이하</p>
-          <button type="button" onClick={() => input.current?.click()} className="mt-7 rounded-xl bg-[#ff8a3d] px-8 py-4 font-bold">사진 선택하기</button>
+        <p className="mt-2 font-mono text-[13px] tracking-[1.04px] text-brand-strong">UPLOAD</p>
+        <h1 className="mt-3 text-[30px] font-extrabold tracking-[-0.9px]">사진 한 장, 픽셀 하나</h1>
+        <p className="mt-2 text-base text-ink-sub">촬영 시각과 위치로 동·시간대를 정하고, 사진의 대표색을 뽑아 지도에 더합니다.</p>
+        <div className={`mt-4 flex min-h-[457px] flex-col items-center justify-center gap-6 rounded-[20px] border border-dashed px-5 py-12 text-center transition-colors ${dragging ? "border-brand bg-brand-soft" : "border-[#c5ccda] bg-white"}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); void select(e.dataTransfer.files); }}>
+          <div className="grid grid-cols-3 gap-[5px]" aria-hidden>{squares.map((color, i) => i === 4
+            ? <span key="empty" className="size-8 rounded-[5px] border-2 border-dashed border-brand bg-brand-soft" />
+            : <span key={color} className="size-8 rounded-[5px]" style={{ background: color }} />)}</div>
+          <h2 className="text-2xl font-extrabold tracking-[-0.56px] sm:text-[28px]">사진을 끌어다 놓으면, 픽셀이 됩니다</h2>
+          <p className="flex flex-wrap items-center justify-center gap-2 text-base text-ink-sub">여러 장을 한 번에 올려도 한 장씩 확인해요 <span className="text-[#aeb6c4]" aria-hidden>·</span><span className="font-mono text-sm">JPG PNG · 10MB 이하</span></p>
+          <button type="button" onClick={() => input.current?.click()} className="h-[52px] rounded-xl bg-brand px-[30px] text-base font-extrabold text-white transition-colors hover:bg-brand-hover">사진 고르기</button>
         </div>
-        <ol className="mt-8 grid gap-5 text-sm sm:grid-cols-3">{["대표색 뽑기", "한 장씩 확인", "지도에 더하기"].map((label, i) => <li key={label} className="border-t border-[#ddd7ce] pt-4"><span className="mr-3 font-mono text-[#b4500e]">0{i + 1}</span>{label}</li>)}</ol>
+        <ol className="mt-[18px] grid border-t border-line sm:grid-cols-3">{steps.map(([label, description], i) => <li key={label} className={`pt-5 pb-4 sm:min-h-[90px] ${i > 0 ? "sm:border-l sm:border-line sm:pl-6" : ""}`}>
+          <span className="font-mono text-[13px] text-brand-strong">0{i + 1}</span>
+          <p className="mt-2 text-base font-bold">{label}</p>
+          <p className="mt-1 text-sm text-ink-sub">{description}</p>
+        </li>)}</ol>
       </> : finished ? <UploadComplete photos={results.flatMap((p) => p.result ? [{ id: p.id, filename: p.file.name, color: p.colors?.palette[0] ?? "#E6E6E6", result: p.result }] : [])} boundaries={boundaries} onAdd={() => input.current?.click()} /> : <>
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[#e3dfd6] pb-5">
-          <div><p className="font-mono text-xs tracking-widest text-[#b4500e]">PHOTO {index + 1} / {photos.length}</p><h1 className="mt-2 text-[26px] font-extrabold">사진 한 장, 픽셀 하나</h1></div>
-          <div className="flex items-center gap-2"><span aria-live="polite" className="mr-2 text-sm text-[#77716a]">{results.length}장 완료</span><button type="button" className={button} disabled={index === 0 || uploading} onClick={() => setIndex(index - 1)}>← 이전</button><button type="button" className={button} disabled={index === photos.length - 1 || uploading} onClick={() => setIndex(index + 1)}>다음 →</button></div>
+        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pt-2 pb-4">
+          <div><p className="font-mono text-[13px] tracking-[1.04px] text-brand-strong">PHOTO {index + 1} / {photos.length}</p><h1 className="mt-2 text-[26px] font-extrabold tracking-[-0.78px]">사진 한 장, 픽셀 하나</h1></div>
+          <div className="flex items-center gap-2"><span aria-live="polite" className="mr-2 text-sm text-ink-muted">{results.length}장 완료</span><button type="button" className={navButton} disabled={index === 0 || uploading} onClick={() => setIndex(index - 1)}>← 이전</button><button type="button" className={navButton} disabled={index === photos.length - 1 || uploading} onClick={() => setIndex(index + 1)}>다음 →</button></div>
         </div>
-        <div className="mt-6 grid items-start gap-7 lg:grid-cols-[1.35fr_1fr]">
+        <div className="mt-[18px] grid items-start gap-7 lg:grid-cols-[1.35fr_1fr]">
           <section aria-label="선택한 사진">
-            <div className="relative flex h-[300px] items-center justify-center overflow-hidden rounded-2xl bg-[#e8e3da] sm:h-[420px]">
+            <div className="relative flex h-[300px] items-center justify-center overflow-hidden rounded-2xl bg-preview sm:h-[420px]">
               {photo.status !== "invalid" && <img src={photo.url} alt={`${index + 1}번째 선택한 사진`} className="h-full w-full object-contain" />}
-              <span className="absolute right-4 top-4 rounded-md bg-white px-3 py-2 text-xs">{photo.status === "reading" ? "사진 정보 확인 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "invalid" ? "지원하지 않는 사진" : "사진 미리보기"}</span>
-              <span className="absolute bottom-4 left-4 max-w-[90%] truncate rounded-md bg-white px-3 py-2 font-mono text-xs">{photo.file.name} · {(photo.file.size / 1024 / 1024).toFixed(1)}MB</span>
+              {previewStatus && <span className="absolute top-4 right-4 flex h-[30px] items-center gap-1.5 rounded-lg bg-white px-2.5 text-[13px] font-bold"><span className={`size-2 rounded-full ${previewStatus.dot}`} aria-hidden /><span className={previewStatus.text}>{previewStatus.label}</span></span>}
+              <span className="absolute bottom-4 left-4 flex h-[29px] max-w-[90%] items-center rounded-lg bg-white px-2.5 font-mono text-[13px]"><span className="truncate">{photo.file.name} · {(photo.file.size / 1024 / 1024).toFixed(1)}MB</span></span>
             </div>
-            <h2 className="mb-3 mt-5 font-bold">대표색 · 상위 5색</h2>
-            {photo.colors ? <><div className="flex h-10 overflow-hidden rounded-xl">{photo.colors.palette.map((color, i) => <span key={i} style={{ background: color, flex: photo.colors!.ratios[i] }} />)}</div><div className="mt-3 flex flex-wrap justify-between gap-2 font-mono text-xs">{photo.colors.palette.map((color, i) => <span key={i}>{color} {Math.round(photo.colors!.ratios[i] * 100)}%</span>)}</div></> : <p role="status" className="rounded-xl border border-[#e3dfd6] bg-white p-4 text-sm text-[#77716a]">{photo.status === "reading" ? "사진 정보와 대표색을 분석 중이에요…" : "색상을 분석하지 못했어요. 사진을 다시 선택해 주세요."}</p>}
+            <div className="mt-[18px] mb-3 flex items-baseline justify-between"><h2 className="text-base font-bold">대표색</h2><span className="text-[13px] text-ink-muted">많이 쓰인 순서</span></div>
+            {photo.colors ? <><div className="flex h-10 overflow-hidden rounded-[10px]">{photo.colors.palette.map((color, i) => <span key={i} style={{ background: color, flex: photo.colors!.ratios[i] }} />)}</div><div className="mt-4 flex flex-wrap justify-between gap-x-4 gap-y-2 font-mono text-[13px]">{photo.colors.palette.map((color, i) => <span key={i} className="flex items-center gap-2"><span className="size-3.5 rounded-[3px]" style={{ background: color }} aria-hidden />{color} <span className="text-ink-muted">{Math.round(photo.colors!.ratios[i] * 100)}%</span></span>)}</div></>
+              : photo.status === "reading" ? <><div className="flex h-10 animate-pulse overflow-hidden rounded-[10px] bg-preview" aria-hidden><span className="flex-[31]" /><span className="flex-[24] bg-[#dbe0e9]" /><span className="flex-[18]" /><span className="flex-[16] bg-[#dbe0e9]" /><span className="flex-[11]" /></div><p role="status" className="mt-4 text-[13px] text-ink-muted">사진 정보와 대표색을 분석 중이에요…</p></>
+              : <p role="status" className="rounded-xl border border-card-line bg-white p-4 text-sm text-ink-muted">색상을 분석하지 못했어요. 사진을 다시 선택해 주세요.</p>}
           </section>
-          <section className="rounded-2xl border border-[#e3dfd6] bg-white p-6" aria-label="사진 정보 입력">
-            {photo.error && <p role="alert" className="mb-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{photo.error}</p>}
-            {photo.needsLogin && <Link to="/login" className="mb-4 inline-block text-sm underline">다시 로그인하기</Link>}
+          <section className="overflow-hidden rounded-2xl border border-card-line bg-white" aria-label="사진 정보 입력">
+            {photo.error && <p role="alert" className="mx-6 mt-5 rounded-xl border border-danger-line bg-danger-soft p-3 text-sm text-danger">{photo.error}</p>}
+            {photo.needsLogin && <Link to="/login" className="mx-6 mt-3 inline-block text-sm text-brand-strong underline">다시 로그인하기</Link>}
             <fieldset disabled={uploading || photo.status === "success" || photo.status === "reading" || photo.status === "invalid"}>
-              <div className="flex justify-between gap-3"><h2 className="font-bold">촬영 시간</h2><span className="text-xs text-[#77716a]">{photo.metadata.takenAt ? "사진 정보" : "직접 입력 필요"}</span></div>
-<label className="mt-4 block text-sm">촬영 날짜·시각 (한국 시간)<input type="datetime-local" step="1" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] px-3 py-3 read-only:bg-[#f4f2ed]" /></label>
-{photo.metadata.takenAt && <p className="mt-2 text-xs text-[#77716a]">사진에 기록된 촬영 시각을 사용해요.</p>}
-              <div className="mt-4 grid grid-cols-4 gap-2">{bands.map(([band, label, range]) => <div key={band} className={`rounded-lg border p-2 ${timeBand(photo.takenAt) === band ? "border-[#16161a] bg-[#16161a] text-white" : "border-[#e3dfd6]"}`}><p className="text-sm font-bold">{label}</p><p className="mt-1 text-xs opacity-65">{range}</p></div>)}</div>
-              <div className="mb-3 mt-7 flex justify-between"><h2 className="font-bold">촬영 위치</h2><span className="text-xs text-[#77716a]">{photo.metadata.latitude !== undefined ? "사진 정보 · 변경 가능" : "직접 입력 필요"}</span></div>
-              {boundaryError && <p role="alert" className="mb-3 text-sm text-red-700">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
-              {locationMismatch && <p role="alert" className="mb-3 text-sm text-[#b4500e]">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
-              {outside && <p role="alert" className="mb-3 text-sm text-[#b4500e]">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
-              <label className="block text-sm">행정동<select disabled={!boundaries} value={selectedFeature?.properties.dongCode ?? ""} onChange={(e) => update(photo.id, { dongCode: e.target.value, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] bg-white px-3 py-3"><option value="">{boundaries ? "구 · 동을 골라 주세요" : "행정동 불러오는 중…"}</option>{features.map((f) => <option key={f.properties.dongCode} value={f.properties.dongCode}>{f.properties.guName} · {f.properties.name}</option>)}</select></label>
-              <button type="button" disabled={!selectedFeature} onClick={() => setMapOpen(true)} className={`${button} mt-3 w-full`}>지도에서 촬영 위치 선택</button>
-              {photo.latitude !== undefined && photo.longitude !== undefined && <p className="mt-2 text-xs text-[#77716a]">선택한 위치: {photo.latitude.toFixed(6)}, {photo.longitude.toFixed(6)}</p>}
-              <p className="mt-3 text-xs leading-5 text-[#77716a]">촬영 시각이나 위치를 직접 입력하면 개인 지도에만 반영될 수 있어요. 최종 사진 정보 확인은 서버에서 진행해요.</p>
-              <label className="my-5 flex items-center gap-2 text-sm"><input type="checkbox" checked={photo.isPublic} onChange={(e) => update(photo.id, { isPublic: e.target.checked })} className="h-4 w-4 accent-[#ff8a3d]" />다른 사람에게 사진 공개</label>
-              <button type="button" onClick={() => void submit()} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
+              <div className="px-6 pt-4 pb-4">
+                <div className="flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 시간</h2><span className={photo.metadata.takenAt ? badgeOk : badgeNeed}>{photo.metadata.takenAt ? "사진 정보" : "직접 입력 필요"}</span></div>
+                <label className="mt-3 block text-[13px] text-ink-sub">촬영 날짜·시각 (한국 시간)<input type="datetime-local" step="1" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value })} className={`${field} mt-2 read-only:bg-field`} /></label>
+                {photo.metadata.takenAt && <p className="mt-2 text-xs text-ink-muted">사진에 기록된 촬영 시각을 사용해요.</p>}
+                <div className="mt-3 grid grid-cols-4 gap-2">{bands.map(([band, label, range]) => <div key={band} className={`flex h-[68px] flex-col justify-center gap-1 rounded-[10px] border px-2.5 ${timeBand(photo.takenAt) === band ? "border-navy bg-navy text-white" : "border-field-line bg-white"}`}><p className="text-[15px] font-bold">{label}</p><p className={`font-mono text-xs ${timeBand(photo.takenAt) === band ? "text-navy-sub" : "text-ink-muted"}`}>{range}</p></div>)}</div>
+              </div>
+              <div className="border-t border-divider px-6 pt-4 pb-5">
+                <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 위치</h2><span className={photo.metadata.latitude !== undefined ? badgeOk : badgeNeed}>{photo.metadata.latitude !== undefined ? "사진 정보 · 변경 가능" : "직접 입력 필요"}</span></div>
+                {boundaryError && <p role="alert" className="mb-3 text-sm text-danger">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
+                {locationMismatch && <p role="alert" className="mb-3 text-sm text-brand-strong">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
+                {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
+                <label className="block text-[13px] text-ink-sub">행정동<span className="relative mt-2 block"><select disabled={!boundaries} value={selectedFeature?.properties.dongCode ?? ""} onChange={(e) => update(photo.id, { dongCode: e.target.value, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })} className={`${field} appearance-none border-select-line pr-10 disabled:bg-field disabled:text-ink-faint`}><option value="">{boundaries ? "구 · 동을 골라 주세요" : "행정동 불러오는 중…"}</option>{features.map((f) => <option key={f.properties.dongCode} value={f.properties.dongCode}>{f.properties.guName} · {f.properties.name}</option>)}</select><img src={chevronDown} alt="" width={16} height={16} className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2" /></span></label>
+                <button type="button" disabled={!selectedFeature} onClick={() => setMapOpen(true)} className="mt-2 flex h-11 w-full items-center gap-2 rounded-[10px] bg-field px-3.5 text-left text-sm text-ink transition-colors hover:bg-[#e9edf4] disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-field"><img src={mapPin} alt="" width={16} height={16} />지도에서 촬영 위치 선택</button>
+                {photo.latitude !== undefined && photo.longitude !== undefined && <p className="mt-2 font-mono text-xs text-ink-muted">선택한 위치: {photo.latitude.toFixed(6)}, {photo.longitude.toFixed(6)}</p>}
+                <p className="mt-3 text-xs leading-5 text-ink-muted">촬영 시각이나 위치를 직접 입력하면 개인 지도에만 반영될 수 있어요. 최종 사진 정보 확인은 서버에서 진행해요.</p>
+              </div>
+              <div className="flex flex-col gap-3 border-t border-divider px-6 pt-4 pb-2">
+                <label className="flex h-9 cursor-pointer items-center gap-2 rounded-[10px] bg-field px-3 text-[13px] text-[#3a3f4b]"><Checkbox checked={photo.isPublic} onChange={(checked) => update(photo.id, { isPublic: checked })} />다른 사람에게 사진 공개</label>
+                <button type="button" onClick={() => void submit()} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
+              </div>
             </fieldset>
-            <div className="mt-4 flex flex-wrap justify-between gap-3 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-[#77716a] underline disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="text-[#b4500e] underline disabled:opacity-40">사진 추가</button></div>
+            <div className="flex flex-wrap justify-between gap-3 px-6 pt-2 pb-5 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-ink-sub underline underline-offset-4 disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="font-bold text-brand-strong underline underline-offset-4 disabled:opacity-40">사진 추가</button></div>
           </section>
         </div>
         {mapOpen && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
@@ -184,4 +216,3 @@ export function PhotoUploadPage() {
     </main>
   </div>;
 }
-
