@@ -38,8 +38,10 @@ export function PhotoUploadPage() {
   const expireSession = useExpireSession();
   // 헤더 프로필 메뉴가 세션 만료로 토큰을 지우면 로그인 링크로 바뀜
   const loggedIn = useAuthStore((state) => state.tokens !== null);
-  // 위치정보 이용에 동의한 회원만 좌표를 써요. 내 정보가 오기 전에는 미동의로 보고, 올리기 직전에 다시 확인해요.
-  const locationAgreed = useUserStore((state) => state.me?.locationAgreed === true);
+  // 위치정보 이용에 동의한 회원만 좌표를 써요. 올리기 직전에 서버 값으로 다시 확인해요.
+  // 내 정보가 오기 전(undefined)에는 동의 여부를 몰라서 좌표는 쓰지 않되, "동의하지 않아" 안내도 띄우지 않아요.
+  const consent = useUserStore((state) => state.me?.locationAgreed);
+  const locationAgreed = consent === true;
   const loadMe = useUserStore((state) => state.loadMe);
   const setMe = useUserStore((state) => state.setMe);
   const { boundaries, error: boundaryError } = useBoundaries();
@@ -110,7 +112,7 @@ export function PhotoUploadPage() {
       // 화면에 보인 동의 상태와 다르면(내 정보를 불러오기 전이거나 다른 탭에서 바꾼 경우) 화면을 맞추고 다시 확인받아요.
       // 서버 값만 보고 좌표를 보내면, 동만 고르던 화면에서 GPS와 다른 동을 고른 경우 DONG_GPS_MISMATCH로 실패해요.
       if (me.locationAgreed !== locationAgreed) {
-        update(photo.id, { status: "ready", error: "위치정보 동의 상태가 바뀌어 화면을 다시 맞췄어요. 촬영 위치를 확인한 뒤 다시 눌러 주세요." });
+        update(photo.id, { status: "ready", error: "위치정보 동의 상태를 다시 확인해 화면을 맞췄어요. 촬영 위치를 확인한 뒤 다시 눌러 주세요." });
         return;
       }
       const result = await uploadPhoto(photo.file, {
@@ -186,8 +188,8 @@ export function PhotoUploadPage() {
 <label className="mt-4 block text-sm">촬영 날짜·시각 (한국 시간)<input type="datetime-local" step="1" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] px-3 py-3 read-only:bg-[#f4f2ed]" /></label>
 {photo.metadata.takenAt && <p className="mt-2 text-xs text-[#77716a]">사진에 기록된 촬영 시각을 사용해요.</p>}
               <div className="mt-4 grid grid-cols-4 gap-2">{bands.map(([band, label, range]) => <div key={band} className={`rounded-lg border p-2 ${timeBand(photo.takenAt) === band ? "border-[#16161a] bg-[#16161a] text-white" : "border-[#e3dfd6]"}`}><p className="text-sm font-bold">{label}</p><p className="mt-1 text-xs opacity-65">{range}</p></div>)}</div>
-              <div className="mb-3 mt-7 flex justify-between"><h2 className="font-bold">촬영 위치</h2><span className="text-xs text-[#77716a]">{!locationAgreed ? "동만 선택" : photo.metadata.latitude !== undefined ? "사진 정보 · 변경 가능" : "직접 입력 필요"}</span></div>
-              {!locationAgreed && <p className="mb-3 rounded-xl bg-[#f4f2ed] p-3 text-xs leading-5 text-[#55524c]">위치정보 이용에 동의하지 않아 촬영 위치는 저장하지 않고 동만 저장해요. 이 사진은 나의 지도에만 반영되고 모두의 지도에는 반영되지 않아요. 동의는 마이페이지에서 바꿀 수 있어요.</p>}
+              <div className="mb-3 mt-7 flex justify-between"><h2 className="font-bold">촬영 위치</h2><span className="text-xs text-[#77716a]">{consent === undefined ? "동의 여부 확인 중" : !locationAgreed ? "동만 선택" : photo.metadata.latitude !== undefined ? "사진 정보 · 변경 가능" : "직접 입력 필요"}</span></div>
+              {consent === false && <p className="mb-3 rounded-xl bg-[#f4f2ed] p-3 text-xs leading-5 text-[#55524c]">위치정보 이용에 동의하지 않아 촬영 위치는 저장하지 않고 동만 저장해요. 이 사진은 나의 지도에만 반영되고 모두의 지도에는 반영되지 않아요. 동의는 마이페이지에서 바꿀 수 있어요.</p>}
               {boundaryError && <p role="alert" className="mb-3 text-sm text-red-700">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
               {locationMismatch && <p role="alert" className="mb-3 text-sm text-[#b4500e]">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
               {outside && <p role="alert" className="mb-3 text-sm text-[#b4500e]">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
