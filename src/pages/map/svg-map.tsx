@@ -6,7 +6,6 @@ import { VIEW_SIZE, toShapes, type DongShape } from "./map-geometry";
 const EDGE_WIDTH = 6;
 const EDGE_BLUR = 5;
 const MIN_VIEW = 90;
-const LABEL_MIN_AREA = 900;
 // 확대·축소 버튼 (지도 화면의 유리 패널과 같은 톤)
 const ZOOM_BUTTON =
   "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
@@ -90,7 +89,6 @@ export function SvgMap({
     const color = colorOf(dongCode);
     return color ? toneColor(color) : EMPTY_FILL;
   };
-  const scale = view.size / VIEW_SIZE;
 
   function applyView(next: View) {
     viewRef.current = next;
@@ -306,28 +304,6 @@ export function SvgMap({
           />
         )}
 
-        <g pointerEvents="none">
-          {shapes
-            .filter((shape) => shape.area / (scale * scale) > LABEL_MIN_AREA)
-            .map((shape) => (
-              <text
-                key={shape.dongCode}
-                x={shape.label[0]}
-                y={shape.label[1]}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={8.5 * scale}
-                fontWeight={700}
-                fill="#3d3830"
-                stroke="#ffffff"
-                strokeWidth={2.4 * scale}
-                strokeLinejoin="round"
-                paintOrder="stroke"
-              >
-                {shape.name}
-              </text>
-            ))}
-        </g>
       </svg>
 
       <div ref={tooltipRef} className="pointer-events-none absolute left-0 top-0 z-10">

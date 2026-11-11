@@ -14,7 +14,8 @@ import {
 } from "../../api/map";
 
 export const PAGE_BG = "#f7f5f0";
-export const EMPTY_FILL = "#e4dfd5";
+// 사진이 없는 동의 기본 색 (살짝 쿨톤 회색)
+export const EMPTY_FILL = "#e2e6ed";
 
 export const KAKAO_UNAVAILABLE = typeof kakao === "undefined";
 export const KAKAO_ERROR = "지도를 불러오지 못했어요.";
