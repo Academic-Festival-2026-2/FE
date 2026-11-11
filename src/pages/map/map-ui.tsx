@@ -51,22 +51,24 @@ export function TimeBandTabs({
   );
 }
 
-// 지도 위에 띄우는 반투명 유리 패널 (피그마 "지도 카드 · D2" 기준에서 더 투명하게 조정)
-// 흰색 45% + 흐림 14px + 뒤 색을 조금 더 진하게(채도 150%) 비쳐서 유리처럼 보이게
-export const GLASS =
-  "border border-white/70 bg-white/0 shadow-[0_6px_20px_rgba(26,36,64,0.1)] backdrop-blur-[5px] backdrop-saturate-150";
+// 지도 위에 띄우는 유리 패널 (리퀴드 글라스 느낌). 값은 index.css의 liquid-glass에서 조정
+export const GLASS = "liquid-glass";
+
+// 위로 펼쳐지는 계절 목록: 글자가 잘 읽히게 패널보다 덜 비치는 유리
+const GLASS_SOLID =
+  "border border-white/70 bg-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_8px_24px_rgba(26,36,64,0.12)] backdrop-blur-[14px] backdrop-saturate-150";
 
 const glassTab = (active: boolean) =>
   cn(
-    "flex h-9 items-center gap-[7px] px-3.5 text-sm leading-none whitespace-nowrap transition-colors",
+    "flex h-8 shrink-0 items-center gap-1.5 px-2 text-[13px] leading-none whitespace-nowrap transition-colors sm:px-3",
     active ? "bg-navy font-bold text-white" : "font-medium text-ink-sub hover:bg-white/60",
   );
 
 export function MapTitlePanel({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className={cn(GLASS, "flex flex-col gap-1 rounded-2xl py-3.5 pr-5 pl-[18px]")}>
-      <h1 className="text-[26px] leading-[37px] font-extrabold tracking-[-0.78px] text-ink">{title}</h1>
-      <p className="text-[13px] leading-[19px] text-ink-muted">{children}</p>
+    <div className={cn(GLASS, "flex flex-col gap-0.5 rounded-[14px] px-4 py-2.5")}>
+      <h1 className="text-[22px] leading-8 font-extrabold tracking-[-0.66px] text-ink">{title}</h1>
+      <p className="text-xs leading-[18px] text-ink-muted">{children}</p>
     </div>
   );
 }
@@ -79,12 +81,12 @@ export function MapModeToggle({
   onChange: (mine: boolean) => void;
 }) {
   return (
-    <div className={cn(GLASS, "flex gap-0.5 rounded-2xl p-1")}>
+    <div className={cn(GLASS, "flex gap-0.5 rounded-[14px] p-1")}>
       <button
         type="button"
         aria-pressed={!mine}
         onClick={() => onChange(false)}
-        className={cn(glassTab(!mine), "rounded-xl")}
+        className={cn(glassTab(!mine), "rounded-[10px]")}
       >
         공유 지도
       </button>
@@ -92,7 +94,7 @@ export function MapModeToggle({
         type="button"
         aria-pressed={mine}
         onClick={() => onChange(true)}
-        className={cn(glassTab(mine), "rounded-xl")}
+        className={cn(glassTab(mine), "rounded-[10px]")}
       >
         내 지도
       </button>
@@ -141,13 +143,13 @@ export function SeasonTimeBar({
   }, [open]);
 
   return (
-    <div ref={ref} className={cn(GLASS, "relative flex items-center gap-1 rounded-[14px] p-1")}>
+    <div ref={ref} className={cn(GLASS, "relative flex items-center gap-1 rounded-xl p-1")}>
       {open && (
         <ul
           role="listbox"
           aria-label="계절"
           // 목록 글자가 지도 위에서도 잘 읽히게 패널보다 덜 비치게 (흰색 88%)
-          className={cn(GLASS, "absolute bottom-full left-1 mb-2 flex w-[70px] flex-col gap-0.5 rounded-xl bg-white/88 p-1")}
+          className={cn(GLASS_SOLID, "absolute bottom-full left-1 mb-2 flex w-[70px] flex-col gap-0.5 rounded-xl p-1")}
         >
           {SEASON_OPTIONS.map((option) => {
             const selected = option.value === season;
@@ -179,7 +181,7 @@ export function SeasonTimeBar({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-9 items-center gap-1 rounded-[10px] bg-[#edf2fc] pr-2.5 pl-3.5 text-sm leading-none font-bold text-ink"
+        className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#edf2fc] pr-2 pl-3 text-[13px] leading-none font-bold whitespace-nowrap text-ink"
       >
         {current?.name ?? "계절"}
         <img
@@ -187,7 +189,7 @@ export function SeasonTimeBar({
           alt=""
           width={16}
           height={16}
-          className={cn("transition-transform", open && "rotate-180")}
+          className={cn("transition-transform", !open && "rotate-180")}
         />
       </button>
       <span className="h-5 w-px bg-[#c9d0dc]" aria-hidden />

@@ -131,7 +131,7 @@ export function MapPage() {
               </div>
             </div>
 
-            <div className="absolute top-[23px] right-6">
+            <div className="absolute top-[23px] right-6 max-sm:top-[106px] max-sm:right-auto max-sm:left-[23px]">
               <MapModeToggle mine={mine} onChange={changeMode} />
             </div>
 

@@ -7,6 +7,9 @@ const EDGE_WIDTH = 6;
 const EDGE_BLUR = 5;
 const MIN_VIEW = 90;
 const LABEL_MIN_AREA = 900;
+// 확대·축소 버튼 (지도 화면의 유리 패널과 같은 톤)
+const ZOOM_BUTTON =
+  "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
 
 type View = { x: number; y: number; size: number };
 
@@ -331,12 +334,12 @@ export function SvgMap({
         {hoveredCode && pointerInside && tooltip}
       </div>
 
-      <div className={`absolute flex flex-col gap-1.5 pointer-coarse:hidden ${controlsClassName}`}>
+      <div className={`liquid-glass absolute flex flex-col gap-0.5 rounded-xl p-1 pointer-coarse:hidden ${controlsClassName}`}>
         <button
           type="button"
           aria-label="확대"
           onClick={() => zoomBy(1 / 1.5)}
-          className="h-9 w-9 rounded-lg bg-white/90 text-lg text-gray-900 shadow"
+          className={`${ZOOM_BUTTON} text-lg leading-none`}
         >
           +
         </button>
@@ -345,7 +348,7 @@ export function SvgMap({
           type="button"
           aria-label="축소"
           onClick={() => zoomBy(1.5)}
-          className="h-9 w-9 rounded-lg bg-white/90 text-lg text-gray-900 shadow"
+          className={`${ZOOM_BUTTON} text-lg leading-none`}
         >
           −
         </button>
@@ -353,7 +356,7 @@ export function SvgMap({
           type="button"
           aria-label="처음 크기로"
           onClick={reset}
-          className="h-9 w-9 rounded-lg bg-white/90 text-xs font-semibold text-gray-900 shadow"
+          className={`${ZOOM_BUTTON} text-[11px] font-bold`}
         >
           전체
         </button>
