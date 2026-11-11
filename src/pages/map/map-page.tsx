@@ -13,7 +13,6 @@ import {
   RankPanel,
   SeasonChip,
   TimeBandTabs,
-  UploadCta,
   MyMapPanel,
 } from "./map-ui";
 import { SvgMap } from "./svg-map";
@@ -33,10 +32,6 @@ export function MapPage() {
   const shownError = mine ? myMap.error : colorError;
 
   const seasonInfo = seasonOf(season);
-  const totalPhotos = [...shownDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
-  const title = [seasonInfo?.name, `${bandLabel(timeBand)}의 ${mine ? "내 " : ""}부천`]
-    .filter(Boolean)
-    .join(" ");
   const hoveredDong = hoveredCode ? shownDongs.get(hoveredCode) : undefined;
   const hoveredGu = boundaries?.features.find(
     (feature) => feature.properties.dongCode === hoveredCode,
@@ -55,36 +50,38 @@ export function MapPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f5f0]">
+    <div className="min-h-screen bg-page">
       <AuthHeader>
         {loggedIn ? (
-          <ProfileMenu />
+          // 사진 올리기는 오른쪽 위 프로필 옆에 둠 (오른쪽 칸의 업로드 카드 대신)
+          <div className="flex items-center gap-4">
+            <Link
+              to="/upload"
+              className="flex h-10 items-center rounded-[10px] bg-brand px-4 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
+            >
+              사진 업로드
+            </Link>
+            <ProfileMenu />
+          </div>
         ) : (
-          <div className="flex items-center gap-3 text-sm">
-            <Link to="/login" className="text-[#55524c] hover:text-gray-900">
+          <div className="flex items-center gap-4 text-sm">
+            <Link to="/login" className="text-ink-sub underline underline-offset-4 hover:text-ink">
               로그인
             </Link>
             <Link
               to="/signup"
-              className="rounded-lg bg-[#ff8a3d] px-3 py-1.5 font-bold text-gray-900 hover:bg-[#f57a2a]"
+              className="flex h-10 items-center rounded-[10px] bg-brand px-4 font-bold text-white transition-colors hover:bg-brand-hover"
             >
               회원가입
             </Link>
           </div>
         )}
       </AuthHeader>
-      <main className="mx-auto w-full max-w-[1192px] px-4 pt-7 pb-12">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="flex min-w-0 flex-col rounded-3xl border border-[#e8e4dc] bg-white p-6">
+      <main className="mx-auto w-full max-w-[1440px] px-5 pt-4 pb-12 sm:px-12">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="flex min-w-0 flex-col rounded-[20px] border border-card-line bg-white p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h1 className="text-[26px] font-extrabold text-gray-900">{title}</h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  {mine
-                    ? `내 사진 ${totalPhotos.toLocaleString()}장 · 칠한 동 ${myMap.filledCount}/${shownDongs.size}곳`
-                    : `사진 ${totalPhotos.toLocaleString()}장 · 동 ${shownDongs.size}곳`}
-                </p>
-              </div>
+              <h1 className="text-[26px] font-extrabold tracking-[-0.78px] text-ink">부천시</h1>
               <div className="flex flex-wrap items-center gap-2">
                 <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
                 {seasonInfo && <SeasonChip season={seasonInfo} />}
@@ -129,8 +126,8 @@ export function MapPage() {
               </div>
             </div>
 
-            <p className="mt-2 text-xs text-gray-500">
-              동에 마우스를 올리면 그 동만 선명해지고, 누르면 확대돼요
+            <p className="mt-2 text-xs text-ink-muted">
+              {mine ? "색칠된 동 = 내가 사진을 올린 동" : "동에 마우스를 올리면 그 동만 선명해지고, 누르면 확대돼요"}
             </p>
           </section>
 
@@ -151,7 +148,6 @@ export function MapPage() {
                 onHover={setHoveredCode}
               />
             )}
-            <UploadCta />
           </aside>
         </div>
         <LoginPromptDialog open={loginPromptOpen} onClose={() => setLoginPromptOpen(false)} />

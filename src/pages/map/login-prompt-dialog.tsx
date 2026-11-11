@@ -28,38 +28,44 @@ export function LoginPromptDialog({ open, onClose }: LoginPromptDialogProps) {
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
-      className="m-auto w-[min(400px,calc(100%-32px))] rounded-3xl bg-white p-0 backdrop:bg-black/40"
+      className="m-auto w-[min(484px,calc(100%-32px))] rounded-[20px] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.1)] backdrop:bg-black/40"
     >
-      <div className={"p-6"}>
-        <p className="font-mono text-xs tracking-[0.15em] text-[#c4581a]">MY MAP</p>
-        <h2 id="login-prompt-title" className="mt-1 text-xl font-extrabold text-gray-900">
-          로그인하면 내 지도를 볼 수 있어요
+      <div className="flex flex-col items-center px-8 pt-8 pb-7 text-center">
+        {/* 픽셀 로고 (헤더 로고와 같은 4색) */}
+        <span className="grid grid-cols-2 gap-1" aria-hidden>
+          <span className="size-[22px] rounded-[3px] bg-[#ff8a3d]" />
+          <span className="size-[22px] rounded-[3px] bg-[#7fb0e0]" />
+          <span className="size-[22px] rounded-[3px] bg-[#5e6a91]" />
+          <span className="size-[22px] rounded-[3px] bg-[#c9cbd3]" />
+        </span>
+        <h2 id="login-prompt-title" className="mt-5 text-[22px] font-extrabold text-ink">
+          내 사진으로 부천을 칠해 보세요
         </h2>
-        <p className="mt-2 text-sm text-[#55524c]">
-          내가 올린 사진으로 칠한 동을 시간대별로 모아서 보여 줘요.
+        <p className="mt-2 text-sm leading-[22px] text-ink-sub">
+          사진을 올리고 내 지도를 모으려면
+          <br />
+          로그인이 필요해요.
         </p>
 
-        <div className="mt-6 flex flex-col gap-2">
-          <Link
-            to="/login"
-            className="flex h-12 items-center justify-center rounded-xl bg-[#ff8a3d] font-bold text-gray-900 hover:bg-[#f57a2a]"
-          >
-            로그인
-          </Link>
-          <Link
-            to="/signup"
-            className="flex h-12 items-center justify-center rounded-xl border border-[#ddd8ce] font-bold text-gray-900 hover:bg-[#f7f5f0]"
-          >
+        <Link
+          to="/login"
+          className="mt-8 flex h-[52px] w-full items-center justify-center rounded-xl bg-brand font-extrabold text-white transition-colors hover:bg-brand-hover"
+        >
+          이메일로 로그인
+        </Link>
+        <p className="mt-4 text-sm text-ink-sub">
+          처음이신가요?{" "}
+          <Link to="/signup" className="font-bold text-brand-strong underline underline-offset-4 hover:text-brand">
             회원가입
           </Link>
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-1 h-10 text-sm text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
-          >
-            지도만 계속 둘러보기
-          </button>
-        </div>
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-3 text-[13px] text-ink-muted underline underline-offset-4 hover:text-ink"
+        >
+          지도만 계속 둘러보기
+        </button>
       </div>
     </dialog>
   );

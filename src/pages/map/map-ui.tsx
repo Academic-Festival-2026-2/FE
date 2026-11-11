@@ -1,15 +1,20 @@
 import type { ColorRatio, DongColor, TimeBand, TopDong } from "../../api/map";
 import { cn } from "../../utils/cn";
-import { EMPTY_FILL, TIME_BANDS, bandLabel, toneColor } from "./map-data";
-import { Link } from "@tanstack/react-router";
-
-const THEMES = ["전체", "블루아워", "물안개", "야경"];
+import { EMPTY_FILL, TIME_BANDS, bandLabel } from "./map-data";
 
 const STATUS_LABEL = {
   OK: "",
   INSUFFICIENT: "데이터 부족",
   EMPTY: "사진 없음",
 } as const;
+
+// 시간대 탭·지도 종류 토글 공통 모양 (피그마: 흰 상자 안에서 고른 칸만 남색)
+const TAB_GROUP = "flex rounded-xl border border-card-line bg-white p-1";
+const tabClass = (active: boolean) =>
+  cn(
+    "flex h-[38px] items-center gap-2 rounded-[9px] px-3.5 text-sm transition-colors",
+    active ? "bg-navy font-bold text-white" : "text-ink-sub hover:bg-field",
+  );
 
 export function TimeBandTabs({
   value,
@@ -19,25 +24,20 @@ export function TimeBandTabs({
   onChange: (value: TimeBand) => void;
 }) {
   return (
-    <div className="flex rounded-xl border border-[#e8e4dc] bg-white p-1">
+    <div className={TAB_GROUP}>
       {TIME_BANDS.map((band) => (
         <button
           key={band.value}
           type="button"
           aria-pressed={band.value === value}
           onClick={() => onChange(band.value)}
-          className={cn(
-            "flex h-9 items-center gap-2 rounded-lg px-3 text-sm transition-colors",
-            band.value === value
-              ? "bg-gray-900 font-bold text-white"
-              : "text-gray-600 hover:bg-[#f7f5f0]",
-          )}
+          className={tabClass(band.value === value)}
         >
-          <span className="flex gap-px" aria-hidden>
+          <span className="flex gap-0.5" aria-hidden>
             {band.swatch.map((color) => (
               <span
                 key={color}
-                className="h-3 w-1 rounded-[1px]"
+                className="h-3.5 w-1.5 rounded-[2px]"
                 style={{ backgroundColor: color }}
               />
             ))}
@@ -51,8 +51,8 @@ export function TimeBandTabs({
 
 export function SeasonChip({ season }: { season: { name: string; months: string } }) {
   return (
-    <span className="flex h-11 items-center rounded-xl border border-[#e8e4dc] bg-white px-4 text-sm text-gray-800">
-      {season.name} {season.months}
+    <span className="flex h-12 items-center rounded-xl border border-card-line bg-white px-4 text-sm text-ink">
+      {season.name}
     </span>
   );
 }
@@ -64,16 +64,13 @@ export function MapModeToggle({
   mine: boolean;
   onChange: (mine: boolean) => void;
 }) {
-  const tab = (active: boolean) =>
-    `h-9 rounded-lg px-4 text-sm ${active ? "bg-gray-900 font-bold text-white" : "text-gray-500 hover:text-gray-900"}`;
-
   return (
-    <div className="inline-flex rounded-xl border border-[#e8e4dc] bg-white p-1">
+    <div className={cn(TAB_GROUP, "inline-flex")}>
       <button
         type="button"
         aria-pressed={!mine}
         onClick={() => onChange(false)}
-        className={tab(!mine)}
+        className={tabClass(!mine)}
       >
         공유 지도
       </button>
@@ -81,7 +78,7 @@ export function MapModeToggle({
         type="button"
         aria-pressed={mine}
         onClick={() => onChange(true)}
-        className={tab(mine)}
+        className={tabClass(mine)}
       >
         내 지도
       </button>
@@ -91,13 +88,15 @@ export function MapModeToggle({
 
 export function ColorBar({ colors }: { colors: ColorRatio[] }) {
   return (
-    <div className="flex h-2 overflow-hidden rounded-full bg-[#f2f0eb]">
+    <div className="flex h-2.5 overflow-hidden rounded-[3px] bg-field">
       {colors.map((color) => (
         <span key={color.hex} style={{ backgroundColor: color.hex, flexGrow: color.ratio * 100 }} />
       ))}
     </div>
   );
 }
+
+const PANEL = "rounded-[18px] border border-card-line bg-white p-6";
 
 export function RankPanel({
   timeBand,
@@ -111,49 +110,31 @@ export function RankPanel({
   onHover: (dongCode: string | null) => void;
 }) {
   return (
-    <section className="rounded-3xl border border-[#e8e4dc] bg-white p-5">
+    <section className={PANEL}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-extrabold text-gray-900">{bandLabel(timeBand)}이 예쁜 동</h2>
-        <span className="text-xs text-gray-500">
+        <h2 className="text-lg font-extrabold text-ink">{bandLabel(timeBand)}이 예쁜 동</h2>
+        <span className="text-xs text-ink-muted">
           {season ? `${season.name} · ` : ""}사진 많은 순
         </span>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1">
-        {THEMES.map((theme, index) => (
-          <button
-            key={theme}
-            type="button"
-            aria-pressed={index === 0}
-            disabled={index !== 0}
-            title={index === 0 ? undefined : "테마는 준비 중이에요"}
-            className={cn(
-              "h-7 rounded-full border px-2.5 text-xs",
-              index === 0
-                ? "border-gray-900 bg-gray-900 font-bold text-white"
-                : "border-[#e8e4dc] text-gray-600",
-            )}
-          >
-            {theme}
-          </button>
-        ))}
-      </div>
-
       {topDongs.length === 0 ? (
-        <p className="mt-6 text-sm text-gray-500">아직 이 시간대 사진이 없어요.</p>
+        <p className="mt-6 text-sm text-ink-muted">아직 이 시간대 사진이 없어요.</p>
       ) : (
-        <ol className="mt-2">
+        <ol className="mt-3">
           {topDongs.map((dong, index) => (
             <li
               key={dong.dongCode}
               onMouseEnter={() => onHover(dong.dongCode)}
               onMouseLeave={() => onHover(null)}
-              className="grid grid-cols-[20px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-t border-[#f0ede6] py-3 first:border-t-0"
+              className="grid min-h-[70px] grid-cols-[20px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-t border-divider py-3"
             >
-              <span className="row-span-2 text-lg font-extrabold text-[#ff8a3d]">{index + 1}</span>
+              <span className="row-span-2 font-mono text-xl font-semibold text-brand-strong">
+                {index + 1}
+              </span>
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-bold text-gray-900">{dong.name}</span>
-                <span className="text-xs text-gray-500">
+                <span className="text-base font-extrabold text-ink">{dong.name}</span>
+                <span className="text-xs text-ink-muted">
                   {dong.guName} · {dong.photoCount}장
                 </span>
               </div>
@@ -182,60 +163,44 @@ export function MyMapPanel({
   const percent = dongs.length ? (filled.length / dongs.length) * 100 : 0;
 
   return (
-    <section className="rounded-3xl border border-[#e8e4dc] bg-white p-5">
+    <section className={PANEL}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-extrabold text-gray-900">내가 칠한 동</h2>
-        <span className="text-sm font-bold text-gray-900">
-          {filled.length}
-          <span className="font-normal text-gray-500">/{dongs.length}곳</span>
+        <h2 className="text-lg font-extrabold text-ink">내가 칠한 동</h2>
+        <span className="text-xs text-ink-muted">
+          {filled.length} / {dongs.length}곳
         </span>
       </div>
 
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f2f0eb]">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-field">
         <div className="h-full rounded-full bg-[#ff8a3d]" style={{ width: `${percent}%` }} />
       </div>
 
       {filled.length === 0 ? (
-        <p className="mt-6 text-sm text-gray-500">
+        <p className="mt-6 text-sm text-ink-muted">
           아직 {bandLabel(timeBand)} 사진으로 칠한 동이 없어요.
         </p>
       ) : (
-        <ul className="mt-2">
-          {filled.map((dong) => (
+        <ol className="mt-3">
+          {filled.map((dong, index) => (
             <li
               key={dong.dongCode}
               onMouseEnter={() => onHover(dong.dongCode)}
               onMouseLeave={() => onHover(null)}
-              className="flex items-center gap-3 border-t border-[#f0ede6] py-3 first:border-t-0"
+              className="flex h-[45px] items-center gap-4 border-t border-divider"
             >
-              <span
-                className="h-5 w-5 shrink-0 rounded-md border border-black/10"
-                style={{ backgroundColor: toneColor(dong.dominantColor ?? EMPTY_FILL) }}
-              />
-              <span className="flex-1 font-bold text-gray-900">{dong.name}</span>
-              <span className="text-xs text-gray-500">{dong.photoCount}장</span>
+              <span className="w-3 font-mono text-[13px] text-brand-strong">{index + 1}</span>
+              <span className="flex-1 text-[15px] font-bold text-ink">{dong.name}</span>
+              <span className="text-xs text-ink-muted">{dong.photoCount}장</span>
             </li>
           ))}
-        </ul>
+        </ol>
       )}
 
-      {empty > 0 && <p className="mt-3 text-xs text-gray-500">{empty}개 동이 아직 비어 있어요</p>}
-    </section>
-  );
-}
-
-export function UploadCta() {
-  return (
-    <section className="rounded-3xl border border-[#fbe0cc] bg-[#fff1e6] p-5">
-      <p className="font-bold text-gray-900">
-        내 사진으로 이 지도를 채워 주세요
-      </p>
-      <Link
-        to="/upload"
-        className="mt-4 inline-flex h-11 items-center rounded-xl bg-[#ff8a3d] px-5 text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a]"
-      >
-        사진 올리기
-      </Link>
+      {empty > 0 && (
+        <p className="mt-4 border-t border-divider pt-4 text-[15px] font-bold text-brand-strong">
+          {empty}개 동이 아직 비어 있어요
+        </p>
+      )}
     </section>
   );
 }
@@ -243,14 +208,14 @@ export function UploadCta() {
 export function DongCard({ dong }: { dong: DongColor | undefined }) {
   if (!dong) return null;
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#e8e4dc] bg-white/95 px-4 py-3">
+    <div className="flex items-center gap-3 rounded-xl border border-card-line bg-white/95 px-4 py-3">
       <span
         className="h-8 w-8 rounded-md border border-black/10"
         style={{ backgroundColor: dong.dominantColor ?? EMPTY_FILL }}
       />
       <div>
-        <p className="font-bold text-gray-900">{dong.name}</p>
-        <p className="text-sm text-gray-600">
+        <p className="font-bold text-ink">{dong.name}</p>
+        <p className="text-sm text-ink-sub">
           사진 {dong.photoCount}장{STATUS_LABEL[dong.status] && ` · ${STATUS_LABEL[dong.status]}`}
         </p>
       </div>
@@ -260,5 +225,9 @@ export function DongCard({ dong }: { dong: DongColor | undefined }) {
 
 export function ErrorBanner({ message }: { message: string | null }) {
   if (!message) return null;
-  return <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{message}</div>;
+  return (
+    <div className="rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-sm text-danger">
+      {message}
+    </div>
+  );
 }
