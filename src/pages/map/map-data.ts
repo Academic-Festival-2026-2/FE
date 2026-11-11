@@ -21,6 +21,13 @@ export const PAGE_BG = "#e2e6ed";
 // 사진이 없는 동의 기본 색 (살짝 쿨톤 회색)
 export const EMPTY_FILL = "#e2e6ed";
 
+// 동 상태 문구 (OK는 표시 안 함). 동 상세 제목 패널에서 씀
+export const STATUS_LABEL = {
+  OK: "",
+  INSUFFICIENT: "데이터 부족",
+  EMPTY: "사진 없음",
+} as const;
+
 export const KAKAO_UNAVAILABLE = typeof kakao === "undefined";
 export const KAKAO_ERROR = "지도를 불러오지 못했어요.";
 

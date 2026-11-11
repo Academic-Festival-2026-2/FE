@@ -3,13 +3,7 @@ import { Link } from "@tanstack/react-router";
 import type { ColorRatio, DongColor, TimeBand, TopDong } from "../../api/map";
 import chevronDown from "../../assets/icons/chevron-down-navy.svg";
 import { cn } from "../../utils/cn";
-import { EMPTY_FILL, SEASON_OPTIONS, TIME_BANDS, bandLabel } from "./map-data";
-
-const STATUS_LABEL = {
-  OK: "",
-  INSUFFICIENT: "데이터 부족",
-  EMPTY: "사진 없음",
-} as const;
+import { SEASON_OPTIONS, TIME_BANDS, bandLabel } from "./map-data";
 
 // 지도 위에 띄우는 유리 패널 (리퀴드 글라스 느낌). 값은 index.css의 liquid-glass에서 조정
 export const GLASS = "liquid-glass";
@@ -439,24 +433,6 @@ export function MyMapGuidePanel({ regionName, dongCount }: { regionName: string;
         ))}
       </ol>
     </section>
-  );
-}
-
-export function DongCard({ dong }: { dong: DongColor | undefined }) {
-  if (!dong) return null;
-  return (
-    <div className={cn(GLASS, "flex items-center gap-3 rounded-[14px] px-4 py-3")}>
-      <span
-        className="size-8 rounded-md border border-white/70"
-        style={{ backgroundColor: dong.dominantColor ?? EMPTY_FILL }}
-      />
-      <div>
-        <p className="text-[15px] font-bold text-ink">{dong.name}</p>
-        <p className="text-[13px] text-ink-sub">
-          사진 {dong.photoCount}장{STATUS_LABEL[dong.status] && ` · ${STATUS_LABEL[dong.status]}`}
-        </p>
-      </div>
-    </div>
   );
 }
 

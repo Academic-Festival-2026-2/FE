@@ -7,22 +7,27 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { useAuthStore } from "../../stores/auth-store";
 import {
   bandLabel,
+  EMPTY_FILL,
   KAKAO_ERROR,
   KAKAO_UNAVAILABLE,
   PAGE_BG,
   REGION_NAME,
   seasonOf,
+  STATUS_LABEL,
   toKakaoPath,
   useBoundaries,
   useDongColors,
   useMyMap,
 } from "../map/map-data";
-import { DongCard, ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
+import { ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
 import { cn } from "../../utils/cn";
 import { PhotoCard } from "./photo-card";
 
 const SELECTED_STROKE = "#1a1a1a";
 const DONG_TINT_OPACITY = 0.14;
+// 지도 화면(svg-map)의 확대·축소 버튼과 같은 모양
+const ZOOM_BUTTON =
+  "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
 
 function signedArea(path: kakao.maps.LatLng[]) {
   let area = 0;
@@ -95,6 +100,8 @@ export function DongPage() {
   const myMap = useMyMap(mine, timeBand);
   const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
+  // "전체" 버튼으로 처음 보던 범위(동 전체)로 되돌릴 때 씀
+  const dongBoundsRef = useRef<kakao.maps.LatLngBounds | null>(null);
   const [selected, setSelected] = useState<DongPoint[] | null>(null);
 
   const feature = boundaries?.features.find((item) => item.properties.dongCode === dongCode);
@@ -126,7 +133,6 @@ export function DongPage() {
       });
 
       map.setMaxLevel(8);
-      map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.BOTTOMRIGHT);
 
       const bounds = new kakao.maps.LatLngBounds();
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
@@ -170,6 +176,7 @@ export function DongPage() {
       }
 
       map.setBounds(bounds, 40, 40, 40, 40);
+      dongBoundsRef.current = bounds;
 
       // 경계 밖 흐림 레이어 마스크: 화면 전체에서 동 모양만 뺀 영역 (동 안은 흐리지 않음)
       const updateOutsideMask = () => {
@@ -253,7 +260,23 @@ export function DongPage() {
     });
   }
 
+  // 카카오 지도 레벨은 숫자가 작을수록 확대 (최대 축소는 setMaxLevel(8))
+  function zoomBy(delta: number) {
+    if (!map) return;
+    map.setLevel(Math.min(8, Math.max(1, map.getLevel() + delta)), { animate: true });
+  }
+
+  function resetView() {
+    if (map && dongBoundsRef.current) map.setBounds(dongBoundsRef.current, 40, 40, 40, 40);
+  }
+
   const notFound = boundaries !== null && !feature;
+  const errorMessage = KAKAO_UNAVAILABLE
+    ? KAKAO_ERROR
+    : notFound
+      ? "없는 동이에요."
+      : (boundaryError ?? (mine ? myMap.error : colorError) ?? detailError);
+  const statusLabel = dong ? STATUS_LABEL[dong.status] : "";
 
   return (
     <div className="relative h-screen w-full">
@@ -269,7 +292,8 @@ export function DongPage() {
       />
 
       {/* 지도 화면과 같은 유리 패널. 제목은 공유·내 지도 같게 ("역곡3동의 새벽") */}
-      <div className="absolute top-4 left-4 z-10">
+      {/* 왼쪽 위: 제목 패널 + 그 아래 에러 배너 (오른쪽 아래 확대 버튼을 가리지 않게) */}
+      <div className="absolute top-4 left-4 z-10 flex max-w-[calc(100%-2rem)] flex-col items-start gap-2">
         <div className={cn(GLASS, "rounded-[14px] px-4 py-2.5")}>
           <p className="text-xs leading-[18px] text-ink-muted">
             <Link to="/map" search={{ timeBand, mode }} className="hover:text-ink">
@@ -283,9 +307,18 @@ export function DongPage() {
             </h1>
           )}
           {dong && (
-            <p className="text-xs leading-[18px] text-ink-muted">
-              {mine ? "내 사진" : seasonName ? `${seasonName} · 사진` : "사진"}{" "}
-              <b className="text-ink">{dong.photoCount}</b>장
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs leading-[18px] text-ink-muted">
+              {/* 이 동·시간대 대표색 (없으면 지도 빈 동 회색) */}
+              <span
+                aria-hidden
+                className="size-3 shrink-0 rounded-[3px] border border-white/80 shadow-[0_0_0_1px_rgba(26,36,64,0.12)]"
+                style={{ backgroundColor: dong.dominantColor ?? EMPTY_FILL }}
+              />
+              <span>
+                {mine ? "내 사진" : seasonName ? `${seasonName} · 사진` : "사진"}{" "}
+                <b className="text-ink">{dong.photoCount}</b>장
+                {statusLabel && ` · ${statusLabel}`}
+              </span>
             </p>
           )}
           {mine && unlocated.length > 0 && (
@@ -298,6 +331,7 @@ export function DongPage() {
             </button>
           )}
         </div>
+        <ErrorBanner message={errorMessage} />
       </div>
 
       {/* 지도 화면과 같은 계절 + 시간대 바 (아래 가운데) */}
@@ -305,9 +339,6 @@ export function DongPage() {
         <TimeBandBar season={season} timeBand={timeBand} onChange={changeTimeBand} />
       </div>
 
-      <div className="absolute bottom-24 left-4 z-10 sm:bottom-6">
-        <DongCard dong={dong} />
-      </div>
       {selected && (
         <div className="absolute inset-x-4 bottom-4 z-20 sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-auto">
           <PhotoCard
@@ -318,17 +349,35 @@ export function DongPage() {
           />
         </div>
       )}
-      <div className="absolute bottom-6 right-4 z-10">
-        <ErrorBanner
-          message={
-            KAKAO_UNAVAILABLE
-              ? KAKAO_ERROR
-              : notFound
-                ? "없는 동이에요."
-                : (boundaryError ?? (mine ? myMap.error : colorError) ?? detailError)
-          }
-        />
-      </div>
+      {/* 확대·축소 (지도 화면과 같은 유리 버튼). 터치 기기는 두 손가락으로 확대하므로 숨김 */}
+      {map && (
+        <div className="liquid-glass absolute right-4 bottom-6 z-10 flex flex-col gap-0.5 rounded-xl p-1 pointer-coarse:hidden">
+          <button
+            type="button"
+            aria-label="확대"
+            onClick={() => zoomBy(-1)}
+            className={`${ZOOM_BUTTON} text-lg leading-none`}
+          >
+            +
+          </button>
+          <button
+            type="button"
+            aria-label="축소"
+            onClick={() => zoomBy(1)}
+            className={`${ZOOM_BUTTON} text-lg leading-none`}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            aria-label="동 전체 보기"
+            onClick={resetView}
+            className={`${ZOOM_BUTTON} text-[11px] font-bold`}
+          >
+            전체
+          </button>
+        </div>
+      )}
     </div>
   );
 }
