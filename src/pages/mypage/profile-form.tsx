@@ -5,7 +5,6 @@ import { TextField } from "../../components/form/text-field";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { cn } from "../../utils/cn";
 import { validateNickname } from "../../utils/validation";
-import { ProfileImagePicker } from "./profile-image-picker";
 
 type ProfileFormProps = {
   info: MyInfoResponse;
@@ -81,13 +80,7 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
         <span className="font-mono text-xs font-normal text-[#c4581a]">01</span>프로필
       </h2>
 
-      <div className="mt-4">
-        <ProfileImagePicker info={info} onUpdated={onUpdated} />
-      </div>
-
-      <hr className="my-6 border-[#e8e4dc]" />
-
-      <form onSubmit={handleSaveNickname} noValidate>
+      <form className="mt-4" onSubmit={handleSaveNickname} noValidate>
         <TextField
           id="nickname"
           size="sm"

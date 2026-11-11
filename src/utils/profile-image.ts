@@ -1,13 +1,12 @@
 // 프로필 이미지 키 (BE ProfileImage enum과 같은 값)
 // 캐릭터를 추가하면 BE enum·DB CHECK와 src/assets/avatars 파일도 같이 추가
 
-// 단색: 원 안에 닉네임 첫 글자
+// 단색: 색만 채운 원
 export const PROFILE_COLORS = [
-  { key: "COLOR_ORANGE", label: "주황", color: "#ff8a3d", text: "#111827" },
-  { key: "COLOR_SKY", label: "하늘", color: "#7fb0e0", text: "#111827" },
-  // 어두운 바탕이라 흰 글자
-  { key: "COLOR_NAVY", label: "남색", color: "#5e6a91", text: "#ffffff" },
-  { key: "COLOR_GRAY", label: "회색", color: "#c9cbd3", text: "#111827" },
+  { key: "COLOR_ORANGE", label: "주황", color: "#ff8a3d" },
+  { key: "COLOR_SKY", label: "하늘", color: "#7fb0e0" },
+  { key: "COLOR_NAVY", label: "남색", color: "#5e6a91" },
+  { key: "COLOR_GRAY", label: "회색", color: "#c9cbd3" },
 ] as const;
 
 // 캐릭터: src/assets/avatars/{키를 소문자·하이픈으로}.gif
@@ -42,7 +41,12 @@ export function characterSrc(key: string | undefined) {
   return gifs[`../assets/avatars/${key.toLowerCase().replaceAll("_", "-")}.gif`];
 }
 
-// 단색 키의 배경·글자색, 모르는 값·값 없음은 주황
+// 단색 키의 색, 모르는 값·값 없음은 주황
 export function profileColor(key: string | undefined) {
-  return PROFILE_COLORS.find((option) => option.key === key) ?? PROFILE_COLORS[0];
+  return (PROFILE_COLORS.find((option) => option.key === key) ?? PROFILE_COLORS[0]).color;
+}
+
+// 팝업 제목·안내용 한글 이름
+export function profileLabel(key: string | undefined) {
+  return [...PROFILE_COLORS, ...PROFILE_CHARACTERS].find((option) => option.key === key)?.label;
 }

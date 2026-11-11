@@ -58,7 +58,7 @@ export function MyPage() {
         {!info && !loadError && <p className="mt-6 text-sm text-gray-500">불러오는 중...</p>}
         {info && (
           <div className="mt-4 flex flex-col gap-4">
-            <ProfileSummary info={info} />
+            <ProfileSummary info={info} onUpdated={handleUpdated} />
             {/* 시안 비율 프로필 5 : 비밀번호 6, 두 카드 높이는 같게(stretch) */}
             <div className="grid gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
               <ProfileForm info={info} onUpdated={handleUpdated} />
