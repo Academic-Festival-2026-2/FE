@@ -42,6 +42,11 @@ export const BADGES: Record<BadgeType, BadgeInfo> = {
   },
 };
 
+// FE가 아는 배지인지 확인. BE에 먼저 추가된 배지나 "constructor" 같은 값은 false
+export function isKnownBadge(type: string): type is BadgeType {
+  return Object.hasOwn(BADGES, type);
+}
+
 export function badgeEarnedText(type: BadgeType, dongName?: string | null) {
   const text = BADGES[type].earnedText;
   return text.replace("{동}", dongName ?? "한 동");
