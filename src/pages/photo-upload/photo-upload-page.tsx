@@ -4,7 +4,6 @@ import { getMyInfo } from "../../api/user";
 import { uploadPhoto, type PhotoUploadResult } from "../../api/photo";
 import chevronDown from "../../assets/icons/chevron-down.svg";
 import mapPin from "../../assets/icons/map-pin.svg";
-import { Checkbox } from "../../components/form/checkbox";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
@@ -12,6 +11,7 @@ import { useAuthStore } from "../../stores/auth-store";
 import { useBoundaries } from "../map/map-data";
 import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
+import { UploadConfirmDialog } from "./upload-confirm-dialog";
 import { readPhoto, type PhotoMetadata } from "./photo-metadata";
 import { findDong, parseLocalTime, timeBand, validateColors } from "./photo-validation";
 
@@ -40,6 +40,7 @@ export function PhotoUploadPage() {
   const [index, setIndex] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [finished, setFinished] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const urls = useRef(new Set<string>());
@@ -93,19 +94,25 @@ export function PhotoUploadPage() {
   const selectedFeature = features.find((f) => f.properties.dongCode === photo?.dongCode) ?? located;
   const outside = Boolean(boundaries && photo?.latitude !== undefined && photo.longitude !== undefined && !located);
 
+  // 서버의 exifVerified 조건을 FE에서 미리 확인: 사진에 촬영 시각·GPS가 있고 둘 다 바꾸지 않았을 때만 true
+  // (PhotoService: EXIF 시각과 같고 좌표가 거의 같아야 함). 업로드 팝업의 공개 잠금 안내에만 사용
+  const exifIntact = Boolean(photo?.metadata.takenAt && photo.metadata.latitude !== undefined && photo.metadata.longitude !== undefined
+    && photo.takenAt === photo.metadata.takenAt && photo.latitude === photo.metadata.latitude && photo.longitude === photo.metadata.longitude);
+
   const locationMismatch = Boolean(located && selectedFeature && located.properties.dongCode !== selectedFeature.properties.dongCode);
 
-  async function submit() {
+  // isPublic: 업로드 팝업에서 고른 값 (동 상세에 사진을 보여 줄지)
+  async function submit(isPublic: boolean) {
     if (!photo || sending.current || !photo.colors || !selectedFeature || locationMismatch || outside) return;
     const takenAt = parseLocalTime(photo.takenAt);
     if (!takenAt || !validateColors(photo.colors.palette, photo.colors.bins)) { update(photo.id, { error: "촬영 시각 또는 색상 분석 결과를 확인해 주세요." }); return; }
     sending.current = true;
-    update(photo.id, { status: "uploading", error: undefined });
+    update(photo.id, { status: "uploading", error: undefined, isPublic });
     try {
       await getMyInfo();
       const result = await uploadPhoto(photo.file, {
         dongCode: selectedFeature.properties.dongCode, latitude: photo.latitude, longitude: photo.longitude,
-        takenAt, isPublic: photo.isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
+        takenAt, isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
       });
       update(photo.id, { status: "success", result });
       const following = photos.findIndex((p, i) => i > index && p.status !== "success");
@@ -204,13 +211,14 @@ export function PhotoUploadPage() {
                 <p className="mt-3 text-xs leading-5 text-ink-muted">촬영 시각이나 위치를 직접 입력하면 개인 지도에만 반영될 수 있어요. 최종 사진 정보 확인은 서버에서 진행해요.</p>
               </div>
               <div className="flex flex-col gap-3 border-t border-divider px-6 pt-4 pb-2">
-                <label className="flex h-9 cursor-pointer items-center gap-2 rounded-[10px] bg-field px-3 text-[13px] text-[#3a3f4b]"><Checkbox checked={photo.isPublic} onChange={(checked) => update(photo.id, { isPublic: checked })} />다른 사람에게 사진 공개</label>
-                <button type="button" onClick={() => void submit()} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
+                <p className="text-center text-xs text-ink-muted">누르면 사진 공개 여부를 고를 수 있어요</p>
+                <button type="button" onClick={() => setConfirmOpen(true)} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
               </div>
             </fieldset>
             <div className="flex flex-wrap justify-between gap-3 px-6 pt-2 pb-5 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-ink-sub underline underline-offset-4 disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="font-bold text-brand-strong underline underline-offset-4 disabled:opacity-40">사진 추가</button></div>
           </section>
         </div>
+        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => { setConfirmOpen(false); void submit(isPublic); }} />}
         {mapOpen && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
       </>}
     </main>
