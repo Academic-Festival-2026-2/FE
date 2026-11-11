@@ -21,6 +21,8 @@ export type PhotoUploadResult = {
   isPublic: boolean;
   cellPhotoCount: number | null;
   firstInCell: boolean;
+  aiVerdict?: "PUBLIC" | "PERSONAL_ONLY" | "UNCHECKED";
+  aiReason?: "NOT_SCENERY" | "PRIVACY" | null;
 };
 
 export function uploadPhoto(image: File, data: PhotoUploadData) {
