@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import type { Boundaries } from "../../api/map";
 import type { PhotoUploadResult } from "../../api/photo";
+import { BadgeIcon } from "../../components/badge-icon";
+import { BADGES, badgeEarnedText } from "../../constants/badges";
 import { labelPoint } from "../map/map-data";
 
 type CompletedPhoto = { id: string; filename: string; color: string; result: PhotoUploadResult };
@@ -10,6 +12,11 @@ export function UploadComplete({ photos, boundaries, onAdd }: {
   photos: CompletedPhoto[]; boundaries: Boundaries | null; onAdd: () => void;
 }) {
   const shared = photos.filter((photo) =>photo.result.exifVerified &&(photo.result.aiVerdict ?? "PUBLIC") === "PUBLIC").length;
+  // 여러 장을 올린 경우 배지별로 처음 받은 사진의 동을 보여줌. 모르는 배지는 빼고 마이페이지와 같은 순서로
+  const badgeOrder = Object.keys(BADGES);
+  const newBadges = photos.flatMap((photo) => (photo.result.newBadges ?? []).map((type) => ({ type, dongName: photo.result.name })))
+    .filter((badge, i, all) => badge.type in BADGES && all.findIndex((other) => other.type === badge.type) === i)
+    .sort((a, b) => badgeOrder.indexOf(a.type) - badgeOrder.indexOf(b.type));
   const features = boundaries?.features ?? [];
   const points = features.flatMap((feature) => feature.geometry.coordinates.flat(2));
   const extent = points.reduce((bounds, [x, y]) => ({
@@ -48,6 +55,15 @@ export function UploadComplete({ photos, boundaries, onAdd }: {
           <p><strong className="block text-2xl">{photos.length - shared}</strong><span className="text-sm">개인 지도만</span></p>
         </div>
       </section>
+      {newBadges.length > 0 && <section className="rounded-[20px] border border-[#ffd2b0] bg-[#fff7f0] p-6" aria-label="새로 받은 배지">
+        <p className="font-mono text-xs text-[#b4500e]">NEW BADGE</p>
+        <h2 className="mt-1 text-lg font-extrabold">새 배지를 받았어요</h2>
+        <ul className="mt-4 flex flex-col gap-3">{newBadges.map(({ type, dongName }) => <li key={type} className="flex items-center gap-3">
+          <BadgeIcon type={type} size={52} />
+          <div><p className="text-sm font-bold">{BADGES[type].name}</p><p className="text-xs text-[#77716a]">{badgeEarnedText(type, dongName)}</p></div>
+        </li>)}</ul>
+        <Link to="/mypage" className="mt-4 inline-block text-xs font-bold text-[#b4500e] underline underline-offset-4">마이페이지에서 모든 배지 보기</Link>
+      </section>}
       <section className="flex-1 rounded-[20px] border border-[#e3dfd6] bg-white p-6">
         <ul className="max-h-80 divide-y divide-[#e3dfd6] overflow-auto">{photos.map((photo, i) => <li key={photo.id} className="flex items-center gap-3 py-4">
           <span className="font-mono text-xs">{i + 1}</span><span className="h-9 w-9 shrink-0 rounded-md" style={{ background: photo.color }} />
