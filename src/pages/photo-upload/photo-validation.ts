@@ -21,6 +21,16 @@ export function parseLocalTime(value: string): string | undefined {
   return `${y}-${m}-${d}T${h}:${min}:${sec}`;
 }
 
+// 현재 BE의 2026 가을 시즌 시드(03_seed.sql) 기준입니다.
+// 다른 계절이 DB에 등록되면 지원 범위를 함께 갱신해야 합니다.
+export const SUPPORTED_PHOTO_DATES = { start: "2026-09-01", end: "2026-11-30" } as const;
+
+export function photoSeasonError(value: string): string | undefined {
+  const date = parseLocalTime(value)?.slice(0, 10);
+  if (!date || (date >= SUPPORTED_PHOTO_DATES.start && date <= SUPPORTED_PHOTO_DATES.end)) return;
+  return "현재 등록된 시즌(2026.09.01~11.30)에 포함되지 않는 사진이에요. 다른 사진을 선택해 주세요.";
+}
+
 export function timeBand(value: string): TimeBand | undefined {
   const valid = parseLocalTime(value);
   if (!valid) return;
