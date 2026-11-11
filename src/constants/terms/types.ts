@@ -12,5 +12,5 @@ export type TermContent = {
 };
 
 // TODO: 운영 배포일과 팀 공용 메일로 교체. 자리표시가 남은 채로 main에 머지하지 말 것
-export const TERMS_EFFECTIVE_DATE = "2026년 11월 ○일";
-export const CONTACT_EMAIL = "[팀 문의 이메일]";
+export const TERMS_EFFECTIVE_DATE = "2026년 11월 16일";
+export const CONTACT_EMAIL = "dean8638@naver.com";
