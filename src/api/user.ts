@@ -4,6 +4,8 @@ export type MyInfoResponse = {
   userId: number;
   email: string;
   nickname: string;
+  // 예) "CAT_CHEESE"(캐릭터), "COLOR_SKY"(단색). 가입하면 캐릭터 중 랜덤 (BE #116)
+  profileImage: string;
   locationAgreed: boolean;
   // 예) "2026-10-01T12:34:56"
   createdAt: string;
@@ -16,6 +18,8 @@ export type MyInfoResponse = {
 export type UpdateMyInfoRequest = {
   nickname?: string;
   locationAgreed?: boolean;
+  // 목록에 없는 값이면 COMMON400
+  profileImage?: string;
 };
 
 export type ChangePasswordRequest = {

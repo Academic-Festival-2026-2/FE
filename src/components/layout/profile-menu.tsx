@@ -54,7 +54,7 @@ export function ProfileMenu() {
           open ? "ring-[#ff8a3d]" : "ring-transparent hover:ring-[#e3dfd7]"
         }`}
       >
-        <Avatar nickname={nickname} size={36} />
+        <Avatar image={me?.profileImage} nickname={nickname} size={36} />
       </button>
 
       {open && (
@@ -63,7 +63,7 @@ export function ProfileMenu() {
           className="absolute top-full right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-[#e8e4dc] bg-white shadow-lg"
         >
           <div className="flex items-center gap-3 px-4 py-4">
-            <Avatar nickname={nickname} size={40} />
+            <Avatar image={me?.profileImage} nickname={nickname} size={40} />
             <div className="min-w-0">
               <p className="truncate font-bold text-gray-900">{nickname}</p>
               <p className="truncate text-sm text-gray-500">{me?.email}</p>

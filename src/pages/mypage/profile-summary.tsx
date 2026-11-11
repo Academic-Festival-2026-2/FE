@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { MyInfoResponse } from "../../api/user";
+import { Avatar } from "../../components/avatar";
 import { currentTimeBand } from "../../utils/time-band";
 
 // 부천 37개 동 × 시간대 4개
@@ -22,13 +23,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 export function ProfileSummary({ info }: { info: MyInfoResponse }) {
   return (
     <section className="flex flex-wrap items-center gap-4 rounded-3xl border border-[#e8e4dc] bg-white px-6 py-5">
-      <span
-        className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#ff8a3d] font-bold text-gray-900"
-        aria-hidden
-      >
-        {/* 이모지처럼 두 칸짜리 글자도 잘리지 않게 Array.from 사용 */}
-        {Array.from(info.nickname)[0]}
-      </span>
+      <Avatar image={info.profileImage} nickname={info.nickname} size={48} />
       <div className="min-w-0 flex-1">
         <p className="font-bold text-gray-900">{info.nickname}</p>
         <p className="truncate text-sm text-gray-600">{info.email}</p>
