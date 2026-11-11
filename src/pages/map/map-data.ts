@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getMyMap, type MyMapCell } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
@@ -60,34 +60,62 @@ const EMPTY_MAP_DONGS: MapDongsState = {
   season: null,
 };
 
+// 시간대별 동 색을 화면이 열려 있는 동안 저장해 둠.
+// 지금 시간대를 먼저 받고 나머지 3개 시간대도 바로 미리 받아 두어서, 탭을 바꾸면 기다리지 않고 바로 바뀜.
+// 저장은 화면(컴포넌트) 단위라 업로드 후 지도로 돌아오면 다시 새로 받음
 export function useDongColors(timeBand: TimeBand) {
-  const [data, setData] = useState<MapDongsState>(EMPTY_MAP_DONGS);
-  const [error, setError] = useState<string | null>(null);
+  const [cache, setCache] = useState<Partial<Record<TimeBand, MapDongsState>>>({});
+  const [errors, setErrors] = useState<Partial<Record<TimeBand, string>>>({});
+  // 이미 요청했거나 받은 시간대 (effect 안에서만 사용)
+  const requestedRef = useRef(new Set<TimeBand>());
+  const aliveRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-    getMapDongs(timeBand)
-      .then(({ dongs, topDongs, season }) => {
-        if (cancelled) return;
-        setData({
-          timeBand,
-          dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
-          topDongs,
-          season,
-        });
-        setError(null);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setData({ ...EMPTY_MAP_DONGS, timeBand });
-        setError("동 색을 불러오지 못했어요.");
-      });
+    const requested = requestedRef.current;
+    aliveRef.current = true;
     return () => {
-      cancelled = true;
+      aliveRef.current = false;
+      // 화면을 떠나면 다음에 다시 열 때 새로 받도록 비움 (개발 모드 StrictMode 재실행도 대비)
+      requested.clear();
     };
+  }, []);
+
+  useEffect(() => {
+    const requested = requestedRef.current;
+    const order = [timeBand, ...TIME_BAND_VALUES.filter((band) => band !== timeBand)];
+    for (const band of order) {
+      if (requested.has(band)) continue;
+      requested.add(band);
+      getMapDongs(band)
+        .then(({ dongs, topDongs, season }) => {
+          if (!aliveRef.current) return;
+          setCache((prev) => ({
+            ...prev,
+            [band]: {
+              timeBand: band,
+              dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
+              topDongs,
+              season,
+            },
+          }));
+          setErrors((prev) => ({ ...prev, [band]: undefined }));
+        })
+        .catch(() => {
+          // 실패한 시간대는 다음에 그 탭을 누를 때 다시 요청
+          requested.delete(band);
+          if (!aliveRef.current) return;
+          setErrors((prev) => ({ ...prev, [band]: "동 색을 불러오지 못했어요." }));
+        });
+    }
   }, [timeBand]);
 
-  return { ...data, error, loading: data.timeBand !== timeBand };
+  const data = cache[timeBand];
+  const error = errors[timeBand] ?? null;
+  return {
+    ...(data ?? { ...EMPTY_MAP_DONGS, timeBand }),
+    error,
+    loading: !data && !error,
+  };
 }
 
 export function toKakaoPath(rings: number[][][]) {
