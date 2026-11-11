@@ -3,6 +3,7 @@ import { Link, useBlocker } from "@tanstack/react-router";
 import { getMyInfo } from "../../api/user";
 import { uploadPhoto, type PhotoUploadResult } from "../../api/photo";
 import { AuthHeader } from "../../components/layout/auth-header";
+import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useBoundaries } from "../map/map-data";
 import { UploadComplete } from "./upload-complete";
@@ -116,7 +117,9 @@ export function PhotoUploadPage() {
   }
 
   return <div className="min-h-screen bg-[#f4f2ed] text-[#16161a]">
-    <AuthHeader />
+    <AuthHeader>
+      <ProfileMenu />
+    </AuthHeader>
     <main className="mx-auto max-w-[1536px] px-5 py-7 sm:px-12">
       <input ref={input} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple className="sr-only" aria-label="사진 파일 선택" onChange={(e) => { if (e.target.files) void select(e.target.files); e.target.value = ""; }} />
       {!photo ? <>

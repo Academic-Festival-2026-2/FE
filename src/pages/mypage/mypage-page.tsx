@@ -3,6 +3,7 @@ import { ApiError } from "../../api/client";
 import { getMyInfo, type MyInfoResponse } from "../../api/user";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { useUserStore } from "../../stores/user-store";
 import { AccountSection } from "./account-section";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
@@ -18,7 +19,10 @@ export function MyPage() {
     let ignore = false;
     getMyInfo()
       .then((data) => {
-        if (!ignore) setInfo(data);
+        if (ignore) return;
+        setInfo(data);
+        // 헤더 프로필 메뉴도 최신 정보로
+        useUserStore.getState().setMe(data);
       })
       .catch((error: unknown) => {
         if (ignore) return;
@@ -33,6 +37,7 @@ export function MyPage() {
   // 수정 API는 결과를 돌려주지 않아서 보낸 값으로 화면을 갱신
   function handleUpdated(changes: Partial<MyInfoResponse>) {
     setInfo((prev) => (prev ? { ...prev, ...changes } : prev));
+    useUserStore.getState().updateMe(changes);
   }
 
   return (
