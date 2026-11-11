@@ -206,7 +206,8 @@ export function SeasonTimeBar({
             >
               <span
                 aria-hidden
-                className={cn("size-2.5 rounded-[2px]", active && "border-[1.5px] border-white")}
+                // 좁은 화면에서는 색 픽셀을 숨겨서 바 폭을 줄임
+                className={cn("hidden size-2.5 rounded-[2px] sm:block", active && "border-[1.5px] border-white")}
                 style={{ backgroundColor: BAND_PIXEL[band.value] }}
               />
               {band.label}

@@ -84,9 +84,9 @@ export function MapPage() {
       <main className="mx-auto w-full max-w-[1440px] px-5 pt-4 pb-12 sm:px-12">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           {/* 지도를 카드에 꽉 채우고 조작부는 유리 패널로 위에 띄움 (피그마 "지도 카드 · D2") */}
-          <section className="relative h-[680px] min-w-0 overflow-hidden rounded-[20px] border border-card-line bg-white">
+          <section className="relative h-[560px] min-w-0 overflow-hidden rounded-[20px] border border-card-line bg-white sm:h-[680px]">
             <div
-              className={`absolute -top-[22px] right-10 -bottom-[48px] left-0 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
+              className={`absolute -top-[22px] right-0 -bottom-[48px] left-0 transition-opacity sm:right-10 ${shownLoading ? "opacity-50" : ""}`}
             >
               {boundaries && (
                 <SvgMap
@@ -101,7 +101,7 @@ export function MapPage() {
                       search: { timeBand, mode },
                     })
                   }
-                  controlsClassName="-right-4 bottom-[72px]"
+                  controlsClassName="right-6 bottom-[72px] sm:-right-4"
                   tooltip={
                     !shownLoading &&
                     hoveredDong && (
@@ -135,7 +135,7 @@ export function MapPage() {
               <MapModeToggle mine={mine} onChange={changeMode} />
             </div>
 
-            <div className="absolute bottom-[27px] left-1/2 -translate-x-1/2">
+            <div className="absolute bottom-[27px] left-1/2 w-max -translate-x-1/2">
               <SeasonTimeBar season={season} timeBand={timeBand} onTimeBandChange={changeTimeBand} />
             </div>
           </section>
