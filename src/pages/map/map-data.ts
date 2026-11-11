@@ -170,7 +170,10 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
     (cell) => cell.timeBand === timeBand && cell.filled,
   ).length;
 
-  return { dongs, filledCount, loading: enabled && cells === null && !error, error };
+  // 새벽·낮·노을·밤 어디에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음 (내 지도 비어 있음 안내용)
+  const empty = cells !== null && !cells.some((cell) => cell.filled);
+
+  return { dongs, filledCount, empty, loading: enabled && cells === null && !error, error };
 }
 
 export function labelPoint(feature: BoundaryFeature): [number, number] {

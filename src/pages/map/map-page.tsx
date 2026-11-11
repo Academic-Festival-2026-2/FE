@@ -10,9 +10,11 @@ import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
   ErrorBanner,
   MapModeToggle,
+  EmptyMyMapCard,
   MapTitlePanel,
+  MyMapGuidePanel,
   RankPanel,
-  SeasonTimeBar,
+  TimeBandBar,
   MyMapPanel,
 } from "./map-ui";
 import { SvgMap } from "./svg-map";
@@ -33,6 +35,8 @@ export function MapPage() {
   const shownDongs = mine ? myMap.dongs : dongs;
   const shownLoading = mine ? myMap.loading : loading;
   const shownError = mine ? myMap.error : colorError;
+  // 내 지도인데 어느 시간대에도 칠한 칸이 없으면 안내 카드·패널을 보여 줌
+  const myMapEmpty = mine && myMap.empty;
 
   const seasonInfo = seasonOf(season);
   const totalPhotos = [...shownDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
@@ -89,7 +93,7 @@ export function MapPage() {
           {/* 지도를 카드에 꽉 채우고 조작부는 유리 패널로 위에 띄움 (피그마 "지도 카드 · D2") */}
           <section className="relative h-[560px] min-w-0 overflow-hidden rounded-[20px] border border-card-line bg-white sm:h-[680px]">
             <div
-              className={`absolute -top-[22px] right-0 -bottom-[48px] left-0 transition-opacity sm:right-10 ${shownLoading ? "opacity-50" : ""}`}
+              className={`absolute -top-[22px] right-0 -bottom-[48px] left-0 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
             >
               {boundaries && (
                 <SvgMap
@@ -104,7 +108,7 @@ export function MapPage() {
                       search: { timeBand, mode },
                     })
                   }
-                  controlsClassName="right-6 bottom-[72px] sm:-right-4"
+                  controlsClassName="right-6 bottom-[72px]"
                   tooltip={
                     !shownLoading &&
                     hoveredDong && (
@@ -130,24 +134,33 @@ export function MapPage() {
                 {mine ? " · 내 사진 " : " · 사진 "}
                 <b className="text-ink">{totalPhotos.toLocaleString()}</b>장
               </MapTitlePanel>
+              <div className="mt-2 flex">
+                <MapModeToggle mine={mine} onChange={changeMode} />
+              </div>
               <div className="mt-2 max-w-[360px]">
                 <ErrorBanner message={boundaryError ?? shownError} />
               </div>
             </div>
 
-            <div className="absolute top-[23px] right-6 max-sm:top-[106px] max-sm:right-auto max-sm:left-[23px]">
-              <MapModeToggle mine={mine} onChange={changeMode} />
-            </div>
+
+            {/* 피그마처럼 카드 정중앙보다 30px 아래 (지도 가운데 근처) */}
+            {myMapEmpty && (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:top-[calc(50%+30px)]">
+                <EmptyMyMapCard />
+              </div>
+            )}
 
             <div className="absolute bottom-[27px] left-1/2 w-max -translate-x-1/2">
-              <SeasonTimeBar season={season} timeBand={timeBand} onTimeBandChange={changeTimeBand} />
+              <TimeBandBar season={season} timeBand={timeBand} onChange={changeTimeBand} />
             </div>
           </section>
 
           <aside
             className={`flex flex-col gap-4 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
           >
-            {mine ? (
+            {myMapEmpty ? (
+              <MyMapGuidePanel regionName={REGION_NAME} dongCount={shownDongs.size || 37} />
+            ) : mine ? (
               <MyMapPanel
                 timeBand={timeBand}
                 dongs={[...shownDongs.values()]}
