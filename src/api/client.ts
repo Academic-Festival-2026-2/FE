@@ -35,11 +35,17 @@ function toFieldErrors(body: ApiResponse<unknown> | null): Record<string, string
 const BASE_URL =import.meta.env.VITE_API_BASE_URL ?? "";
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  if (init.body instanceof FormData) {
+    headers.delete("Content-Type");
+  } else if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init.headers },
+      headers,
     });
   } catch {
     throw new ApiError(0, "NETWORK_ERROR", "서버에 연결할 수 없어요.");

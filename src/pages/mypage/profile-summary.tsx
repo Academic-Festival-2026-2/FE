@@ -1,4 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import type { MyInfoResponse } from "../../api/user";
+import { currentTimeBand } from "../../utils/time-band";
 
 // 부천 37개 동 × 시간대 4개
 const TOTAL_CELLS = 148;
@@ -37,14 +39,13 @@ export function ProfileSummary({ info }: { info: MyInfoResponse }) {
       {/* BE #92 배포 전이면 필드가 없어서 0으로 표시 */}
       <Stat label="내 사진" value={`${(info.photoCount ?? 0).toLocaleString()}장`} />
       <Stat label="채운 칸" value={`${info.filledCellCount ?? 0} / ${TOTAL_CELLS}`} />
-      <button
-        type="button"
-        disabled
-        title="준비 중이에요"
-        className="h-10 rounded-xl bg-gray-900 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+      <Link
+        to="/map"
+        search={{ timeBand: currentTimeBand(), mode: "mine" }}
+        className="grid h-10 place-items-center rounded-xl bg-gray-900 px-4 text-sm font-bold text-white hover:bg-gray-700"
       >
         나의 지도 보기
-      </button>
+      </Link>
     </section>
   );
 }
