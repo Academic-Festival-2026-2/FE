@@ -221,6 +221,9 @@ export function bandLabel(value: TimeBand) {
   return TIME_BANDS.find((band) => band.value === value)?.label ?? "";
 }
 
+// 계절 선택 목록 (봄 → 겨울 순서)
+export const SEASON_OPTIONS = Object.entries(SEASONS).map(([value, info]) => ({ value, ...info }));
+
 export function seasonOf(season: string | null) {
   return season ? SEASONS[season] : undefined;
 }

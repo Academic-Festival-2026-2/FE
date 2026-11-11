@@ -10,9 +10,9 @@ import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
   ErrorBanner,
   MapModeToggle,
+  MapTitlePanel,
   RankPanel,
-  SeasonChip,
-  TimeBandTabs,
+  SeasonTimeBar,
   MyMapPanel,
 } from "./map-ui";
 import { SvgMap } from "./svg-map";
@@ -32,6 +32,10 @@ export function MapPage() {
   const shownError = mine ? myMap.error : colorError;
 
   const seasonInfo = seasonOf(season);
+  const totalPhotos = [...shownDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
+  const filledCount = mine
+    ? myMap.filledCount
+    : [...shownDongs.values()].filter((dong) => dong.dominantColor).length;
   const hoveredDong = hoveredCode ? shownDongs.get(hoveredCode) : undefined;
   const hoveredGu = boundaries?.features.find(
     (feature) => feature.properties.dongCode === hoveredCode,
@@ -79,21 +83,10 @@ export function MapPage() {
       </AuthHeader>
       <main className="mx-auto w-full max-w-[1440px] px-5 pt-4 pb-12 sm:px-12">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="flex min-w-0 flex-col rounded-[20px] border border-card-line bg-white p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <h1 className="text-[26px] font-extrabold tracking-[-0.78px] text-ink">부천시</h1>
-              <div className="flex flex-wrap items-center gap-2">
-                <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
-                {seasonInfo && <SeasonChip season={seasonInfo} />}
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <MapModeToggle mine={mine} onChange={changeMode} />
-            </div>
-
+          {/* 지도를 카드에 꽉 채우고 조작부는 유리 패널로 위에 띄움 (피그마 "지도 카드 · D2") */}
+          <section className="relative h-[680px] min-w-0 overflow-hidden rounded-[20px] border border-card-line bg-white">
             <div
-              className={`relative mt-2 h-[560px] transition-opacity ${shownLoading ? "opacity-50" : ""}`}
+              className={`absolute -top-[22px] right-10 -bottom-[48px] left-0 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
             >
               {boundaries && (
                 <SvgMap
@@ -108,6 +101,7 @@ export function MapPage() {
                       search: { timeBand, mode },
                     })
                   }
+                  controlsClassName="-right-4 bottom-[72px]"
                   tooltip={
                     !shownLoading &&
                     hoveredDong && (
@@ -121,14 +115,29 @@ export function MapPage() {
                   }
                 />
               )}
-              <div className="absolute left-2 top-2">
+            </div>
+
+            <div className="absolute top-[23px] left-[23px]">
+              <MapTitlePanel title={`${bandLabel(timeBand)}의 ${mine ? "내 " : ""}부천`}>
+                {mine ? "칠한 동 " : "칠해진 동 "}
+                <b className="text-ink">
+                  {filledCount}/{shownDongs.size}
+                </b>
+                {mine ? " · 내 사진 " : " · 사진 "}
+                <b className="text-ink">{totalPhotos.toLocaleString()}</b>장
+              </MapTitlePanel>
+              <div className="mt-2 max-w-[360px]">
                 <ErrorBanner message={boundaryError ?? shownError} />
               </div>
             </div>
 
-            <p className="mt-2 text-xs text-ink-muted">
-              {mine ? "색칠된 동 = 내가 사진을 올린 동" : "동에 마우스를 올리면 그 동만 선명해지고, 누르면 확대돼요"}
-            </p>
+            <div className="absolute top-[23px] right-6">
+              <MapModeToggle mine={mine} onChange={changeMode} />
+            </div>
+
+            <div className="absolute bottom-[27px] left-1/2 -translate-x-1/2">
+              <SeasonTimeBar season={season} timeBand={timeBand} onTimeBandChange={changeTimeBand} />
+            </div>
           </section>
 
           <aside

@@ -39,7 +39,7 @@ export function LoginPromptDialog({ open, onClose }: LoginPromptDialogProps) {
           <span className="size-[22px] rounded-[3px] bg-[#c9cbd3]" />
         </span>
         <h2 id="login-prompt-title" className="mt-5 text-[22px] font-extrabold text-ink">
-          내 사진으로 부천을 칠해 보세요
+          내 사진으로 지도를 칠해 보세요
         </h2>
         <p className="mt-2 text-sm leading-[22px] text-ink-sub">
           사진을 올리고 내 지도를 모으려면

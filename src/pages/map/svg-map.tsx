@@ -19,6 +19,8 @@ type Props = {
   onHover: (dongCode: string | null) => void;
   onSelect: (dongCode: string) => void;
   tooltip?: ReactNode;
+  // 확대·축소 버튼 위치 (지도 위에 다른 패널을 올릴 때 겹치지 않게). 기본은 오른쪽 위
+  controlsClassName?: string;
 };
 
 function clampView({ x, y, size }: View): View {
@@ -42,7 +44,15 @@ function zoomAround(view: View, x: number, y: number, factor: number): View {
   return clampView({ x: x - (x - view.x) * ratio, y: y - (y - view.y) * ratio, size });
 }
 
-export function SvgMap({ boundaries, dongs, hoveredCode, onHover, onSelect, tooltip }: Props) {
+export function SvgMap({
+  boundaries,
+  dongs,
+  hoveredCode,
+  onHover,
+  onSelect,
+  tooltip,
+  controlsClassName = "top-2 right-2",
+}: Props) {
   const shapes = useMemo(() => toShapes(boundaries), [boundaries]);
   const svgRef = useRef<SVGSVGElement>(null);
   const [view, setView] = useState<View>(FULL_VIEW);
@@ -321,7 +331,7 @@ export function SvgMap({ boundaries, dongs, hoveredCode, onHover, onSelect, tool
         {hoveredCode && pointerInside && tooltip}
       </div>
 
-      <div className="absolute top-2 right-2 flex flex-col gap-1.5 pointer-coarse:hidden">
+      <div className={`absolute flex flex-col gap-1.5 pointer-coarse:hidden ${controlsClassName}`}>
         <button
           type="button"
           aria-label="확대"
