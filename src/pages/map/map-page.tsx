@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
+import { ProfileMenu } from "../../components/layout/profile-menu";
 import { bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
 import { LoginPromptDialog } from "./login-prompt-dialog";
@@ -57,9 +58,7 @@ export function MapPage() {
     <div className="min-h-screen bg-[#f7f5f0]">
       <AuthHeader>
         {loggedIn ? (
-          <Link to="/mypage" className="text-sm font-bold text-gray-900 hover:text-[#b5470e]">
-            내 정보
-          </Link>
+          <ProfileMenu />
         ) : (
           <div className="flex items-center gap-3 text-sm">
             <Link to="/login" className="text-[#55524c] hover:text-gray-900">
