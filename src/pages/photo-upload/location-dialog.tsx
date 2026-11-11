@@ -3,16 +3,41 @@ import type { BoundaryFeature } from "../../api/map";
 import { labelPoint, toKakaoPath } from "../map/map-data";
 import { findDong } from "./photo-validation";
 
+// 흐리게 덮을 바깥 영역 (부천 주변을 넉넉히 감싸는 사각형). 동 상세 지도와 같은 값
+const MASK_FRAME_POINTS: [number, number][] = [[36.8, 126.0], [36.8, 127.5], [38.2, 127.5], [38.2, 126.0]];
+let maskFrame: kakao.maps.LatLng[] | null = null;
+function getMaskFrame() {
+  maskFrame ??= MASK_FRAME_POINTS.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
+  return maskFrame;
+}
+
+// 구멍(동) 방향을 바깥 사각형과 반대로 맞추기 위한 부호 있는 넓이
+function signedArea(path: kakao.maps.LatLng[]) {
+  let area = 0;
+  for (let i = 0; i < path.length; i++) {
+    const a = path[i];
+    const b = path[(i + 1) % path.length];
+    area += a.getLng() * b.getLat() - b.getLng() * a.getLat();
+  }
+  return area;
+}
+
 type Props = {
   feature: BoundaryFeature;
   onClose: () => void;
   onConfirm: (latitude: number, longitude: number) => void;
+  // 전에 찍은(또는 사진 GPS) 위치. 고른 동 안에 있으면 창을 열 때 핀과 함께 보여 줌
+  initialPoint?: { lat: number; lng: number };
 };
 
-export function LocationDialog({ feature, onClose, onConfirm }: Props) {
+export function LocationDialog({ feature, onClose, onConfirm, initialPoint }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
-  const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [point, setPoint] = useState<{ lat: number; lng: number } | null>(
+    initialPoint && findDong([feature], initialPoint.lat, initialPoint.lng) ? initialPoint : null,
+  );
+  // 지도 준비 effect에서 처음 핀 위치를 읽기 위한 값 (effect를 다시 돌리지 않으려고 ref로 보관)
+  const initialRef = useRef(point);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -29,12 +54,27 @@ export function LocationDialog({ feature, onClose, onConfirm }: Props) {
       if (disposed || !ref.current) return;
       const [lng, lat] = labelPoint(feature);
       const map = new kakao.maps.Map(ref.current, { center: new kakao.maps.LatLng(lat, lng), level: 5 });
+      // 고른 동은 선명하게(채우지 않고 테두리만), 바깥은 흐리게 덮음 (동 상세 지도와 같은 방식)
       const polygons = feature.geometry.coordinates.map((rings) => {
-        const polygon = new kakao.maps.Polygon({ path: toKakaoPath(rings), strokeColor: "#1A1A1A", strokeWeight: 2, fillColor: "#FFFFFF", fillOpacity: 0.55 });
+        const polygon = new kakao.maps.Polygon({ path: toKakaoPath(rings), strokeColor: "#1A1A1A", strokeWeight: 2.5, fillColor: "#FFFFFF", fillOpacity: 0, zIndex: 2 });
         polygon.setMap(map);
         return polygon;
       });
+      const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
+      const frameSign = Math.sign(signedArea(getMaskFrame()));
+      const holes = outlines.map((outline) => Math.sign(signedArea(outline)) === frameSign ? [...outline].reverse() : outline);
+      const mask = new kakao.maps.Polygon({ path: [getMaskFrame(), ...holes], strokeWeight: 0, fillColor: "#F5F7FA", fillOpacity: 0.7, zIndex: 1 });
+      mask.setMap(map);
+      polygons.push(mask);
+      // 처음 열 때 동 전체가 꽉 차게 확대
+      const bounds = new kakao.maps.LatLngBounds();
+      outlines.forEach((outline) => outline.forEach((latLng) => bounds.extend(latLng)));
+      map.setBounds(bounds, 32, 32, 32, 32);
       const marker = new kakao.maps.Marker({ position: new kakao.maps.LatLng(lat, lng) });
+      if (initialRef.current) {
+        marker.setPosition(new kakao.maps.LatLng(initialRef.current.lat, initialRef.current.lng));
+        marker.setMap(map);
+      }
       const click = (event: kakao.maps.event.MouseEvent) => {
         const lat = event.latLng.getLat(), lng = event.latLng.getLng();
         if (!findDong([feature], lat, lng)) {
