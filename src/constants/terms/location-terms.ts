@@ -1,8 +1,8 @@
 import { TERMS_EFFECTIVE_DATE, type TermContent } from "./types.ts";
 
 // [선택] 위치정보 이용 동의
-// 5·6번은 BE PhotoService가 위치 미동의 사용자의 좌표를 버리도록 고친 뒤(woooooyong 파트)에만 사실이 됨.
-// 그 수정이 운영에 나가기 전에는 이 약관을 공개하지 말 것
+// 5·6번은 BE #121(미동의 회원은 좌표 저장 안 함)·FE #69(업로드 시 동만 선택)와 짝.
+// 업로드 규칙을 바꾸면 이 약관도 함께 확인
 export const LOCATION_TERMS: TermContent = {
   title: "위치정보 이용 동의",
   effectiveDate: TERMS_EFFECTIVE_DATE,

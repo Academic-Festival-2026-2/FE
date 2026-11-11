@@ -11,6 +11,6 @@ export type TermContent = {
   effectiveDate: string;
 };
 
-// TODO: 운영 배포일과 팀 공용 메일로 교체. 자리표시가 남은 채로 main에 머지하지 말 것
+// 시행일은 약관이 운영에 나가는 날. 약관을 바꾸면 새 시행일로 교체 (이용약관 제3조: 시행 7일 전 공지)
 export const TERMS_EFFECTIVE_DATE = "2026년 11월 16일";
 export const CONTACT_EMAIL = "dean8638@naver.com";
