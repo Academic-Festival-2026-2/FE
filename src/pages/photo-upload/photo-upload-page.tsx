@@ -114,6 +114,8 @@ export function PhotoUploadPage() {
     && photo.takenAt === photo.metadata.takenAt && photo.latitude === photo.metadata.latitude && photo.longitude === photo.metadata.longitude);
 
   const locationMismatch = Boolean(located && selectedFeature && located.properties.dongCode !== selectedFeature.properties.dongCode);
+  // 촬영 위치(좌표)가 정해졌고 고른 동 안에 있을 때 → 지도 버튼을 "선택된 위치 수정"으로 표시
+  const locationPicked = photo?.latitude !== undefined && photo.longitude !== undefined && !locationMismatch && !outside;
 
   // isPublic: 업로드 팝업에서 고른 값 (동 상세에 사진을 보여 줄지)
   async function submit(isPublic: boolean) {
@@ -219,7 +221,11 @@ export function PhotoUploadPage() {
                 {locationMismatch && <p role="alert" className="mb-3 text-sm text-brand-strong">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
                 {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
                 <span className="relative block"><select aria-label="행정동" disabled={!boundaries} value={selectedFeature?.properties.dongCode ?? ""} onChange={(e) => update(photo.id, { dongCode: e.target.value, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })} className={`${field} appearance-none border-select-line pr-10 disabled:bg-field disabled:text-ink-faint`}><option value="">{boundaries ? "구 · 동을 골라 주세요" : "행정동 불러오는 중…"}</option>{features.map((f) => <option key={f.properties.dongCode} value={f.properties.dongCode}>{f.properties.guName} · {f.properties.name}</option>)}</select><img src={chevronDown} alt="" width={16} height={16} className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2" /></span>
-                <button type="button" disabled={!selectedFeature} onClick={() => setMapOpen(true)} className="mt-2.5 flex h-11 w-full items-center gap-2 rounded-[10px] bg-field px-3.5 text-left text-sm text-ink transition-colors hover:bg-[#e9edf4] disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-field"><img src={mapPin} alt="" width={16} height={16} />지도에서 촬영 위치 선택</button>
+                <button type="button" disabled={!selectedFeature} onClick={() => setMapOpen(true)} className="mt-2.5 flex h-11 w-full items-center gap-2 rounded-[10px] bg-field px-3.5 text-left text-sm text-ink transition-colors hover:bg-[#e9edf4] disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-field">{locationPicked
+                  // 위치를 고른 뒤: 아이콘을 지도에 더하기 버튼과 같은 파란색으로
+                  ? <span aria-hidden className="size-4 shrink-0 bg-brand" style={{ maskImage: `url("${mapPin}")`, WebkitMaskImage: `url("${mapPin}")`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%" }} />
+                  : <img src={mapPin} alt="" width={16} height={16} />}
+                  {locationPicked ? "선택된 위치 수정" : "지도에서 촬영 위치 선택"}</button>
                 <p className="mt-4 text-xs leading-5 text-ink-muted">촬영 시각이나 위치를 직접 입력하면 개인 지도에만 반영될 수 있어요.</p>
               </div>
               <div className="flex flex-col gap-3 border-t border-divider px-6 pt-6 pb-3">
@@ -231,7 +237,7 @@ export function PhotoUploadPage() {
           </section>
         </div>
         {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => { setConfirmOpen(false); void submit(isPublic); }} />}
-        {mapOpen && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
+        {mapOpen && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} initialPoint={photo.latitude !== undefined && photo.longitude !== undefined ? { lat: photo.latitude, lng: photo.longitude } : undefined} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
       </>}
     </main>
   </div>;
