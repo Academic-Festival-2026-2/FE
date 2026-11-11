@@ -3,11 +3,7 @@ import { getMyBadges, type MyBadges } from "../../api/badge";
 import { BadgeIcon } from "../../components/badge-icon";
 import { BADGES, badgeEarnedText, isKnownBadge } from "../../constants/badges";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
-
-// "2026-11-12T01:23:45" → "2026.11.12"
-function formatDate(value: string) {
-  return value.slice(0, 10).replaceAll("-", ".");
-}
+import { formatDate } from "../../utils/date";
 
 export function BadgeSection() {
   const expireSession = useExpireSession();
