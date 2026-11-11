@@ -6,6 +6,7 @@ import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
+import { useUserStore } from "../../stores/user-store";
 import { useBoundaries } from "../map/map-data";
 import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
@@ -37,8 +38,13 @@ export function PhotoUploadPage() {
   const expireSession = useExpireSession();
   // 헤더 프로필 메뉴가 세션 만료로 토큰을 지우면 로그인 링크로 바뀜
   const loggedIn = useAuthStore((state) => state.tokens !== null);
+  // 위치정보 이용에 동의한 회원만 좌표를 써요. 내 정보(헤더 프로필 메뉴가 불러옴)가 오기 전에는 미동의로 봐요.
+  const locationAgreed = useUserStore((state) => state.me?.locationAgreed === true);
   const { boundaries, error: boundaryError } = useBoundaries();
   const photo = photos[index];
+  // 미동의면 사진 속 GPS·지도에서 고른 위치를 모두 무시하고 동만 받아요
+  const latitude = locationAgreed ? photo?.latitude : undefined;
+  const longitude = locationAgreed ? photo?.longitude : undefined;
   const uploading = photos.some((p) => p.status === "uploading");
   const pending = photos.some((p) => p.status !== "success");
   const results = photos.filter((p) => p.result);
@@ -78,9 +84,9 @@ export function PhotoUploadPage() {
   }
 
   const features = boundaries?.features ?? [];
-  const located = photo?.latitude !== undefined && photo.longitude !== undefined ? findDong(features, photo.latitude, photo.longitude) : undefined;
+  const located = latitude !== undefined && longitude !== undefined ? findDong(features, latitude, longitude) : undefined;
   const selectedFeature = features.find((f) => f.properties.dongCode === photo?.dongCode) ?? located;
-  const outside = Boolean(boundaries && photo?.latitude !== undefined && photo.longitude !== undefined && !located);
+  const outside = Boolean(boundaries && latitude !== undefined && longitude !== undefined && !located);
 
   const locationMismatch = Boolean(located && selectedFeature && located.properties.dongCode !== selectedFeature.properties.dongCode);
 
@@ -91,9 +97,12 @@ export function PhotoUploadPage() {
     sending.current = true;
     update(photo.id, { status: "uploading", error: undefined });
     try {
-      await getMyInfo();
+      // 토큰 재발급 겸 최신 동의 상태 확인 (다른 탭에서 동의를 바꿨을 수 있음)
+      const me = await getMyInfo();
+      const sendLocation = me.locationAgreed && locationAgreed;
       const result = await uploadPhoto(photo.file, {
-        dongCode: selectedFeature.properties.dongCode, latitude: photo.latitude, longitude: photo.longitude,
+        dongCode: selectedFeature.properties.dongCode,
+        latitude: sendLocation ? latitude : undefined, longitude: sendLocation ? longitude : undefined,
         takenAt, isPublic: photo.isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
       });
       update(photo.id, { status: "success", result });
@@ -165,21 +174,24 @@ export function PhotoUploadPage() {
 <label className="mt-4 block text-sm">촬영 날짜·시각 (한국 시간)<input type="datetime-local" step="1" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] px-3 py-3 read-only:bg-[#f4f2ed]" /></label>
 {photo.metadata.takenAt && <p className="mt-2 text-xs text-[#77716a]">사진에 기록된 촬영 시각을 사용해요.</p>}
               <div className="mt-4 grid grid-cols-4 gap-2">{bands.map(([band, label, range]) => <div key={band} className={`rounded-lg border p-2 ${timeBand(photo.takenAt) === band ? "border-[#16161a] bg-[#16161a] text-white" : "border-[#e3dfd6]"}`}><p className="text-sm font-bold">{label}</p><p className="mt-1 text-xs opacity-65">{range}</p></div>)}</div>
-              <div className="mb-3 mt-7 flex justify-between"><h2 className="font-bold">촬영 위치</h2><span className="text-xs text-[#77716a]">{photo.metadata.latitude !== undefined ? "사진 정보 · 변경 가능" : "직접 입력 필요"}</span></div>
+              <div className="mb-3 mt-7 flex justify-between"><h2 className="font-bold">촬영 위치</h2><span className="text-xs text-[#77716a]">{!locationAgreed ? "동만 선택" : photo.metadata.latitude !== undefined ? "사진 정보 · 변경 가능" : "직접 입력 필요"}</span></div>
+              {!locationAgreed && <p className="mb-3 rounded-xl bg-[#f4f2ed] p-3 text-xs leading-5 text-[#55524c]">위치정보 이용에 동의하지 않아 촬영 위치는 저장하지 않고 동만 저장해요. 이 사진은 나의 지도에만 반영되고 모두의 지도에는 반영되지 않아요. 동의는 마이페이지에서 바꿀 수 있어요.</p>}
               {boundaryError && <p role="alert" className="mb-3 text-sm text-red-700">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
               {locationMismatch && <p role="alert" className="mb-3 text-sm text-[#b4500e]">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
               {outside && <p role="alert" className="mb-3 text-sm text-[#b4500e]">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
               <label className="block text-sm">행정동<select disabled={!boundaries} value={selectedFeature?.properties.dongCode ?? ""} onChange={(e) => update(photo.id, { dongCode: e.target.value, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] bg-white px-3 py-3"><option value="">{boundaries ? "구 · 동을 골라 주세요" : "행정동 불러오는 중…"}</option>{features.map((f) => <option key={f.properties.dongCode} value={f.properties.dongCode}>{f.properties.guName} · {f.properties.name}</option>)}</select></label>
-              <button type="button" disabled={!selectedFeature} onClick={() => setMapOpen(true)} className={`${button} mt-3 w-full`}>지도에서 촬영 위치 선택</button>
-              {photo.latitude !== undefined && photo.longitude !== undefined && <p className="mt-2 text-xs text-[#77716a]">선택한 위치: {photo.latitude.toFixed(6)}, {photo.longitude.toFixed(6)}</p>}
-              <p className="mt-3 text-xs leading-5 text-[#77716a]">촬영 시각이나 위치를 직접 입력하면 개인 지도에만 반영될 수 있어요. 최종 사진 정보 확인은 서버에서 진행해요.</p>
+              {locationAgreed && <>
+                <button type="button" disabled={!selectedFeature} onClick={() => setMapOpen(true)} className={`${button} mt-3 w-full`}>지도에서 촬영 위치 선택</button>
+                {latitude !== undefined && longitude !== undefined && <p className="mt-2 text-xs text-[#77716a]">선택한 위치: {latitude.toFixed(6)}, {longitude.toFixed(6)}</p>}
+                <p className="mt-3 text-xs leading-5 text-[#77716a]">촬영 시각이나 위치를 직접 입력하면 개인 지도에만 반영될 수 있어요. 최종 사진 정보 확인은 서버에서 진행해요.</p>
+              </>}
               <label className="my-5 flex items-center gap-2 text-sm"><input type="checkbox" checked={photo.isPublic} onChange={(e) => update(photo.id, { isPublic: e.target.checked })} className="h-4 w-4 accent-[#ff8a3d]" />다른 사람에게 사진 공개</label>
               <button type="button" onClick={() => void submit()} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
             </fieldset>
             <div className="mt-4 flex flex-wrap justify-between gap-3 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-[#77716a] underline disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="text-[#b4500e] underline disabled:opacity-40">사진 추가</button></div>
           </section>
         </div>
-        {mapOpen && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
+        {mapOpen && locationAgreed && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
       </>}
     </main>
   </div>;
