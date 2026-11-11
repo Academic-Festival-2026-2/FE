@@ -66,6 +66,10 @@ const glassTab = (active: boolean) =>
 
 const SPRING = "cubic-bezier(0.34, 1.25, 0.64, 1)";
 
+// 고른 항목 표시 (남색 80% + 위쪽 반사선 + 살짝 비침)
+const SELECTED_PILL =
+  "bg-navy/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.15),0_2px_8px_rgba(41,54,129,0.3)] backdrop-blur-[2px]";
+
 // 고른 칸 표시 (리퀴드 글라스 느낌)
 // - 다른 칸을 누르면 남색 알약이 살짝 튕기듯 미끄러져 이동
 // - 도착하면서 물방울처럼 가로로 늘었다가 제자리로 돌아옴
@@ -131,10 +135,7 @@ function LiquidIndicator({ activeIndex, className }: { activeIndex: number; clas
     <span
       ref={ref}
       aria-hidden
-      className={cn(
-        "pointer-events-none absolute bg-navy/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.15),0_2px_8px_rgba(41,54,129,0.3)] backdrop-blur-[2px]",
-        className,
-      )}
+      className={cn("pointer-events-none absolute", SELECTED_PILL, className)}
     />
   );
 }
@@ -244,7 +245,7 @@ export function SeasonTimeBar({
                   className={cn(
                     "w-full rounded-lg py-[7px] pr-1.5 pl-2.5 text-left text-sm",
                     selected
-                      ? "bg-[rgba(237,242,252,0.85)] font-bold text-navy"
+                      ? cn(SELECTED_PILL, "font-bold text-white")
                       : "font-medium text-ink disabled:cursor-not-allowed disabled:text-ink-faint",
                   )}
                 >
@@ -260,15 +261,19 @@ export function SeasonTimeBar({
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="flex h-8 shrink-0 items-center gap-1 rounded-lg bg-[#edf2fc] pr-2 pl-3 text-[13px] leading-none font-bold whitespace-nowrap text-ink"
+        className={cn(SELECTED_PILL, "flex h-8 shrink-0 items-center gap-1 rounded-[9px] pr-2 pl-3 text-[13px] leading-none font-bold whitespace-nowrap text-white")}
       >
         {current?.name ?? "계절"}
-        <img
-          src={chevronDown}
-          alt=""
-          width={16}
-          height={16}
-          className={cn("transition-transform", !open && "rotate-180")}
+        {/* 피그마 화살표 모양 그대로, 색만 흰색으로 */}
+        <span
+          aria-hidden
+          className={cn("size-4 bg-white transition-transform", !open && "rotate-180")}
+          style={{
+            maskImage: `url("${chevronDown}")`,
+            WebkitMaskImage: `url("${chevronDown}")`,
+            maskSize: "100% 100%",
+            WebkitMaskSize: "100% 100%",
+          }}
         />
       </button>
       <span className="h-5 w-px bg-[#c9d0dc]" aria-hidden />

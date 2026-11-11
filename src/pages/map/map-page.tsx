@@ -17,6 +17,9 @@ import {
 } from "./map-ui";
 import { SvgMap } from "./svg-map";
 
+// 지도 제목에 들어가는 지역 이름. 경기도 전체로 확장하면 고른 지역 값으로 바꿀 자리
+const REGION_NAME = "부천";
+
 export function MapPage() {
   const { timeBand, mode } = useSearch({ from: "/map" });
   const navigate = useNavigate();
@@ -118,7 +121,8 @@ export function MapPage() {
             </div>
 
             <div className="absolute top-[23px] left-[23px]">
-              <MapTitlePanel title={`${bandLabel(timeBand)}의 ${mine ? "내 " : ""}부천`}>
+              {/* 공유·내 지도는 옆 토글이 알려 주므로 제목은 같게 */}
+              <MapTitlePanel title={`${REGION_NAME}의 ${bandLabel(timeBand)}`}>
                 {mine ? "칠한 동 " : "칠해진 동 "}
                 <b className="text-ink">
                   {filledCount}/{shownDongs.size}
