@@ -29,9 +29,12 @@ export const PROFILE_CHARACTERS = [
   { key: "DOG_WHITE", label: "흰 강아지" },
 ] as const;
 
-// 빌드 때 gif 16개를 묶어서 { 경로: URL } 로 가져옴
+// 빌드 때 gif 16개의 { 경로: URL } 목록을 만듦
+// ?no-inline: gif가 4KB보다 작아서 기본값이면 base64로 JS에 박혀 16개(약 85KB)를
+// 헤더가 있는 모든 화면에서 받게 됨 → 파일로 두고 화면에 보이는 것만 받게 함
 const gifs = import.meta.glob<string>("../assets/avatars/*.gif", {
   eager: true,
+  query: "?no-inline",
   import: "default",
 });
 

@@ -87,53 +87,56 @@ export function ProfileImageDialog({ current, onClose, onUpdated }: ProfileImage
         event.preventDefault();
         handleClose();
       }}
-      // 어두운 바깥(dialog 자체)을 누르면 닫기. 안쪽 내용 클릭은 target이 dialog가 아님
+      // 어두운 바깥을 누르면 닫기. 바깥(::backdrop) 클릭은 target이 dialog 자체로 들어옴
+      // dialog에 padding을 주면 흰 상자 여백 클릭도 dialog로 잡혀 닫히므로, padding은 안쪽 div에 줌
       onClick={(event) => {
         if (event.target === event.currentTarget) handleClose();
       }}
-      className="m-auto w-[min(440px,calc(100%-32px))] rounded-3xl bg-white p-6 backdrop:bg-black/40"
+      className="m-auto w-[min(440px,calc(100%-32px))] rounded-3xl bg-white p-0 backdrop:bg-black/40"
     >
-      <p className="font-mono text-xs tracking-[0.15em] text-[#c4581a]">PROFILE</p>
-      <h2 id="profile-image-title" className="mt-1 text-xl font-extrabold text-gray-900">
-        프로필 사진 변경
-      </h2>
+      <div className="p-6">
+        <p className="font-mono text-xs tracking-[0.15em] text-[#c4581a]">PROFILE</p>
+        <h2 id="profile-image-title" className="mt-1 text-xl font-extrabold text-gray-900">
+          프로필 사진 변경
+        </h2>
 
-      <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-[#f7f5f0] py-4">
-        <Avatar image={draft} size={96} />
-        <p className="text-sm text-gray-600">{profileLabel(draft)}</p>
-      </div>
+        <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-[#f7f5f0] py-4">
+          <Avatar image={draft} size={96} />
+          <p className="text-sm text-gray-600">{profileLabel(draft)}</p>
+        </div>
 
-      <div className="@container">
-        <p className="mt-4 text-xs text-gray-500">단색</p>
-        <div className={cn(GRID, "mt-2")}>{PROFILE_COLORS.map(renderOption)}</div>
+        <div className="@container">
+          <p className="mt-4 text-xs text-gray-500">단색</p>
+          <div className={cn(GRID, "mt-2")}>{PROFILE_COLORS.map(renderOption)}</div>
 
-        <p className="mt-4 text-xs text-gray-500">캐릭터</p>
-        <div className={cn(GRID, "mt-2")}>{PROFILE_CHARACTERS.map(renderOption)}</div>
-      </div>
+          <p className="mt-4 text-xs text-gray-500">캐릭터</p>
+          <div className={cn(GRID, "mt-2")}>{PROFILE_CHARACTERS.map(renderOption)}</div>
+        </div>
 
-      {error && (
-        <p role="alert" className="mt-3 text-xs text-red-500">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p role="alert" className="mt-3 text-xs text-red-500">
+            {error}
+          </p>
+        )}
 
-      <div className="mt-5 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          disabled={isSaving}
-          onClick={handleClose}
-          className="h-11 rounded-[10px] border border-[#ddd8ce] bg-white text-sm text-gray-900 transition-colors hover:bg-[#f7f5f0] disabled:opacity-50"
-        >
-          취소
-        </button>
-        <button
-          type="button"
-          disabled={draft === current || isSaving}
-          onClick={handleSave}
-          className="h-11 rounded-[10px] bg-[#ff8a3d] text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSaving ? "저장 중..." : "저장"}
-        </button>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={handleClose}
+            className="h-11 rounded-[10px] border border-[#ddd8ce] bg-white text-sm text-gray-900 transition-colors hover:bg-[#f7f5f0] disabled:opacity-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            disabled={draft === current || isSaving}
+            onClick={handleSave}
+            className="h-11 rounded-[10px] bg-[#ff8a3d] text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSaving ? "저장 중..." : "저장"}
+          </button>
+        </div>
       </div>
     </dialog>
   );
