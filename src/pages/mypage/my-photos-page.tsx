@@ -123,7 +123,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-4">
           <p className="font-mono text-xs tracking-widest text-[#4274d9]">PHOTO DETAIL</p>
-          <button type="button" aria-label="사진 상세 닫기" onClick={onClose} className="rounded-lg px-2 text-2xl text-gray-500 hover:bg-gray-100">×</button>
+          <button type="button" autoFocus aria-label="사진 상세 닫기" onClick={onClose} className="rounded-lg px-2 text-2xl text-gray-500 hover:bg-gray-100">×</button>
         </div>
         <div className="max-h-[calc(100dvh-140px)] overflow-y-auto px-6 pb-6">
           {loadError && <p role="alert" className="mb-3 text-sm text-red-600">{loadError}</p>}
@@ -151,7 +151,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
               <h3 className="mt-7 border-b border-[#e1e6ee] pb-3 text-sm font-bold text-gray-900">촬영 정보</h3>
               <dl className="space-y-4 py-4 text-sm">
                 <div className="flex gap-4"><dt className="w-24 shrink-0 text-gray-500">촬영 일시</dt><dd className="font-semibold text-gray-900">{formatDateTime(detail.takenAt)}</dd></div>
-                <div className="flex gap-4"><dt className="w-24 shrink-0 text-gray-500">촬영 지역</dt><dd className="font-semibold text-gray-900">부천시 {detail.name}</dd></div>
+                <div className="flex gap-4"><dt className="w-24 shrink-0 text-gray-500">촬영 지역</dt><dd className="font-semibold text-gray-900">{detail.name}</dd></div>
                 <div className="flex gap-4"><dt className="w-24 shrink-0 text-gray-500">시간대</dt><dd className="font-semibold text-gray-900">{timeBandLabel[detail.timeBand]}</dd></div>
               </dl>
             </>
@@ -231,8 +231,11 @@ export function MyPhotosPage() {
       setLoading(true);
       setRefreshKey((value) => value + 1);
     }
-    // 마이페이지의 사진 수가 오래된 값으로 남지 않도록 정보를 무효화한다.
-    useUserStore.getState().clearMe();
+    // 헤더 프로필은 유지하고 삭제된 사진 수만 갱신한다.
+    const { me, updateMe } = useUserStore.getState();
+    if (typeof me?.photoCount === "number") {
+      updateMe({ photoCount: Math.max(0, me.photoCount - 1) });
+    }
   }
 
   const photos = data?.photos ?? [];
