@@ -21,12 +21,27 @@ import {
 import { MapLoading } from "./map-loading";
 import { SvgMap } from "./svg-map";
 
+// 시간대 탭 순서 (지도 아래 바 왼쪽부터)
+const BAND_ORDER: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
+
 export function MapPage() {
   const { timeBand, mode } = useSearch({ from: "/map" });
   const navigate = useNavigate();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
+  // 지도 색이 번져 나가는 방향: 시간대 탭이나 지도 종류 토글이 오른쪽으로 가면 왼쪽 → 오른쪽, 왼쪽으로 가면 반대
+  // (직전 값과 비교해 바뀌는 순간 방향을 정함. 렌더 중 이전 값 비교는 React 권장 방식)
+  const [wave, setWave] = useState<{ timeBand: TimeBand; mine: boolean; direction: "ltr" | "rtl" }>(
+    { timeBand, mine, direction: "ltr" },
+  );
+  if (wave.timeBand !== timeBand || wave.mine !== mine) {
+    const forward =
+      wave.timeBand !== timeBand
+        ? BAND_ORDER.indexOf(timeBand) > BAND_ORDER.indexOf(wave.timeBand)
+        : mine;
+    setWave({ timeBand, mine, direction: forward ? "ltr" : "rtl" });
+  }
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   // 동을 눌러 그 동으로 확대하는 중 (지도 위 패널을 숨기고 동 상세로 넘어갈 준비)
   // 동 상세에서 돌아왔으면 그 동 (지도가 그 동에서 줄어들며 시작)
@@ -119,6 +134,7 @@ export function MapPage() {
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}
                   stageRef={stageRef}
+                  fillWave={wave.direction}
                   returnFrom={returnFrom}
                   onReturnEnd={() => setLeaving(false)}
                   onSelectStart={() => setLeaving(true)}

@@ -17,6 +17,11 @@ const EDGE_WIDTH = 6;
 const EDGE_BLUR = 5;
 const MIN_VIEW = 90;
 // 확대·축소 버튼 (지도 화면의 유리 패널과 같은 톤)
+// 시간대·계절·지도 종류를 바꿀 때 동 색이 서서히 바뀌게 (fill을 CSS로 줘야 전환됨, 동작 줄이기면 즉시)
+const FILL_TRANSITION = "transition-[fill] duration-500 ease-out motion-reduce:transition-none";
+// 색이 왼쪽 동부터 오른쪽 동으로 번져 나가듯 바뀌게, 가장 오른쪽 동이 늦게 시작하는 시간(ms)
+const FILL_WAVE_MS = 220;
+
 const ZOOM_BUTTON =
   "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
 
@@ -76,6 +81,8 @@ type Props = {
   tooltip?: ReactNode;
   // 확대·축소 버튼 위치 (지도 위에 다른 패널을 올릴 때 겹치지 않게). 기본은 오른쪽 위
   controlsClassName?: string;
+  // 색이 바뀔 때 번져 나가는 방향 (탭 표시가 움직인 방향과 같게). 기본은 왼쪽 → 오른쪽
+  fillWave?: "ltr" | "rtl";
 };
 
 function clampView({ x, y, size }: View): View {
@@ -111,8 +118,23 @@ export function SvgMap({
   onReturnEnd,
   tooltip,
   controlsClassName = "top-2 right-2",
+  fillWave = "ltr",
 }: Props) {
   const shapes = useMemo(() => shapesOf(boundaries), [boundaries]);
+  // 동마다 색 전환 시작을 늦추는 시간 (동 가운데의 가로 위치 기준)
+  // ltr: 왼쪽 동 0ms → 오른쪽 동 FILL_WAVE_MS / rtl: 반대
+  const fillDelays = useMemo(() => {
+    const centers = shapes.map((shape) => (shape.bounds[0] + shape.bounds[2]) / 2);
+    const left = Math.min(...centers);
+    const width = Math.max(...centers) - left || 1;
+    return new Map(
+      shapes.map((shape, i) => {
+        const ratio = (centers[i] - left) / width;
+        const order = fillWave === "ltr" ? ratio : 1 - ratio;
+        return [shape.dongCode, `${Math.round(order * FILL_WAVE_MS)}ms`];
+      }),
+    );
+  }, [shapes, fillWave]);
   const svgRef = useRef<SVGSVGElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (가장자리 흐림, 부천 모양 자르기)
@@ -400,7 +422,13 @@ export function SvgMap({
   }, []);
 
   const fills = shapes.map((shape) => (
-    <path key={shape.dongCode} d={shape.path} fill={fillOf(shape.dongCode)} fillRule="evenodd" />
+    <path
+      key={shape.dongCode}
+      d={shape.path}
+      style={{ fill: fillOf(shape.dongCode), transitionDelay: fillDelays.get(shape.dongCode) }}
+      fillRule="evenodd"
+      className={FILL_TRANSITION}
+    />
   ));
 
   return (
@@ -493,9 +521,12 @@ export function SvgMap({
               <path
                 key={shape.dongCode}
                 d={shape.path}
-                fill={fillOf(shape.dongCode)}
+                style={{
+                  fill: fillOf(shape.dongCode),
+                  transitionDelay: fillDelays.get(shape.dongCode),
+                }}
                 fillRule="evenodd"
-                className="cursor-pointer outline-none"
+                className={`cursor-pointer outline-none ${FILL_TRANSITION}`}
                 tabIndex={0}
                 role="button"
                 aria-label={shape.name}
@@ -544,8 +575,9 @@ export function SvgMap({
         {hovered && (
           <path
             d={hovered.path}
-            fill={colorOf(hovered.dongCode) ?? EMPTY_FILL}
+            style={{ fill: colorOf(hovered.dongCode) ?? EMPTY_FILL }}
             fillRule="evenodd"
+            className={FILL_TRANSITION}
             stroke="#ffffff"
             strokeWidth={2.5}
             vectorEffect="non-scaling-stroke"
