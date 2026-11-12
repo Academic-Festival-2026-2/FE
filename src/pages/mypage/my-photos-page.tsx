@@ -12,6 +12,7 @@ import {
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { getPhotoColorRatios } from "../dong/photo-color-ratios";
 import { useUserStore } from "../../stores/user-store";
 
 const PAGE_SIZE = 12;
@@ -67,6 +68,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const ratios = detail ? getPhotoColorRatios(detail.palette, detail.bins) : [];
 
   useEffect(() => {
     let ignore = false;
@@ -140,7 +142,11 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
               ) : (
                 <div className="flex aspect-[4/3] w-full overflow-hidden rounded-lg">
                   {detail.palette.map((color, index) => (
-                    <div key={index} className="flex-1" style={{ backgroundColor: color }} />
+                    <div
+                      key={index}
+                      className="h-full shrink-0"
+                      style={{ backgroundColor: color, width: `${ratios[index] * 100}%` }}
+                    />
                   ))}
                 </div>
               )}

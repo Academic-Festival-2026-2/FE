@@ -6,7 +6,7 @@ export function getPhotoColorRatios(palette: string[], bins?: number[] | null): 
   const equal = palette.map(() => 1 / palette.length);
   if (!palette.length || !bins || bins.length !== COLOR_HEX.length) return equal;
   if (bins.some((value) => !Number.isFinite(value) || value < 0 || value > 1)) return equal;
-  if (Math.abs(bins.reduce((sum, value) => sum + value, 0) - 1) > 0.001) return equal;
+  if (Math.abs(bins.reduce((sum, value) => sum + value, 0) - 1) > 0.02) return equal;
 
   const used = new Set<number>();
   const weights: number[] = [];

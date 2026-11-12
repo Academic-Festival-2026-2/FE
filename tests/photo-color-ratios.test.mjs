@@ -36,3 +36,11 @@ test("구형 API, 유효하지 않은 bins, 알 수 없는 팔레트는 균등 �
   assert.deepEqual(getPhotoColorRatios(["#ABCDEF", COLOR_HEX[0]], binsOf([[0, 1]])), [.5, .5]);
   assert.deepEqual(getPhotoColorRatios([], binsOf([[0, 1]])), []);
 });
+
+test("업로드에서 허용하는 bins 합계 오차 0.02를 비율 표시에서도 허용한다", () => {
+  const palette = [COLOR_HEX[0], COLOR_HEX[1]];
+  const withinTolerance = getPhotoColorRatios(palette, binsOf([[0, 0.49], [1, 0.5]]));
+  assert.ok(Math.abs(withinTolerance[0] - 0.49 / 0.99) < 1e-12);
+  assert.ok(Math.abs(withinTolerance[1] - 0.5 / 0.99) < 1e-12);
+  assert.deepEqual(getPhotoColorRatios(palette, binsOf([[0, 0.5], [1, 0.521]])), [0.5, 0.5]);
+});
