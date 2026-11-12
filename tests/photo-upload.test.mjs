@@ -46,6 +46,7 @@ test('등록된 시즌에 해당하지 않는 촬영 날짜를 업로드 전에 
   assert.equal(photoSeasonError('2026-11-30T23:59'), undefined);
   assert.match(photoSeasonError('2026-08-31T23:59'), /등록된 시즌/);
   assert.match(photoSeasonError('2026-12-01T00:00'), /등록된 시즌/);
+  assert.match(photoSeasonError('2026-12-01T00:00'), /2026\.09\.01~2026\.11\.30/);
   assert.equal(photoSeasonError('invalid'), undefined);
 });
 test('파일 확장자가 아니라 JPEG/PNG 시그니처와 크기를 검사한다', async () => {

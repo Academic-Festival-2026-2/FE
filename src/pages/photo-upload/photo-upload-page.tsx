@@ -29,7 +29,7 @@ const squares = ["#7F93B5", "#C9CCD3", "#FFA05A", "#2E3A78", "#FF8A3D", "#9C8DB8
 function uploadErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === "PHOTO400_12") return "이 사진의 촬영 날짜에 등록된 시즌이 없어요. 촬영 날짜를 확인해 주세요.";
-    if (error.status === 409) return "이미 등록된 사진입니다. 다른 사진을 선택해 주세요.";
+    if (error.code === "PHOTO409_1") return "이미 등록된 사진입니다. 다른 사진을 선택해 주세요.";
   }
   return error instanceof Error ? error.message : "업로드하지 못했어요. 다시 시도해 주세요.";
 }
@@ -56,15 +56,16 @@ export function PhotoUploadPage() {
   const setMe = useUserStore((state) => state.setMe);
   const { boundaries, error: boundaryError } = useBoundaries();
   const photo = photos[index];
-  // 사진별 오류가 나타나거나 사용자가 실패한 사진으로 이동하면 오류 문구를 보여 줍니다.
+  // 업로드 실패나 읽을 수 없는 사진으로 이동했을 때만 안내로 이동합니다.
+  // 날짜 직접 입력 중 발생하는 시즌 오류는 입력 포커스를 유지합니다.
   useEffect(() => {
-    if (!photo?.error) return;
+    if (!photo?.error || (photo.status !== "error" && photo.status !== "invalid")) return;
     const frame = requestAnimationFrame(() => {
       errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       errorRef.current?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
-  }, [photo?.id, photo?.error]);
+  }, [photo?.id, photo?.status, photo?.error]);
   // 미동의면 사진 속 GPS·지도에서 고른 위치를 모두 무시하고 동만 받아요
   const latitude = locationAgreed ? photo?.latitude : undefined;
   const longitude = locationAgreed ? photo?.longitude : undefined;
@@ -206,14 +207,14 @@ export function PhotoUploadPage() {
               <span className="absolute bottom-4 left-4 max-w-[90%] truncate rounded-md bg-white px-3 py-2 font-mono text-xs">{photo.file.name} · {(photo.file.size / 1024 / 1024).toFixed(1)}MB</span>
             </div>
             <h2 className="mb-3 mt-5 font-bold">대표색 · 상위 5색</h2>
-            {photo.colors ? <><div className="flex h-10 overflow-hidden rounded-xl">{photo.colors.palette.map((color, i) => <span key={i} style={{ background: color, flex: photo.colors!.ratios[i] }} />)}</div><div className="mt-3 flex flex-wrap justify-between gap-2 font-mono text-xs">{photo.colors.palette.map((color, i) => <span key={i}>{color} {Math.round(photo.colors!.ratios[i] * 100)}%</span>)}</div></> : <p role="status" className="rounded-xl border border-[#e3dfd6] bg-white p-4 text-sm text-[#77716a]">{photo.status === "reading" ? "사진 정보와 대표색을 분석 중이에요…" : photo.error ?? "색상을 분석하지 못했어요. 사진을 다시 선택해 주세요."}</p>}
+            {photo.colors ? <><div className="flex h-10 overflow-hidden rounded-xl">{photo.colors.palette.map((color, i) => <span key={i} style={{ background: color, flex: photo.colors!.ratios[i] }} />)}</div><div className="mt-3 flex flex-wrap justify-between gap-2 font-mono text-xs">{photo.colors.palette.map((color, i) => <span key={i}>{color} {Math.round(photo.colors!.ratios[i] * 100)}%</span>)}</div></> : <p role="status" className="rounded-xl border border-[#e3dfd6] bg-white p-4 text-sm text-[#77716a]">{photo.status === "reading" ? "사진 정보와 대표색을 분석 중이에요…" : "대표색을 표시할 수 없어요. 오른쪽 오류 안내를 확인해 주세요."}</p>}
           </section>
           <section className="rounded-2xl border border-[#e3dfd6] bg-white p-6" aria-label="사진 정보 입력">
             {photo.error && <p ref={errorRef} tabIndex={-1} role="alert" className="mb-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{photo.error}</p>}
             {photo.needsLogin && <Link to="/login" className="mb-4 inline-block text-sm underline">다시 로그인하기</Link>}
             <fieldset disabled={uploading || photo.status === "success" || photo.status === "reading" || photo.status === "invalid"}>
               <div className="flex justify-between gap-3"><h2 className="font-bold">촬영 시간</h2><span className="text-xs text-[#77716a]">{photo.metadata.takenAt ? "사진 정보" : "직접 입력 필요"}</span></div>
-<label className="mt-4 block text-sm">촬영 날짜·시각 (한국 시간)<input type="datetime-local" step="1" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value, error: photoSeasonError(e.target.value) })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] px-3 py-3 read-only:bg-[#f4f2ed]" /></label>
+<label className="mt-4 block text-sm">촬영 날짜·시각 (한국 시간)<input type="datetime-local" step="1" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value, error: photoSeasonError(e.target.value), status: photo.status === "error" ? "ready" : photo.status })} className="mt-2 w-full rounded-lg border border-[#ddd7ce] px-3 py-3 read-only:bg-[#f4f2ed]" /></label>
 {photo.metadata.takenAt && <p className="mt-2 text-xs text-[#77716a]">사진에 기록된 촬영 시각을 사용해요.</p>}
               <div className="mt-4 grid grid-cols-4 gap-2">{bands.map(([band, label, range]) => <div key={band} className={`rounded-lg border p-2 ${timeBand(photo.takenAt) === band ? "border-[#16161a] bg-[#16161a] text-white" : "border-[#e3dfd6]"}`}><p className="text-sm font-bold">{label}</p><p className="mt-1 text-xs opacity-65">{range}</p></div>)}</div>
               <div className="mb-3 mt-7 flex justify-between"><h2 className="font-bold">촬영 위치</h2><span className="text-xs text-[#77716a]">{consent === undefined ? "동의 여부 확인 중" : !locationAgreed ? "동만 선택" : photo.metadata.latitude !== undefined ? "사진 정보 · 변경 가능" : "직접 입력 필요"}</span></div>
