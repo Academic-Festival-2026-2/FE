@@ -11,6 +11,7 @@ import {
   EMPTY_FILL,
   KAKAO_ERROR,
   KAKAO_UNAVAILABLE,
+  MASK_FRAME_POINTS,
   PAGE_BG,
   REGION_NAME,
   seasonOf,
@@ -179,12 +180,8 @@ export function DongPage() {
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
       outlines.forEach((outline) => outline.forEach((point) => bounds.extend(point)));
 
-      const frame = [
-        new kakao.maps.LatLng(36.8, 126.0),
-        new kakao.maps.LatLng(36.8, 127.5),
-        new kakao.maps.LatLng(38.2, 127.5),
-        new kakao.maps.LatLng(38.2, 126.0),
-      ];
+      // 동 바깥 덮개 사각형 (map-data.ts, 업로드 위치 선택 창과 같은 값)
+      const frame = MASK_FRAME_POINTS.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
       const frameSign = Math.sign(signedArea(frame));
       const holes = outlines.map((outline) =>
         Math.sign(signedArea(outline)) === frameSign ? [...outline].reverse() : outline,
@@ -389,7 +386,7 @@ export function DongPage() {
               onClick={() => prepareDongTransition()}
               className="hover:text-ink"
             >
-              ← {REGION_NAME}시
+              ← {REGION_NAME}
             </Link>
             {feature && <span> / {feature.properties.guName}</span>}
           </p>

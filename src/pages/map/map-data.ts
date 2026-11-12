@@ -13,8 +13,19 @@ import {
   type TopDong,
 } from "../../api/map";
 
-// 지도 제목·동 상세 경로에 들어가는 지역 이름. 경기도 전체로 확장하면 고른 지역 값으로 바꿀 자리
-export const REGION_NAME = "부천";
+// 지도 제목·동 상세 경로에 들어가는 지역 이름 ("시"까지 포함, BE regions.name과 같은 형식)
+// 경기도 전체로 확장하면 고른 지역 값(API)으로 바꿀 자리. 화면에서 "시"를 따로 붙이지 않음
+export const REGION_NAME = "부천시";
+
+// 동 상세·업로드 위치 선택 지도에서 고른 동 바깥을 덮는 큰 사각형 [위도, 경도]
+// ⚠️ 지금 값은 부천 주변만 넉넉히 덮음. 경기도 동쪽·북쪽(가평·양평·여주·이천·안성·연천)은 못 덮으니
+//    지역을 늘리면 이 값만 넓히면 됨 (두 화면이 같이 씀)
+export const MASK_FRAME_POINTS: [number, number][] = [
+  [36.8, 126.0],
+  [36.8, 127.5],
+  [38.2, 127.5],
+  [38.2, 126.0],
+];
 
 // 동 상세 지도에서 고른 동 바깥을 덮는 색 (지도 화면 빈 동 기본색 EMPTY_FILL과 같은 쿨톤 회색)
 export const PAGE_BG = "#e2e6ed";
@@ -39,6 +50,7 @@ export function parseTimeBand(value: unknown): TimeBand {
 
 // 동 경계(약 380KB)는 화면을 옮겨도 바뀌지 않으므로 한 번 받으면 탭이 열려 있는 동안 다시 쓴다.
 // (지도 ↔ 동 상세를 오갈 때마다 다시 받지 않아서 두 번째부터는 바로 그려짐)
+// TODO(경기도 확장): 지금은 지역이 하나라 값 하나만 저장. 지역 파라미터가 생기면 지역 코드별로 나눠 저장
 let boundariesCache: Boundaries | null = null;
 let boundariesRequest: Promise<Boundaries> | null = null;
 
@@ -100,6 +112,7 @@ const EMPTY_MAP_DONGS: MapDongsState = {
 // 저장은 화면(컴포넌트) 단위라 업로드 후 지도로 돌아오면 다시 새로 받음
 // 마지막으로 받은 시간대별 동 색. 화면을 다시 열면 이 값을 먼저 보여 주고(지도로 돌아올 때 회색으로 비지 않게)
 // 바로 새로 받아서 바꿈 (업로드 후 돌아와도 새 색으로 갱신됨)
+// TODO(경기도 확장): 지역이 생기면 지역 코드별로 나눠 저장 (지금은 지역 하나라 시간대만 키로 씀)
 const lastDongColors: Partial<Record<TimeBand, MapDongsState>> = {};
 
 export function useDongColors(timeBand: TimeBand) {

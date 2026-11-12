@@ -200,7 +200,7 @@ export function MapPage() {
             className={`flex flex-col gap-4 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
           >
             {myMapEmpty ? (
-              <MyMapGuidePanel regionName={REGION_NAME} dongCount={shownDongs.size || 37} />
+              <MyMapGuidePanel regionName={REGION_NAME} dongCount={boundaries?.features.length ?? shownDongs.size} />
             ) : mine ? (
               <MyMapPanel
                 timeBand={timeBand}

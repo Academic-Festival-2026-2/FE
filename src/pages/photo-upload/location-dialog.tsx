@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { BoundaryFeature } from "../../api/map";
-import { labelPoint, toKakaoPath } from "../map/map-data";
+import { MASK_FRAME_POINTS, labelPoint, toKakaoPath } from "../map/map-data";
 import { findDong } from "./photo-validation";
 
-// 흐리게 덮을 바깥 영역 (부천 주변을 넉넉히 감싸는 사각형). 동 상세 지도와 같은 값
-const MASK_FRAME_POINTS: [number, number][] = [[36.8, 126.0], [36.8, 127.5], [38.2, 127.5], [38.2, 126.0]];
+// 흐리게 덮을 바깥 영역 (map-data.ts MASK_FRAME_POINTS, 동 상세 지도와 같은 값)
 let maskFrame: kakao.maps.LatLng[] | null = null;
 function getMaskFrame() {
   maskFrame ??= MASK_FRAME_POINTS.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
