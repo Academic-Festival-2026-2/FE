@@ -47,6 +47,9 @@ type LocatedPoint = DongPoint & { lat: number; lng: number };
 // 고른 사진 묶음. anchor가 있으면 데스크톱에서 그 픽셀 위에 말풍선으로 띄움 (위치 없는 사진은 null)
 type Selection = { points: DongPoint[]; anchor: { key: string; lat: number; lng: number } | null };
 
+// 말풍선을 픽셀에서 오른쪽 위로 띄우는 거리 (말풍선 왼쪽 아래 모서리 기준, px)
+const BUBBLE_OFFSET = 28;
+
 // 고른 픽셀 강조 (조금 크게 + 남색 테두리)
 const PIXEL_SELECTED = ["scale-150", "ring-2", "ring-navy", "z-10"];
 
@@ -111,8 +114,6 @@ export function DongPage() {
   const { timeBand, mode } = useSearch({ from: "/dong/$dongCode" });
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
-  // 동 경계 밖만 더 흐리게 하는 레이어 (동 모양으로 구멍을 뚫은 마스크를 지도 이동·확대에 맞춰 갱신)
-  const outsideBlurRef = useRef<HTMLDivElement>(null);
   const { boundaries, error: boundaryError } = useBoundaries();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
@@ -158,7 +159,7 @@ export function DongPage() {
   useEffect(() => {
     if (!boundaries || !feature || KAKAO_UNAVAILABLE) return;
     let cancelled = false;
-    let removeMaskListeners = () => {};
+    let removeMapListeners = () => {};
     const overlays: (kakao.maps.Polygon | kakao.maps.CustomOverlay)[] = [];
 
     kakao.maps.load(() => {
@@ -218,58 +219,21 @@ export function DongPage() {
       map.setBounds(bounds, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING);
       dongBoundsRef.current = bounds;
 
-      // 경계 밖 흐림 레이어 마스크: 화면 전체에서 동 모양만 뺀 영역 (동 안은 흐리지 않음)
-      const updateOutsideMask = () => {
-        const layer = outsideBlurRef.current;
-        const container = containerRef.current;
-        if (!layer || !container) return;
-        const projection = map.getProjection();
-        const width = container.clientWidth;
-        const height = container.clientHeight;
-        const holes = outlines
-          .map(
-            (outline) =>
-              "M" +
-              outline
-                .map((latLng) => {
-                  const point = projection.containerPointFromCoords(latLng);
-                  return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
-                })
-                .join("L") +
-              "Z",
-          )
-          .join("");
-        // 왼쪽 아래 카카오 로고·축척 자리도 비워 둠 (카카오맵 이용 조건상 로고는 가리지 않음)
-        const logoHole = `M0,${height - 36}H160V${height}H0Z`;
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><path fill-rule="evenodd" fill="black" d="M0,0H${width}V${height}H0Z${holes}${logoHole}"/></svg>`;
-        const mask = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-        layer.style.maskImage = mask;
-        layer.style.webkitMaskImage = mask;
-      };
-      const maskEvents = ["bounds_changed", "drag", "zoom_changed", "idle"];
-      maskEvents.forEach((name) => kakao.maps.event.addListener(map, name, updateOutsideMask));
-      removeMaskListeners = () =>
-        maskEvents.forEach((name) => kakao.maps.event.removeListener(map, name, updateOutsideMask));
-      updateOutsideMask();
-
       // 지도 타일이 처음 다 그려지면 로딩 안내를 내림
       const handleTilesLoaded = () => {
         setTilesReadyFor(feature.properties.dongCode);
         kakao.maps.event.removeListener(map, "tilesloaded", handleTilesLoaded);
       };
       kakao.maps.event.addListener(map, "tilesloaded", handleTilesLoaded);
-      const prevRemove = removeMaskListeners;
-      removeMaskListeners = () => {
-        prevRemove();
+      removeMapListeners = () =>
         kakao.maps.event.removeListener(map, "tilesloaded", handleTilesLoaded);
-      };
 
       setMap(map);
     });
 
     return () => {
       cancelled = true;
-      removeMaskListeners();
+      removeMapListeners();
       overlays.forEach((overlay) => overlay.setMap(null));
       outlinePolygonsRef.current = [];
     };
@@ -321,13 +285,13 @@ export function DongPage() {
   // 데스크톱: 고른 픽셀 위에 말풍선 (카카오 CustomOverlay 안에 React로 그림)
   const anchor = isDesktop ? (selected?.anchor ?? null) : null;
   // 카카오 오버레이는 처음 크기로만 위치를 잡아서, 크기 0인 점(host)을 픽셀에 놓고
-  // 그 안에서 말풍선(inner)을 아래 가운데 기준으로 위로 펼침 → 사진을 받아 커져도 항상 픽셀 위
+  // 그 안에서 말풍선(inner)을 픽셀 오른쪽 위로 펼침 → 사진을 받아 커져도 항상 같은 자리
   const bubble = useMemo(() => {
     if (!anchor) return null;
     const host = document.createElement("div");
     host.style.position = "relative";
     const inner = document.createElement("div");
-    inner.style.cssText = "position:absolute;left:0;bottom:0;transform:translateX(-50%)";
+    inner.style.cssText = `position:absolute;left:${BUBBLE_OFFSET}px;bottom:${BUBBLE_OFFSET}px`;
     host.appendChild(inner);
     return { host, inner };
   }, [anchor]);
@@ -354,8 +318,8 @@ export function DongPage() {
         .containerPointFromCoords(new kakao.maps.LatLng(anchor.lat, anchor.lng));
       const width = bubbleHost.offsetWidth;
       const height = bubbleHost.offsetHeight;
-      const top = point.y - height;
-      const left = point.x - width / 2;
+      const top = point.y - BUBBLE_OFFSET - height;
+      const left = point.x + BUBBLE_OFFSET;
       const margin = 16;
       let dx = 0;
       let dy = 0;
@@ -411,12 +375,6 @@ export function DongPage() {
       />
       {/* 지도(경계·카카오맵 타일)를 그리는 중. 오류가 있으면 오류 배너만 */}
       <MapLoading show={!errorMessage && tilesReadyFor !== dongCode} />
-      {/* 동 경계 밖만 아주 살짝(1px) 흐리게 (마스크는 지도 이벤트에서 갱신) */}
-      <div
-        ref={outsideBlurRef}
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-[1] backdrop-blur-[1px] [mask-size:100%_100%] [-webkit-mask-size:100%_100%]"
-      />
 
       {/* 지도 화면과 같은 유리 패널. 제목은 공유·내 지도 같게 ("역곡3동의 새벽") */}
       {/* 왼쪽 위: 제목 패널 + 그 아래 에러 배너 (오른쪽 아래 확대 버튼을 가리지 않게) */}

@@ -104,7 +104,7 @@ export function PhotoCard({
       className={cn(
         "rounded-[22px] border border-white/70 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_16px_40px_rgba(26,36,64,0.18)] backdrop-blur-[14px] backdrop-saturate-150",
         bubble
-          ? "w-max max-w-[280px] min-w-[220px] bg-white/95"
+          ? "w-max max-w-[280px] min-w-[220px] rounded-bl-[6px] bg-white/95"
           : "w-full bg-white/90 sm:w-auto sm:max-w-[360px] sm:min-w-[260px]",
       )}
     >
@@ -230,18 +230,19 @@ export function PhotoCard({
 
   if (!bubble) return card;
 
-  // 말풍선: 카드 아래 꼬리가 픽셀을 가리킴. 아래 여백은 픽셀(확대 시 약 12px) 위로 띄우는 간격
+  // 말풍선: 픽셀 오른쪽 위에 뜨고, 왼쪽 아래 모서리에서 꼬리가 픽셀 쪽으로 비스듬히 뻗음
+  // (말풍선 위치는 dong-page.tsx BUBBLE_OFFSET, 꼬리 끝은 확대된 픽셀 모서리 근처)
   return (
-    <div className="relative origin-bottom animate-[photo-pop_200ms_cubic-bezier(0.34,1.25,0.64,1)] pb-[22px] whitespace-normal">
+    <div className="relative origin-bottom-left animate-[photo-pop_200ms_cubic-bezier(0.34,1.25,0.64,1)] whitespace-normal">
       {card}
       <svg
-        width="18"
-        height="9"
-        viewBox="0 0 18 9"
+        width="28"
+        height="28"
+        viewBox="0 0 28 28"
         aria-hidden
-        className="absolute bottom-[14px] left-1/2 -translate-x-1/2 drop-shadow-[0_2px_2px_rgba(26,36,64,0.12)]"
+        className="absolute -bottom-[14px] -left-[14px] -z-10 drop-shadow-[0_2px_2px_rgba(26,36,64,0.12)]"
       >
-        <path d="M0 0h18L10.2 8.2a1.6 1.6 0 0 1-2.4 0Z" fill="rgb(255 255 255 / 0.95)" />
+        <path d="M1 27L14 4L24 14Z" fill="rgb(255 255 255 / 0.95)" strokeLinejoin="round" />
       </svg>
     </div>
   );
