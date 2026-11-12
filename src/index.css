@@ -118,25 +118,3 @@ html.vt-dong::view-transition-new(root) {
   }
 }
 
-/* 지도 로딩 안내의 픽셀 4칸 (map-loading.tsx): 시계 방향으로 하나씩 차올랐다 옅어짐 */
-.pixel-loading {
-  animation: pixel-loading 1200ms ease-in-out infinite;
-}
-@keyframes pixel-loading {
-  0%,
-  60%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.8);
-  }
-  20% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pixel-loading {
-    animation: none;
-    opacity: 1;
-  }
-}
