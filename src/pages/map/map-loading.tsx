@@ -45,10 +45,29 @@ function useLitCount(active: boolean) {
   return STEPS[step];
 }
 
+// 픽셀 로고: 꺼진 칸은 지도 빈 동 회색, 시계 방향으로 한 칸씩 불이 들어옴 (지도 로딩·업로드 진행 공용)
+export function PixelLoader({ size = 13 }: { size?: number }) {
+  const lit = useLitCount(true);
+  return (
+    <span className="grid shrink-0 grid-cols-2 gap-[2px]" aria-hidden>
+      {PIXELS.map((pixel) => (
+        <span
+          key={pixel.color}
+          className="rounded-[2px] transition-colors duration-200"
+          style={{
+            width: size,
+            height: size,
+            backgroundColor: pixel.order < lit ? pixel.color : EMPTY_FILL,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
 // 지도를 불러오거나 그리는 중일 때 지도 가운데에 띄우는 안내 (지도 화면·동 상세 공용)
 export function MapLoading({ show, className }: { show: boolean; className?: string }) {
   const visible = useDelayedFlag(show, SHOW_DELAY_MS);
-  const lit = useLitCount(visible);
   if (!visible) return null;
   return (
     <div
@@ -57,16 +76,7 @@ export function MapLoading({ show, className }: { show: boolean; className?: str
       className={cn("pointer-events-none absolute inset-0 z-[5] grid place-items-center px-4", className)}
     >
       <div className="flex items-center gap-3.5 rounded-[16px] border border-card-line bg-white px-5 py-3.5 shadow-[0_8px_24px_rgba(26,36,64,0.12)]">
-        {/* 픽셀 로고: 꺼진 칸은 지도 빈 동 회색, 시계 방향으로 한 칸씩 불이 들어옴 */}
-        <span className="grid shrink-0 grid-cols-2 gap-[2px]" aria-hidden>
-          {PIXELS.map((pixel) => (
-            <span
-              key={pixel.color}
-              className="size-[13px] rounded-[2px] transition-colors duration-200"
-              style={{ backgroundColor: pixel.order < lit ? pixel.color : EMPTY_FILL }}
-            />
-          ))}
-        </span>
+        <PixelLoader />
         <span className="text-sm font-bold text-ink">픽셀이 지도를 채우는 중이에요</span>
       </div>
     </div>

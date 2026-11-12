@@ -53,6 +53,8 @@ function uploadErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === "PHOTO400_12") return "이 사진의 촬영 날짜에 등록된 시즌이 없어요. 촬영 날짜를 확인해 주세요.";
     if (error.code === "PHOTO409_1") return "이미 등록된 사진입니다. 다른 사진을 선택해 주세요.";
+    // AI 검수에서 거절된 사진 (BE ClaudeImageModerator 기준: 선정적·폭력적·혐오감을 주는 사진)
+    if (error.code === "PHOTO422_1") return "지도에 올릴 수 없는 사진이에요. 선정적이거나 폭력적인 사진, 혐오감을 주는 사진은 올릴 수 없어요.";
   }
   return error instanceof Error ? error.message : "업로드하지 못했어요. 다시 시도해 주세요.";
 }
@@ -63,6 +65,8 @@ export function PhotoUploadPage() {
   const [dragging, setDragging] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // 공개 여부 팝업 단계: 고르기 → 올리는 중 → (실패하면) 실패 이유
+  const [uploadPhase, setUploadPhase] = useState<"choose" | "uploading" | "error">("choose");
   // 미리보기 칸을 사진 비율에 맞추기 위한 가로/세로 비율 (사진 id별)
   const [ratios, setRatios] = useState<Record<string, number>>({});
   const [finished, setFinished] = useState(false);
@@ -164,9 +168,11 @@ export function PhotoUploadPage() {
     const seasonError = photoSeasonError(photo.takenAt);
     if (!takenAt || seasonError || !validateColors(photo.colors.palette, photo.colors.bins)) {
       update(photo.id, { error: seasonError ?? "촬영 시각 또는 색상 분석 결과를 확인해 주세요." });
+      setConfirmOpen(false);
       return;
     }
     sending.current = true;
+    setUploadPhase("uploading");
     update(photo.id, { status: "uploading", error: undefined, isPublic });
     try {
       // 토큰 재발급 겸 최신 동의 상태 확인
@@ -176,12 +182,15 @@ export function PhotoUploadPage() {
       // 서버 값만 보고 좌표를 보내면, 동만 고르던 화면에서 GPS와 다른 동을 고른 경우 DONG_GPS_MISMATCH로 실패해요.
       if (me.locationAgreed !== locationAgreed) {
         update(photo.id, { status: "ready", error: "위치정보 동의 상태를 다시 확인해 화면을 맞췄어요. 촬영 위치를 확인한 뒤 다시 눌러 주세요." });
+        setConfirmOpen(false);
         return;
       }
       const result = await uploadPhoto(photo.file, {
         dongCode: selectedFeature.properties.dongCode, latitude, longitude,
         takenAt, isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
       });
+      // 다음 사진으로 넘어가기 전에 팝업부터 닫음
+      setConfirmOpen(false);
       update(photo.id, { status: "success", result });
       const following = photos.findIndex((p, i) => i > index && p.status !== "success");
       const next = following >= 0 ? following
@@ -192,7 +201,13 @@ export function PhotoUploadPage() {
       const expired = isSessionExpired(error);
       const message = expired ? "로그인이 만료되었어요. 다시 로그인해 주세요." : uploadErrorMessage(error);
       update(photo.id, { status: "error", needsLogin: expired, error: message });
-      if (expired) expireSession();
+      // 로그인 만료는 화면의 "다시 로그인하기"로 안내하고, 나머지는 팝업에서 이유를 보여 줌
+      if (expired) {
+        setConfirmOpen(false);
+        expireSession();
+      } else {
+        setUploadPhase("error");
+      }
     } finally { sending.current = false; }
   }
 
@@ -206,7 +221,7 @@ export function PhotoUploadPage() {
   }
 
   const previewStatus = photo
-    ? photo.status === "reading" ? { dot: "bg-[#ff8a3d]", text: "text-brand-strong", label: "사진 정보 확인 중…" }
+    ? photo.status === "reading" ? { dot: "bg-brand", text: "text-brand-strong", label: "사진 정보 확인 중…" }
       : photo.status === "success" ? { dot: "bg-ok-dot", text: "text-ok", label: "업로드 완료" }
         : photo.status === "invalid" ? { dot: "bg-danger", text: "text-danger", label: "지원하지 않는 사진" }
           : { dot: "bg-ok-dot", text: "text-ok", label: "사진 미리보기" }
@@ -286,13 +301,13 @@ export function PhotoUploadPage() {
               </div>
               <div className="flex flex-col gap-3 border-t border-divider px-6 pt-6 pb-3">
                 <p className="text-center text-xs text-ink-muted">누르면 사진 공개 여부를 고를 수 있어요</p>
-                <button type="button" onClick={() => setConfirmOpen(true)} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || Boolean(photoSeasonError(photo.takenAt)) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
+                <button type="button" onClick={() => { setUploadPhase("choose"); setConfirmOpen(true); }} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || Boolean(photoSeasonError(photo.takenAt)) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
               </div>
             </fieldset>
             <div className="flex flex-wrap justify-between gap-3 px-6 pt-3 pb-6 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-ink-sub underline underline-offset-4 disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="font-bold text-brand-strong underline underline-offset-4 disabled:opacity-40">사진 추가</button></div>
           </section>
         </div>
-        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact && locationAgreed} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => { setConfirmOpen(false); void submit(isPublic); }} />}
+        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact && locationAgreed} phase={uploadPhase} errorMessage={photo.error} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => void submit(isPublic)} onRetry={() => setUploadPhase("choose")} />}
         {mapOpen && locationAgreed && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} initialPoint={latitude !== undefined && longitude !== undefined ? { lat: latitude, lng: longitude } : undefined} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
       </>}
     </main>
