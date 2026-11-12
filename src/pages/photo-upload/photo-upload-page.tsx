@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
 import { getMyInfo } from "../../api/user";
+import { ApiError } from "../../api/client";
 import { uploadPhoto, type PhotoUploadResult } from "../../api/photo";
 import chevronDown from "../../assets/icons/chevron-down.svg";
 import mapPin from "../../assets/icons/map-pin.svg";
@@ -14,7 +15,7 @@ import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
 import { UploadConfirmDialog } from "./upload-confirm-dialog";
 import { readPhoto, type PhotoMetadata } from "./photo-metadata";
-import { findDong, parseLocalTime, timeBand, validateColors } from "./photo-validation";
+import { findDong, parseLocalTime, photoSeasonError, timeBand, validateColors } from "./photo-validation";
 
 import { analyzePhoto, type ColorAnalysis as Colors } from "./color-analysis";
 type Photo = {
@@ -48,6 +49,14 @@ const steps = [
   ["지도에 더하기", "공유 지도 또는 내 지도에만 칠해요."],
 ];
 
+function uploadErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.code === "PHOTO400_12") return "이 사진의 촬영 날짜에 등록된 시즌이 없어요. 촬영 날짜를 확인해 주세요.";
+    if (error.code === "PHOTO409_1") return "이미 등록된 사진입니다. 다른 사진을 선택해 주세요.";
+  }
+  return error instanceof Error ? error.message : "업로드하지 못했어요. 다시 시도해 주세요.";
+}
+
 export function PhotoUploadPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [index, setIndex] = useState(0);
@@ -58,6 +67,7 @@ export function PhotoUploadPage() {
   const [ratios, setRatios] = useState<Record<string, number>>({});
   const [finished, setFinished] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const urls = useRef(new Set<string>());
   const alive = useRef(true);
   const sending = useRef(false);
@@ -72,6 +82,16 @@ export function PhotoUploadPage() {
   const setMe = useUserStore((state) => state.setMe);
   const { boundaries, error: boundaryError } = useBoundaries();
   const photo = photos[index];
+  // 업로드 실패나 읽을 수 없는 사진으로 이동했을 때만 안내로 이동합니다.
+  // 날짜 직접 입력 중 발생하는 시즌 오류는 입력 포커스를 유지합니다.
+  useEffect(() => {
+    if (!photo?.error || (photo.status !== "error" && photo.status !== "invalid")) return;
+    const frame = requestAnimationFrame(() => {
+      errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      errorRef.current?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [photo?.id, photo?.status, photo?.error]);
   // 미동의면 사진 속 GPS·지도에서 고른 위치를 모두 무시하고 동만 받아요
   const latitude = locationAgreed ? photo?.latitude : undefined;
   const longitude = locationAgreed ? photo?.longitude : undefined;
@@ -110,6 +130,11 @@ export function PhotoUploadPage() {
       if (!alive.current) break;
       try {
         const metadata = await readPhoto(item.file);
+        const seasonError = metadata.takenAt ? photoSeasonError(metadata.takenAt) : undefined;
+        if (seasonError) {
+          update(item.id, { metadata, takenAt: metadata.takenAt, latitude: metadata.latitude, longitude: metadata.longitude, status: "invalid", error: seasonError });
+          continue;
+        }
         const colors = await analyzePhoto(item.file);
         update(item.id, { colors, metadata, takenAt: metadata.takenAt ?? "", latitude: metadata.latitude, longitude: metadata.longitude, status: "ready" });
       } catch (error) {
@@ -136,7 +161,11 @@ export function PhotoUploadPage() {
   async function submit(isPublic: boolean) {
     if (!photo || sending.current || !photo.colors || !selectedFeature || locationMismatch || outside) return;
     const takenAt = parseLocalTime(photo.takenAt);
-    if (!takenAt || !validateColors(photo.colors.palette, photo.colors.bins)) { update(photo.id, { error: "촬영 시각 또는 색상 분석 결과를 확인해 주세요." }); return; }
+    const seasonError = photoSeasonError(photo.takenAt);
+    if (!takenAt || seasonError || !validateColors(photo.colors.palette, photo.colors.bins)) {
+      update(photo.id, { error: seasonError ?? "촬영 시각 또는 색상 분석 결과를 확인해 주세요." });
+      return;
+    }
     sending.current = true;
     update(photo.id, { status: "uploading", error: undefined, isPublic });
     try {
@@ -161,7 +190,7 @@ export function PhotoUploadPage() {
       else if (photos.every((p) => p.id === photo.id || p.status === "success")) setFinished(true);
     } catch (error) {
       const expired = isSessionExpired(error);
-      const message = expired ? "로그인이 만료되었어요. 다시 로그인해 주세요." : error instanceof Error ? error.message : "업로드하지 못했어요. 다시 시도해 주세요.";
+      const message = expired ? "로그인이 만료되었어요. 다시 로그인해 주세요." : uploadErrorMessage(error);
       update(photo.id, { status: "error", needsLogin: expired, error: message });
       if (expired) expireSession();
     } finally { sending.current = false; }
@@ -227,20 +256,21 @@ export function PhotoUploadPage() {
             <div className="mt-[18px] mb-3 flex items-baseline justify-between"><h2 className="text-base font-bold">대표색</h2><span className="text-[13px] text-ink-muted">많이 쓰인 순서</span></div>
             {photo.colors ? <><div className="flex h-10 overflow-hidden rounded-[10px]">{paletteShares(photo.colors).map(({ color, width }, i) => <span key={i} style={{ background: color, width: `${width * 100}%` }} />)}</div><div className="mt-4 flex flex-wrap justify-between gap-x-4 gap-y-2 font-mono text-[13px]">{paletteShares(photo.colors).map(({ color, share }, i) => <span key={i} className="flex items-center gap-2"><span className="size-3.5 rounded-[3px]" style={{ background: color }} aria-hidden />{color} <span className="text-ink-muted">{Math.round(share * 100)}%</span></span>)}</div></>
               : photo.status === "reading" ? <><div className="flex h-10 animate-pulse overflow-hidden rounded-[10px] bg-preview" aria-hidden><span className="flex-[31]" /><span className="flex-[24] bg-[#dbe0e9]" /><span className="flex-[18]" /><span className="flex-[16] bg-[#dbe0e9]" /><span className="flex-[11]" /></div><p role="status" className="mt-4 text-[13px] text-ink-muted">사진 정보와 대표색을 분석 중이에요…</p></>
-              : <p role="status" className="rounded-xl border border-card-line bg-white p-4 text-sm text-ink-muted">색상을 분석하지 못했어요. 사진을 다시 선택해 주세요.</p>}
+              : <p role="status" className="rounded-xl border border-card-line bg-white p-4 text-sm text-ink-muted">대표색을 표시할 수 없어요. 사진 정보 입력의 오류 안내를 확인해 주세요.</p>}
           </section>
           <section className="overflow-hidden rounded-2xl border border-card-line bg-white" aria-label="사진 정보 입력">
-            {photo.error && <p role="alert" className="mx-6 mt-5 rounded-xl border border-danger-line bg-danger-soft p-3 text-sm text-danger">{photo.error}</p>}
+            {photo.error && <p ref={errorRef} tabIndex={-1} role="alert" className="mx-6 mt-5 rounded-xl border border-danger-line bg-danger-soft p-3 text-sm text-danger">{photo.error}</p>}
             {photo.needsLogin && <Link to="/login" className="mx-6 mt-3 inline-block text-sm text-brand-strong underline">다시 로그인하기</Link>}
             <fieldset disabled={uploading || photo.status === "success" || photo.status === "reading" || photo.status === "invalid"}>
               <div className="px-6 pt-6 pb-6">
                 <div className="flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 시간</h2>{!photo.metadata.takenAt && <span className={badgeNeed}>직접 입력 필요</span>}</div>
-                <input type="datetime-local" step="1" aria-label="촬영 날짜·시각 (한국 시간)" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value })} className={`${field} mt-4 read-only:bg-field`} />
+                <input type="datetime-local" step="1" aria-label="촬영 날짜·시각 (한국 시간)" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value, error: photoSeasonError(e.target.value), status: photo.status === "error" ? "ready" : photo.status })} className={`${field} mt-4 read-only:bg-field`} />
                 <div className="mt-3 grid grid-cols-4 gap-2.5">{bands.map(([band, label, range]) => <div key={band} className={`flex h-[68px] flex-col justify-center gap-1 rounded-[10px] border px-2.5 ${timeBand(photo.takenAt) === band ? "border-navy bg-navy text-white" : "border-field-line bg-white"}`}><p className="text-[15px] font-bold">{label}</p><p className={`font-mono text-xs ${timeBand(photo.takenAt) === band ? "text-navy-sub" : "text-ink-muted"}`}>{range}</p></div>)}</div>
               </div>
               <div className="border-t border-divider px-6 pt-6 pb-6">
                 <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 위치</h2>{consent === false ? <span className={badgeNeed}>동만 선택</span> : locationAgreed && photo.metadata.latitude === undefined && <span className={badgeNeed}>직접 입력 필요</span>}</div>
                 {consent === false && <p className="mb-3 rounded-xl bg-field p-3 text-xs leading-5 text-ink-sub">위치정보 이용에 동의하지 않아 촬영 위치는 저장하지 않고 동만 저장해요. 이 사진은 나의 지도에만 반영되고 모두의 지도에는 반영되지 않아요. 동의는 마이페이지에서 바꿀 수 있어요.</p>}
+                {locationAgreed && photo.status !== "reading" && photo.status !== "invalid" && photo.metadata.latitude === undefined && <p className="mb-3 rounded-xl bg-brand-soft p-3 text-xs leading-5 text-brand-strong">사진의 GPS 정보를 확인하지 못했어요. 휴대폰에서 사진을 선택하거나 촬영하는 과정에서 위치정보가 빠질 수 있어요. 위치를 직접 선택하면 개인 지도에만 반영돼요.</p>}
                 {boundaryError && <p role="alert" className="mb-3 text-sm text-danger">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
                 {locationMismatch && <p role="alert" className="mb-3 text-sm text-brand-strong">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
                 {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
@@ -256,7 +286,7 @@ export function PhotoUploadPage() {
               </div>
               <div className="flex flex-col gap-3 border-t border-divider px-6 pt-6 pb-3">
                 <p className="text-center text-xs text-ink-muted">누르면 사진 공개 여부를 고를 수 있어요</p>
-                <button type="button" onClick={() => setConfirmOpen(true)} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
+                <button type="button" onClick={() => setConfirmOpen(true)} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || Boolean(photoSeasonError(photo.takenAt)) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
               </div>
             </fieldset>
             <div className="flex flex-wrap justify-between gap-3 px-6 pt-3 pb-6 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-ink-sub underline underline-offset-4 disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="font-bold text-brand-strong underline underline-offset-4 disabled:opacity-40">사진 추가</button></div>
