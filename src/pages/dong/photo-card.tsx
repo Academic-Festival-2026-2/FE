@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { DongPoint } from "../../api/dong";
 import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
 import { bandLabel } from "../map/map-data";
+import { getPhotoColorRatios } from "./photo-color-ratios";
 
 function formatTakenAt(value: string) {
   return `${value.slice(0, 10).replaceAll("-", ".")} ${value.slice(11, 16)}`;
@@ -40,6 +41,7 @@ export function PhotoCard({
 
   const current = photo?.photoId === photoId ? photo : null;
   const showImage = current?.imageUrl && current.imageUrl !== failedUrl;
+  const ratios = current ? getPhotoColorRatios(current.palette, current.bins) : [];
 
   return (
     <section className="w-full overflow-hidden rounded-2xl bg-white shadow-lg sm:w-72">
@@ -73,7 +75,11 @@ export function PhotoCard({
           ) : (
             <div className="mt-2 flex aspect-[4/3] w-full">
               {current.palette.map((color, i) => (
-                <span key={i} className="flex-1" style={{ backgroundColor: color }} />
+                <span
+                  key={i}
+                  className="h-full shrink-0"
+                  style={{ backgroundColor: color, width: `${ratios[i] * 100}%` }}
+                />
               ))}
             </div>
           )}
@@ -84,7 +90,11 @@ export function PhotoCard({
             </p>
             <div className="mt-3 flex h-5 overflow-hidden rounded-md">
               {current.palette.map((color, i) => (
-                <span key={i} className="flex-1" style={{ backgroundColor: color }} />
+                <span
+                  key={i}
+                  className="h-full shrink-0"
+                  style={{ backgroundColor: color, width: `${ratios[i] * 100}%` }}
+                />
               ))}
             </div>
           </div>
