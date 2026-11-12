@@ -22,6 +22,7 @@ import {
 import { ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
 import { cn } from "../../utils/cn";
 import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
+import { canUseDongTransition, markReturnFrom, prepareDongTransition } from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
 
 const SELECTED_STROKE = "#1a1a1a";
@@ -104,6 +105,9 @@ export function DongPage() {
   // "전체" 버튼으로 처음 보던 범위(동 전체)로 되돌릴 때 씀
   const dongBoundsRef = useRef<kakao.maps.LatLngBounds | null>(null);
   const [selected, setSelected] = useState<DongPoint[] | null>(null);
+
+  // 이 화면을 떠날 때 어느 동이었는지 기억 → 지도로 돌아가면 지도가 이 동에서 줄어들며 시작
+  useEffect(() => () => markReturnFrom(dongCode), [dongCode]);
 
   const feature = boundaries?.features.find((item) => item.properties.dongCode === dongCode);
   const dong = (mine ? myMap.dongs : dongs).get(dongCode);
@@ -298,7 +302,14 @@ export function DongPage() {
       <div className="absolute top-4 left-4 z-10 flex max-w-[calc(100%-2rem)] flex-col items-start gap-2">
         <div className={cn(GLASS, "rounded-[14px] px-4 py-2.5")}>
           <p className="text-xs leading-[18px] text-ink-muted">
-            <Link to="/map" search={{ timeBand, mode }} className="hover:text-ink">
+            <Link
+              to="/map"
+              search={{ timeBand, mode }}
+              // 지도가 이 동에서 줄어들며 시작 (뒤로 가기도 같음: 아래 markReturnFrom)
+              viewTransition={canUseDongTransition()}
+              onClick={() => prepareDongTransition()}
+              className="hover:text-ink"
+            >
               ← {REGION_NAME}시
             </Link>
             {feature && <span> / {feature.properties.guName}</span>}

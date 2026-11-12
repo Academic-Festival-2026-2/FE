@@ -1,4 +1,13 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
@@ -14,8 +23,29 @@ const ZOOM_BUTTON =
 type View = { x: number; y: number; size: number };
 
 const FULL_VIEW: View = { x: 0, y: 0, size: VIEW_SIZE };
-// 동을 눌렀을 때 지도가 화면 전체로 커지며 그 동으로 확대되는 시간 (끝나면 바로 동 상세)
-const SELECT_ZOOM_MS = 650;
+// 동을 눌렀을 때 지도가 화면 전체로 커지며 그 동으로 확대되는 시간 (끝나면 바로 동 상세).
+// 동 상세에서 돌아올 때 화면 전체에서 카드로 줄어드는 시간도 같음
+const STAGE_MS = 650;
+// 지도 카드 모서리 (map-page의 rounded-[20px]과 같음)
+const CARD_RADIUS = 20;
+// 동 바깥 덮개 진하기: 마우스를 올렸을 때 / 동 상세와 같은 진하기
+const HOVER_DIM = 0.55;
+const FOCUS_DIM = 0.7;
+
+const lerp = (a: number, b: number, e: number) => a + (b - a) * e;
+
+// 애니메이션 한쪽 끝의 모습: 지도 상자 위치·크기·모서리, 동 가운데의 화면 좌표와 세로 길이(px), 동 바깥 덮개 진하기
+type StageFrame = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  radius: number;
+  dongX: number;
+  dongY: number;
+  dongPx: number;
+  dim: number;
+};
 
 // 경계 데이터는 화면 이동 후에도 같은 객체를 다시 쓰므로(map-data 캐시) 계산 결과도 저장해 둠
 const shapesCache = new WeakMap<Boundaries, DongShape[]>();
@@ -39,6 +69,10 @@ type Props = {
   onSelectStart?: (dongCode: string) => void;
   // 지금 지도가 보이는 영역(카드). 확대를 시작할 때 이 크기에서 화면 전체로 커짐 (없으면 지도 상자)
   stageRef?: RefObject<HTMLElement | null>;
+  // 동 상세에서 돌아온 경우 그 동 코드. 있으면 화면 전체에서 카드로 줄어들며 시작
+  returnFrom?: string | null;
+  // 돌아오는 애니메이션이 끝났을 때 (지도 위 패널을 다시 보이게)
+  onReturnEnd?: () => void;
   tooltip?: ReactNode;
   // 확대·축소 버튼 위치 (지도 위에 다른 패널을 올릴 때 겹치지 않게). 기본은 오른쪽 위
   controlsClassName?: string;
@@ -73,6 +107,8 @@ export function SvgMap({
   onSelect,
   onSelectStart,
   stageRef,
+  returnFrom,
+  onReturnEnd,
   tooltip,
   controlsClassName = "top-2 right-2",
 }: Props) {
@@ -83,14 +119,20 @@ export function SvgMap({
   const blurRef = useRef<SVGFEGaussianBlurElement>(null);
   const featherRef = useRef<SVGFEGaussianBlurElement>(null);
   const edgeStrokeRef = useRef<SVGGElement>(null);
+  const focusOverlayRef = useRef<SVGPathElement>(null);
   const [view, setView] = useState<View>(FULL_VIEW);
   const viewRef = useRef<View>(FULL_VIEW);
   const frameRef = useRef(0);
   const dragRef = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null);
   const movedRef = useRef(false);
-  // 동을 눌러 확대 중인 동 (그동안 다른 클릭·조작 무시, 동 바깥을 동 상세처럼 흐리게)
-  const [selecting, setSelecting] = useState<DongShape | null>(null);
-  const selectingRef = useRef(false);
+  // 동 상세에서 돌아온 동 (처음 그릴 때부터 그 동을 강조한 상태로 시작)
+  const [returnShape] = useState(() =>
+    returnFrom ? (shapes.find((shape) => shape.dongCode === returnFrom) ?? null) : null,
+  );
+  const [returning, setReturning] = useState(returnShape !== null);
+  // 동을 눌러 확대 중이거나 돌아오는 중인 동 (그동안 다른 클릭·조작 무시, 동 바깥을 회색으로 덮음)
+  const [selecting, setSelecting] = useState<DongShape | null>(returnShape);
+  const selectingRef = useRef(returnShape !== null);
 
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [pointerInside, setPointerInside] = useState(false);
@@ -154,6 +196,124 @@ export function SvgMap({
     animateTo(zoomAround(current, current.x + center, current.y + center, factor));
   }
 
+  // 지도 상자(root)를 화면에 고정해 두고, 상자 위치·크기와 동의 화면상 위치·크기를 함께 옮기는 애니메이션.
+  // 동으로 들어갈 때(카드 → 화면 전체)와 돌아올 때(화면 전체 → 카드) 둘 다 씀.
+  // 상자 크기와 viewBox를 같은 프레임에 바꿔야 흔들리지 않으므로 React 상태 대신 DOM에 바로 씀
+  // (상태로 바꾸면 viewBox가 한 프레임 늦게 들어가서 상자 크기와 어긋나며 떨림)
+  function runStage(shape: DongShape, from: StageFrame, to: StageFrame, normalPxPerUnit: number, onDone: () => void) {
+    const root = rootRef.current;
+    const svg = svgRef.current;
+    if (!root || !svg) {
+      onDone();
+      return;
+    }
+    const [minX, minY, maxX, maxY] = shape.bounds;
+    const dongCenterX = (minX + maxX) / 2;
+    const dongCenterY = (minY + maxY) / 2;
+    const dongHeight = maxY - minY;
+    const overlay = focusOverlayRef.current;
+
+    root.style.position = "fixed";
+    root.style.zIndex = "50";
+    root.style.overflow = "hidden";
+    root.style.backgroundColor = "#ffffff";
+
+    const draw = (e: number) => {
+      const box = {
+        left: lerp(from.left, to.left, e),
+        top: lerp(from.top, to.top, e),
+        width: lerp(from.width, to.width, e),
+        height: lerp(from.height, to.height, e),
+      };
+      root.style.left = `${box.left}px`;
+      root.style.top = `${box.top}px`;
+      root.style.width = `${box.width}px`;
+      root.style.height = `${box.height}px`;
+      root.style.borderRadius = `${lerp(from.radius, to.radius, e)}px`;
+
+      // 확대는 배율 기준으로(곱셈) 바꿔야 일정한 속도로 다가오거나 멀어지는 느낌이 남
+      const dongPx = from.dongPx * (to.dongPx / from.dongPx) ** e;
+      const pxPerUnit = dongPx / dongHeight;
+      const size = Math.min(box.width, box.height) / pxPerUnit;
+      const centerX = dongCenterX - (lerp(from.dongX, to.dongX, e) - (box.left + box.width / 2)) / pxPerUnit;
+      const centerY = dongCenterY - (lerp(from.dongY, to.dongY, e) - (box.top + box.height / 2)) / pxPerUnit;
+      const next = { x: centerX - size / 2, y: centerY - size / 2, size };
+      viewRef.current = next;
+      svg.setAttribute("viewBox", `${next.x} ${next.y} ${next.size} ${next.size}`);
+      // 흐림·가장자리 두께는 지도 단위라서 확대할수록 화면에서 엄청 커지고 무거워짐 → 평소 화면상 크기를 유지
+      const ratio = normalPxPerUnit / pxPerUnit;
+      blurRef.current?.setAttribute("stdDeviation", String(EDGE_BLUR * ratio));
+      featherRef.current?.setAttribute("stdDeviation", String((EDGE_WIDTH / 4) * ratio));
+      edgeStrokeRef.current?.setAttribute("stroke-width", String(EDGE_WIDTH * ratio));
+      // 동 바깥 회색 덮개 (동 상세와 같은 색·진하기)
+      overlay?.setAttribute("fill-opacity", String(lerp(from.dim, to.dim, e)));
+    };
+
+    draw(0);
+    let startTime: number | null = null;
+    cancelAnimationFrame(frameRef.current);
+    const step = (now: number) => {
+      if (startTime === null) startTime = now;
+      const t = Math.min(1, (now - startTime) / STAGE_MS);
+      // 천천히 시작해 천천히 멈춤
+      draw(t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+      if (t < 1) frameRef.current = requestAnimationFrame(step);
+      else onDone();
+    };
+    frameRef.current = requestAnimationFrame(step);
+  }
+
+  // 지도 상자를 원래(카드 안) 상태로 되돌림
+  function clearStage() {
+    const root = rootRef.current;
+    if (root) {
+      for (const name of ["position", "zIndex", "overflow", "backgroundColor", "left", "top", "width", "height", "borderRadius"] as const) {
+        root.style[name] = "";
+      }
+    }
+    blurRef.current?.setAttribute("stdDeviation", String(EDGE_BLUR));
+    featherRef.current?.setAttribute("stdDeviation", String(EDGE_WIDTH / 4));
+    edgeStrokeRef.current?.setAttribute("stroke-width", String(EDGE_WIDTH));
+    viewRef.current = FULL_VIEW;
+    svgRef.current?.setAttribute("viewBox", `${FULL_VIEW.x} ${FULL_VIEW.y} ${FULL_VIEW.size} ${FULL_VIEW.size}`);
+  }
+
+  // 화면 전체(동 상세와 같은 모습): 동이 화면 한가운데에 동 상세와 같은 크기 (kakao-fit.ts)
+  function fullscreenFrame(shape: DongShape): StageFrame {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    return {
+      left: 0,
+      top: 0,
+      width,
+      height,
+      radius: 0,
+      dongX: width / 2,
+      dongY: height / 2,
+      dongPx: predictDongHeightPx(shape.latSpan, shape.lngSpan, width, height),
+      dim: FOCUS_DIM,
+    };
+  }
+
+  // 카드 안: 보이는 영역(카드)과 view 상태에서 동이 그려지는 위치·크기. rootRect는 상자가 카드 안에 있을 때의 크기
+  function cardFrame(shape: DongShape, rootRect: DOMRect, current: View, dim: number): StageFrame {
+    const root = rootRef.current;
+    const visible = stageRef?.current?.getBoundingClientRect() ?? rootRect;
+    const [minX, minY, maxX, maxY] = shape.bounds;
+    const pxPerUnit = Math.min(rootRect.width, rootRect.height) / current.size;
+    return {
+      left: visible.left,
+      top: visible.top,
+      width: visible.width,
+      height: visible.height,
+      radius: root ? CARD_RADIUS : 0,
+      dongX: rootRect.left + rootRect.width / 2 + ((minX + maxX) / 2 - (current.x + current.size / 2)) * pxPerUnit,
+      dongY: rootRect.top + rootRect.height / 2 + ((minY + maxY) / 2 - (current.y + current.size / 2)) * pxPerUnit,
+      dongPx: (maxY - minY) * pxPerUnit,
+      dim,
+    };
+  }
+
   // 동을 누르면: 지도가 화면 전체로 커지면서, 누른 동을 화면 한가운데로 끌어와 확대.
   // 끝나는 순간 동의 크기·위치가 동 상세(화면 전체 카카오맵)에서 그려질 동과 같아서 바로 넘어가도 이어져 보임.
   function select(shape: DongShape) {
@@ -170,97 +330,53 @@ export function SvgMap({
       onSelect(shape.dongCode);
     };
     const root = rootRef.current;
-    const [minX, minY, maxX, maxY] = shape.bounds;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!root || reduceMotion || maxY <= minY) {
+    if (!root || reduceMotion || shape.bounds[3] <= shape.bounds[1]) {
       finish();
       return;
     }
     // 탭이 가려지면 애니메이션 프레임이 멈출 수 있어서, 시간이 지나면 확대가 덜 끝났어도 이동
-    window.setTimeout(finish, SELECT_ZOOM_MS + 250);
+    window.setTimeout(finish, STAGE_MS + 250);
 
-    // 시작: 지금 보이는 지도 영역(카드)과 그 안에서 동이 그려진 위치·크기
-    const visible = (stageRef?.current ?? root).getBoundingClientRect();
     const rootRect = root.getBoundingClientRect();
     const current = viewRef.current;
-    const startPxPerUnit = Math.min(rootRect.width, rootRect.height) / current.size;
-    const dongCenterX = (minX + maxX) / 2;
-    const dongCenterY = (minY + maxY) / 2;
-    const dongHeight = maxY - minY;
-    const from = {
-      left: visible.left,
-      top: visible.top,
-      width: visible.width,
-      height: visible.height,
-      radius: 20,
-      dongX: rootRect.left + rootRect.width / 2 + (dongCenterX - (current.x + current.size / 2)) * startPxPerUnit,
-      dongY: rootRect.top + rootRect.height / 2 + (dongCenterY - (current.y + current.size / 2)) * startPxPerUnit,
-      dongPx: dongHeight * startPxPerUnit,
-    };
-    // 끝: 화면 전체, 동은 화면 한가운데에 동 상세와 같은 크기 (kakao-fit.ts)
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const to = {
-      left: 0,
-      top: 0,
-      width,
-      height,
-      radius: 0,
-      dongX: width / 2,
-      dongY: height / 2,
-      dongPx: predictDongHeightPx(shape.latSpan, shape.lngSpan, width, height),
-    };
-
-    // 지도 상자를 화면에 고정하고(카드 밖으로 나와 위에 뜸) 매 프레임 크기와 view를 함께 바꿈.
-    // 상자 크기와 viewBox를 같은 프레임에 바꿔야 흔들리지 않으므로 React 상태 대신 DOM에 바로 씀
-    // (상태로 바꾸면 viewBox가 한 프레임 늦게 들어가서 상자 크기와 어긋나며 떨림)
-    const svg = svgRef.current;
-    const startSize = current.size;
-    root.style.position = "fixed";
-    root.style.zIndex = "50";
-    root.style.overflow = "hidden";
-    root.style.backgroundColor = "#ffffff";
-
-    const lerp = (a: number, b: number, e: number) => a + (b - a) * e;
-    let startTime: number | null = null;
-    cancelAnimationFrame(frameRef.current);
-    const step = (now: number) => {
-      if (startTime === null) startTime = now;
-      const t = Math.min(1, (now - startTime) / SELECT_ZOOM_MS);
-      // 천천히 시작해 천천히 멈춤
-      const e = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2;
-      const box = {
-        left: lerp(from.left, to.left, e),
-        top: lerp(from.top, to.top, e),
-        width: lerp(from.width, to.width, e),
-        height: lerp(from.height, to.height, e),
-      };
-      root.style.left = `${box.left}px`;
-      root.style.top = `${box.top}px`;
-      root.style.width = `${box.width}px`;
-      root.style.height = `${box.height}px`;
-      root.style.borderRadius = `${lerp(from.radius, to.radius, e)}px`;
-
-      // 확대는 배율 기준으로(곱셈) 바꿔야 일정한 속도로 다가오는 느낌이 남
-      const dongPx = from.dongPx * (to.dongPx / from.dongPx) ** e;
-      const pxPerUnit = dongPx / dongHeight;
-      const size = Math.min(box.width, box.height) / pxPerUnit;
-      const centerX = dongCenterX - (lerp(from.dongX, to.dongX, e) - (box.left + box.width / 2)) / pxPerUnit;
-      const centerY = dongCenterY - (lerp(from.dongY, to.dongY, e) - (box.top + box.height / 2)) / pxPerUnit;
-      const next = { x: centerX - size / 2, y: centerY - size / 2, size };
-      viewRef.current = next;
-      svg?.setAttribute("viewBox", `${next.x} ${next.y} ${next.size} ${next.size}`);
-      // 흐림·가장자리 두께는 지도 단위라서 확대할수록 화면에서 엄청 커지고 무거워짐 → 화면상 크기를 유지
-      const ratio = size / startSize;
-      blurRef.current?.setAttribute("stdDeviation", String(EDGE_BLUR * ratio));
-      featherRef.current?.setAttribute("stdDeviation", String((EDGE_WIDTH / 4) * ratio));
-      edgeStrokeRef.current?.setAttribute("stroke-width", String(EDGE_WIDTH * ratio));
-
-      if (t < 1) frameRef.current = requestAnimationFrame(step);
-      else finish();
-    };
-    frameRef.current = requestAnimationFrame(step);
+    const from = cardFrame(shape, rootRect, current, HOVER_DIM);
+    runStage(shape, from, fullscreenFrame(shape), from.dongPx / (shape.bounds[3] - shape.bounds[1]), finish);
   }
+
+  // 동 상세에서 돌아왔으면: 동 상세와 같은 모습(화면 전체)에서 시작해 카드 안 전체 지도로 줄어듦.
+  // 그리기 전에 시작 모습으로 맞춰야 하므로 useLayoutEffect
+  useLayoutEffect(() => {
+    const shape = returnShape;
+    const root = rootRef.current;
+    if (!shape || !root) {
+      // 돌아온 동을 못 찾았으면 애니메이션 없이 바로 평소 화면
+      if (returnFrom) onReturnEnd?.();
+      return;
+    }
+    const rootRect = root.getBoundingClientRect();
+    const to = cardFrame(shape, rootRect, FULL_VIEW, 0);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      clearStage();
+      selectingRef.current = false;
+      setSelecting(null);
+      setReturning(false);
+      onReturnEnd?.();
+    };
+    const timer = window.setTimeout(finish, STAGE_MS + 250);
+    runStage(shape, fullscreenFrame(shape), to, to.dongPx / (shape.bounds[3] - shape.bounds[1]), finish);
+    return () => {
+      // 개발 모드(StrictMode)에서 effect가 한 번 더 실행될 때를 위해 정리
+      window.clearTimeout(timer);
+      cancelAnimationFrame(frameRef.current);
+      if (!finished) clearStage();
+    };
+    // 처음 그릴 때 한 번만 실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function reset() {
     animateTo(FULL_VIEW);
@@ -419,13 +535,13 @@ export function SvgMap({
 
         {hovered && (
           <path
+            ref={focusOverlayRef}
             d={`M-1000,-1000H1600V1600H-1000Z${hovered.path}`}
-            // 확대 중에는 동 상세 화면처럼 바깥을 회색으로 덮어서 다음 화면과 자연스럽게 이어지게
+            // 동을 누르거나 돌아오는 중에는 동 상세처럼 바깥을 회색으로 덮고, 진하기는 애니메이션이 매 프레임 바꿈
             fill={selecting ? PAGE_BG : "#ffffff"}
-            fillOpacity={selecting ? 0.7 : 0.55}
+            fillOpacity={selecting ? (returning ? FOCUS_DIM : HOVER_DIM) : HOVER_DIM}
             fillRule="evenodd"
             pointerEvents="none"
-            style={{ transition: `fill ${SELECT_ZOOM_MS}ms, fill-opacity ${SELECT_ZOOM_MS}ms` }}
           />
         )}
 

@@ -1,7 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
-import { prepareDongTransition } from "../../utils/view-transition";
+import { peekReturnFrom, prepareDongTransition } from "../../utils/view-transition";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
@@ -28,7 +28,15 @@ export function MapPage() {
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   // 동을 눌러 그 동으로 확대하는 중 (지도 위 패널을 숨기고 동 상세로 넘어갈 준비)
-  const [leaving, setLeaving] = useState(false);
+  // 동 상세에서 돌아왔으면 그 동 (지도가 그 동에서 줄어들며 시작)
+  const [returnFrom] = useState(peekReturnFrom);
+  const [leaving, setLeaving] = useState(returnFrom !== null);
+  // 지도를 못 그리는 경우(경계 불러오기 실패 등)에도 패널이 숨겨진 채 남지 않게
+  useEffect(() => {
+    if (!returnFrom) return;
+    const timer = window.setTimeout(() => setLeaving(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, [returnFrom]);
   // 지도 카드 (동을 누르면 svg-map이 이 크기에서 화면 전체로 커지며 확대)
   const stageRef = useRef<HTMLElement>(null);
   const leaveFade = `transition-opacity duration-300 ${leaving ? "pointer-events-none opacity-0" : ""}`;
@@ -109,6 +117,8 @@ export function MapPage() {
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}
                   stageRef={stageRef}
+                  returnFrom={returnFrom}
+                  onReturnEnd={() => setLeaving(false)}
                   onSelectStart={() => setLeaving(true)}
                   onSelect={(dongCode) =>
                     navigate({

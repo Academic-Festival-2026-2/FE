@@ -98,8 +98,12 @@ const EMPTY_MAP_DONGS: MapDongsState = {
 // 시간대별 동 색을 화면이 열려 있는 동안 저장해 둠.
 // 지금 시간대를 먼저 받고 나머지 3개 시간대도 바로 미리 받아 두어서, 탭을 바꾸면 기다리지 않고 바로 바뀜.
 // 저장은 화면(컴포넌트) 단위라 업로드 후 지도로 돌아오면 다시 새로 받음
+// 마지막으로 받은 시간대별 동 색. 화면을 다시 열면 이 값을 먼저 보여 주고(지도로 돌아올 때 회색으로 비지 않게)
+// 바로 새로 받아서 바꿈 (업로드 후 돌아와도 새 색으로 갱신됨)
+const lastDongColors: Partial<Record<TimeBand, MapDongsState>> = {};
+
 export function useDongColors(timeBand: TimeBand) {
-  const [cache, setCache] = useState<Partial<Record<TimeBand, MapDongsState>>>({});
+  const [cache, setCache] = useState<Partial<Record<TimeBand, MapDongsState>>>(() => ({ ...lastDongColors }));
   const [errors, setErrors] = useState<Partial<Record<TimeBand, string>>>({});
   // 이미 요청했거나 받은 시간대 (effect 안에서만 사용)
   const requestedRef = useRef(new Set<TimeBand>());
@@ -123,16 +127,15 @@ export function useDongColors(timeBand: TimeBand) {
       requested.add(band);
       getMapDongs(band)
         .then(({ dongs, topDongs, season }) => {
+          const state: MapDongsState = {
+            timeBand: band,
+            dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
+            topDongs,
+            season,
+          };
+          lastDongColors[band] = state;
           if (!aliveRef.current) return;
-          setCache((prev) => ({
-            ...prev,
-            [band]: {
-              timeBand: band,
-              dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
-              topDongs,
-              season,
-            },
-          }));
+          setCache((prev) => ({ ...prev, [band]: state }));
           setErrors((prev) => ({ ...prev, [band]: undefined }));
         })
         .catch(() => {
