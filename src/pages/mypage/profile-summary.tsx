@@ -71,7 +71,13 @@ export function ProfileSummary({ info, onUpdated }: ProfileSummaryProps) {
         </p>
       </div>
       {/* BE #92 배포 전이면 필드가 없어서 0으로 표시 */}
-      <Stat label="내 사진" value={`${(info.photoCount ?? 0).toLocaleString()}장`} />
+      <Link
+        to="/mypage/photos"
+        aria-label="내 사진 모아보기"
+        className="rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4274d9] hover:ring-2 hover:ring-[#4274d9]/30"
+      >
+        <Stat label="내 사진" value={`${(info.photoCount ?? 0).toLocaleString()}장`} />
+      </Link>
       <Stat label="채운 칸" value={`${info.filledCellCount ?? 0} / ${TOTAL_CELLS}`} />
       <Link
         to="/map"
