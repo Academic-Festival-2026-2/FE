@@ -6,6 +6,7 @@ import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useUserStore } from "../../stores/user-store";
 import { AccountSection } from "./account-section";
+import { BadgeSection } from "./badge-section";
 import { PasswordForm } from "./password-form";
 import { ProfileForm } from "./profile-form";
 import { ProfileSummary } from "./profile-summary";
@@ -68,6 +69,7 @@ export function MyPage() {
               <ProfileForm info={info} onUpdated={handleUpdated} />
               <PasswordForm />
             </div>
+            <BadgeSection />
             <AccountSection />
           </div>
         )}

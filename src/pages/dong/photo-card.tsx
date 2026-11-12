@@ -2,30 +2,20 @@ import { useEffect, useState } from "react";
 import type { DongPoint } from "../../api/dong";
 import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
 import { BAND_PIXEL, bandLabel } from "../map/map-data";
-import { COLOR_HEX } from "../photo-upload/color-analysis";
+import { getPhotoColorRatios } from "./photo-color-ratios";
 import { cn } from "../../utils/cn";
 
 function formatTakenAt(value: string) {
   return `${value.slice(0, 10).replaceAll("-", ".")} ${value.slice(11, 16)}`;
 }
 
-// 대표색 막대: 업로드 때 추출한 비율(bins)대로 폭을 나눔. 5색 합을 100%로 다시 계산
-// bins가 없으면 같은 폭으로 표시하고, 5색을 채우려고 반복한 색은 한 번만 보여 줌
+// 대표색 막대: 비율 계산은 getPhotoColorRatios (bins 검증, 없으면 같은 폭)
+// 5색을 채우려고 반복한 같은 색은 한 칸으로 합침
 function paletteShares({ palette, bins }: PhotoDetail) {
-  if (bins && bins.length === COLOR_HEX.length) {
-    const items = palette
-      .map((color, i) => {
-        // 같은 색이 반복되면(5색 미만 사진) 첫 번째에만 비율을 줌
-        if (palette.indexOf(color) !== i) return { color, ratio: 0 };
-        const index = COLOR_HEX.findIndex((hex) => hex.toLowerCase() === color.toLowerCase());
-        return { color, ratio: index >= 0 ? bins[index] : 0 };
-      })
-      .filter((item) => item.ratio > 0);
-    const total = items.reduce((sum, item) => sum + item.ratio, 0);
-    if (total > 0) return items.map((item) => ({ color: item.color, share: item.ratio / total }));
-  }
-  const unique = palette.filter((color, i) => palette.indexOf(color) === i);
-  return unique.map((color) => ({ color, share: 1 / unique.length }));
+  const ratios = getPhotoColorRatios(palette, bins);
+  const shares = new Map<string, number>();
+  palette.forEach((color, i) => shares.set(color, (shares.get(color) ?? 0) + (ratios[i] ?? 0)));
+  return [...shares].filter(([, share]) => share > 0).map(([color, share]) => ({ color, share }));
 }
 
 // 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜

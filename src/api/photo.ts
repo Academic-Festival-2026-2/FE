@@ -1,3 +1,4 @@
+import type { BadgeType } from "./badge";
 import { authRequest, request } from "./client";
 import type { TimeBand } from "./map";
 
@@ -23,6 +24,8 @@ export type PhotoUploadResult = {
   firstInCell: boolean;
   aiVerdict?: "PUBLIC" | "PERSONAL_ONLY" | "UNCHECKED";
   aiReason?: "NOT_SCENERY" | "PRIVACY" | null;
+  // 이번 업로드로 새로 받은 배지 (배지 기능 전 BE에서는 없음)
+  newBadges?: BadgeType[];
 };
 
 export function uploadPhoto(image: File, data: PhotoUploadData) {
@@ -44,11 +47,40 @@ export type PhotoDetail = {
   takenAt: string;
   timeBand: TimeBand;
   palette: string[];
-  // 업로드 때 보낸 40칸 색 비율. 서버 응답에 아직 없을 수 있음 (없으면 5색 같은 폭으로 표시)
-  bins?: number[];
+  // 업로드 때 보낸 40칸 색 비율. 없거나 이상하면 5색 같은 폭으로 표시 (photo-color-ratios.ts)
+  bins?: number[] | null;
 };
 
 export function getPhotoDetail(photoId: number, mine = false) {
   const path = `/api/photos/${photoId}`;
   return mine ? authRequest<PhotoDetail>(path) : request<PhotoDetail>(path);
+}
+
+// BE: GET /api/users/me/photos?page=0&size=12 (최신 순)
+export type MyPhotoItem = {
+  photoId: number;
+  thumbnailUrl: string | null;
+  dongCode: string;
+  name: string;
+  timeBand: TimeBand;
+  takenAt: string;
+  color: string;
+  isPublic: boolean;
+  aiVerdict: "PUBLIC" | "PERSONAL_ONLY" | "UNCHECKED";
+};
+
+export type MyPhotosResponse = {
+  photos: MyPhotoItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  hasNext: boolean;
+};
+
+export function getMyPhotos(page = 0, size = 12) {
+  return authRequest<MyPhotosResponse>(`/api/users/me/photos?page=${page}&size=${size}`);
+}
+
+export function deletePhoto(photoId: number) {
+  return authRequest<void>(`/api/photos/${photoId}`, { method: "DELETE" });
 }

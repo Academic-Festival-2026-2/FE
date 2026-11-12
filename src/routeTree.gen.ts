@@ -16,6 +16,7 @@ import { Route as MypageRouteImport } from './routes/mypage'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as DongDongCodeRouteImport } from './routes/dong.$dongCode'
+import { Route as MypagePhotosRouteImport } from './routes/mypage_.photos'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +53,11 @@ const DongDongCodeRoute = DongDongCodeRouteImport.update({
   path: '/dong/$dongCode',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MypagePhotosRoute = MypagePhotosRouteImport.update({
+  id: '/mypage_/photos',
+  path: '/mypage/photos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage/photos': typeof MypagePhotosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage/photos': typeof MypagePhotosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage_/photos': typeof MypagePhotosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage/photos'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage/photos'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage_/photos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   UploadRoute: typeof UploadRoute
   DongDongCodeRoute: typeof DongDongCodeRoute
+  MypagePhotosRoute: typeof MypagePhotosRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DongDongCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mypage_/photos': {
+      id: '/mypage_/photos'
+      path: '/mypage/photos'
+      fullPath: '/mypage/photos'
+      preLoaderRoute: typeof MypagePhotosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -183,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   UploadRoute: UploadRoute,
   DongDongCodeRoute: DongDongCodeRoute,
+  MypagePhotosRoute: MypagePhotosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

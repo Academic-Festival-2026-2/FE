@@ -2,16 +2,12 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { MyInfoResponse } from "../../api/user";
 import { Avatar } from "../../components/avatar";
+import { formatDate } from "../../utils/date";
 import { currentTimeBand } from "../../utils/time-band";
 import { ProfileImageDialog } from "./profile-image-dialog";
 
 // 부천 37개 동 × 시간대 4개
 const TOTAL_CELLS = 148;
-
-// "2026-10-01T12:34:56" → "2026.10.01"
-function formatDate(value: string) {
-  return value.slice(0, 10).replaceAll("-", ".");
-}
 
 function Stat({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
@@ -78,7 +74,14 @@ export function ProfileSummary({ info, onUpdated }: ProfileSummaryProps) {
         </p>
       </div>
       {/* BE #92 배포 전이면 필드가 없어서 0으로 표시 */}
-      <Stat label="내 사진" value={(info.photoCount ?? 0).toLocaleString()} unit="장" />
+      {/* 누르면 내 사진 모아보기 (#16) */}
+      <Link
+        to="/mypage/photos"
+        aria-label="내 사진 모아보기"
+        className="rounded-[10px] transition-shadow hover:ring-2 hover:ring-brand/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      >
+        <Stat label="내 사진" value={(info.photoCount ?? 0).toLocaleString()} unit="장" />
+      </Link>
       <Stat label="채운 칸" value={`${info.filledCellCount ?? 0} / ${TOTAL_CELLS}`} />
       <Link
         to="/map"
