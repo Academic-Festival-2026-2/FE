@@ -37,13 +37,36 @@ export function parseTimeBand(value: unknown): TimeBand {
   return TIME_BAND_VALUES.includes(value as TimeBand) ? (value as TimeBand) : currentTimeBand();
 }
 
+// 동 경계(약 380KB)는 화면을 옮겨도 바뀌지 않으므로 한 번 받으면 탭이 열려 있는 동안 다시 쓴다.
+// (지도 ↔ 동 상세를 오갈 때마다 다시 받지 않아서 두 번째부터는 바로 그려짐)
+let boundariesCache: Boundaries | null = null;
+let boundariesRequest: Promise<Boundaries> | null = null;
+
+function loadBoundaries() {
+  if (!boundariesRequest) {
+    boundariesRequest = getBoundaries().then(
+      (result) => {
+        boundariesCache = result;
+        return result;
+      },
+      (error: unknown) => {
+        // 실패하면 다음 화면에서 다시 시도할 수 있게 비움
+        boundariesRequest = null;
+        throw error;
+      },
+    );
+  }
+  return boundariesRequest;
+}
+
 export function useBoundaries() {
-  const [boundaries, setBoundaries] = useState<Boundaries | null>(null);
+  const [boundaries, setBoundaries] = useState<Boundaries | null>(boundariesCache);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (boundariesCache) return;
     let cancelled = false;
-    getBoundaries()
+    loadBoundaries()
       .then((result) => {
         if (!cancelled) setBoundaries(result);
       })
