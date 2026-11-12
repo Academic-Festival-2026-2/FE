@@ -51,7 +51,7 @@ export function MyPage() {
         <h1 className="mt-3 text-[30px] font-extrabold tracking-[-0.9px] text-ink">마이페이지</h1>
 
         {loadError && (
-          <p role="alert" className="mt-6 text-sm text-[#c2402f]">
+          <p role="alert" className="mt-6 text-sm text-danger">
             {loadError}
           </p>
         )}

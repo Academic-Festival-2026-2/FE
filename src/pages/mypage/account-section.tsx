@@ -20,7 +20,7 @@ export function AccountSection() {
         type="button"
         onClick={logout}
         disabled={isLoggingOut}
-        className="h-10 rounded-[10px] border border-card-line bg-white px-4 text-sm font-bold text-[#c2402f] transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-10 rounded-[10px] border border-card-line bg-white px-4 text-sm font-bold text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
       </button>

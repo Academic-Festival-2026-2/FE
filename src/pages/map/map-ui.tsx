@@ -354,7 +354,7 @@ export function MyMapPanel({
       </div>
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-field">
-        <div className="h-full rounded-full bg-[#ff8a3d]" style={{ width: `${percent}%` }} />
+        <div className="h-full rounded-full bg-brand" style={{ width: `${percent}%` }} />
       </div>
 
       {filled.length === 0 ? (

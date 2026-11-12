@@ -122,7 +122,7 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
             </button>
           </p>
           {locationError && (
-            <p role="alert" className="mt-1 text-xs text-[#c2402f]">
+            <p role="alert" className="mt-1 text-xs text-danger">
               {locationError}
             </p>
           )}

@@ -114,7 +114,7 @@ export function ProfileImageDialog({ current, onClose, onUpdated }: ProfileImage
         </div>
 
         {error && (
-          <p role="alert" className="mt-3 text-xs text-[#c2402f]">
+          <p role="alert" className="mt-3 text-xs text-danger">
             {error}
           </p>
         )}

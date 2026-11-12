@@ -61,13 +61,13 @@ export function TextField({
               ? "h-10 rounded-[10px] border-field-line bg-white px-3.5 text-sm placeholder:text-ink-muted"
               : // 브라우저 자동 완성의 노란 배경 대신 입력칸 배경색 유지
                 "h-12 rounded-[10px] border-field-line bg-field px-3.5 text-[15px] placeholder:text-ink-placeholder autofill:shadow-[inset_0_0_0_1000px_var(--color-field)]",
-            error && "border-[#c2402f] focus:border-[#c2402f]",
+            error && "border-danger focus:border-danger",
           )}
         />
         {action}
       </div>
       {message && (
-        <p id={messageId} className={cn("text-xs leading-[18px]", error ? "text-[#c2402f]" : "text-ink-muted")}>
+        <p id={messageId} className={cn("text-xs leading-[18px]", error ? "text-danger" : "text-ink-muted")}>
           {message}
         </p>
       )}

@@ -60,7 +60,7 @@ export function PhotoCard({
       </div>
 
       {failedId === photoId ? (
-        <p className="px-4 py-6 text-sm text-[#c2402f]">사진을 불러오지 못했어요.</p>
+        <p className="px-4 py-6 text-sm text-danger">사진을 불러오지 못했어요.</p>
       ) : !current ? (
         <p className="px-4 py-6 text-sm text-ink-muted">불러오는 중...</p>
       ) : (

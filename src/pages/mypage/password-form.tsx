@@ -109,7 +109,7 @@ export function PasswordForm() {
         />
 
         {formError && (
-          <p role="alert" className="text-sm text-[#c2402f]">
+          <p role="alert" className="text-sm text-danger">
             {formError}
           </p>
         )}
