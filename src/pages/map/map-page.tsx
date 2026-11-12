@@ -18,6 +18,7 @@ import {
   TimeBandBar,
   MyMapPanel,
 } from "./map-ui";
+import { MapLoading } from "./map-loading";
 import { SvgMap } from "./svg-map";
 
 export function MapPage() {
@@ -145,6 +146,11 @@ export function MapPage() {
                 />
               )}
             </div>
+
+            {/* 경계·색을 받는 중 (오류면 오류 배너만) */}
+            <MapLoading
+              show={!leaving && ((!boundaries && !boundaryError) || (shownLoading && !shownError))}
+            />
 
             {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
             <div className={`absolute top-[23px] left-[23px] ${leaveFade}`}>

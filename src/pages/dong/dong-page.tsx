@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useParams, useRouter, useSearch } from "@tanstack/react-router";
 import { getDongDetail, type DongPoint } from "../../api/dong";
 import type { TimeBand } from "../../api/map";
 import { getMyDongPhotos } from "../../api/mymap";
@@ -22,6 +22,7 @@ import {
 import { ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
 import { cn } from "../../utils/cn";
 import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
+import { MapLoading } from "../map/map-loading";
 import { canUseDongTransition, markReturnFrom, prepareDongTransition } from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
 
@@ -102,12 +103,22 @@ export function DongPage() {
   const myMap = useMyMap(mine, timeBand);
   const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
+  // 카카오맵 타일이 처음 다 그려진 동 (그 전까지 로딩 안내 표시)
+  const [tilesReadyFor, setTilesReadyFor] = useState<string | null>(null);
   // "전체" 버튼으로 처음 보던 범위(동 전체)로 되돌릴 때 씀
   const dongBoundsRef = useRef<kakao.maps.LatLngBounds | null>(null);
   const [selected, setSelected] = useState<DongPoint[] | null>(null);
 
-  // 이 화면을 떠날 때 어느 동이었는지 기억 → 지도로 돌아가면 지도가 이 동에서 줄어들며 시작
-  useEffect(() => () => markReturnFrom(dongCode), [dongCode]);
+  // 지도로 이동이 시작될 때 어느 동이었는지 기억 → 지도가 이 동에서 줄어들며 시작 (링크·뒤로 가기 모두).
+  // 화면이 사라질 때(언마운트) 기록하면 지도 화면이 먼저 그려진 뒤라 늦어서, 이동 시작 이벤트에서 기록함
+  const router = useRouter();
+  useEffect(
+    () =>
+      router.subscribe("onBeforeNavigate", (event) => {
+        if (event.toLocation.pathname === "/map") markReturnFrom(dongCode);
+      }),
+    [router, dongCode],
+  );
 
   const feature = boundaries?.features.find((item) => item.properties.dongCode === dongCode);
   const dong = (mine ? myMap.dongs : dongs).get(dongCode);
@@ -218,6 +229,18 @@ export function DongPage() {
         maskEvents.forEach((name) => kakao.maps.event.removeListener(map, name, updateOutsideMask));
       updateOutsideMask();
 
+      // 지도 타일이 처음 다 그려지면 로딩 안내를 내림
+      const handleTilesLoaded = () => {
+        setTilesReadyFor(feature.properties.dongCode);
+        kakao.maps.event.removeListener(map, "tilesloaded", handleTilesLoaded);
+      };
+      kakao.maps.event.addListener(map, "tilesloaded", handleTilesLoaded);
+      const prevRemove = removeMaskListeners;
+      removeMaskListeners = () => {
+        prevRemove();
+        kakao.maps.event.removeListener(map, "tilesloaded", handleTilesLoaded);
+      };
+
       setMap(map);
     });
 
@@ -290,6 +313,8 @@ export function DongPage() {
         ref={containerRef}
         className="h-full w-full [&_svg]:pointer-events-none"
       />
+      {/* 지도(경계·카카오맵 타일)를 그리는 중. 오류가 있으면 오류 배너만 */}
+      <MapLoading show={!errorMessage && tilesReadyFor !== dongCode} />
       {/* 동 경계 밖만 아주 살짝(1px) 흐리게 (마스크는 지도 이벤트에서 갱신) */}
       <div
         ref={outsideBlurRef}
