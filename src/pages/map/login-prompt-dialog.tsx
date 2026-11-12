@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link } from "@tanstack/react-router";
+import { LogoMark } from "../../components/layout/logo-mark";
 
 type LoginPromptDialogProps = {
   open: boolean;
@@ -31,13 +32,7 @@ export function LoginPromptDialog({ open, onClose }: LoginPromptDialogProps) {
       className="m-auto w-[min(484px,calc(100%-32px))] rounded-[20px] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.1)] backdrop:bg-black/40"
     >
       <div className="flex flex-col items-center px-8 pt-8 pb-7 text-center">
-        {/* 픽셀 로고 (헤더 로고와 같은 4색) */}
-        <span className="grid grid-cols-2 gap-1" aria-hidden>
-          <span className="size-[22px] rounded-[3px] bg-[#ff8a3d]" />
-          <span className="size-[22px] rounded-[3px] bg-[#7fb0e0]" />
-          <span className="size-[22px] rounded-[3px] bg-[#5e6a91]" />
-          <span className="size-[22px] rounded-[3px] bg-[#c9cbd3]" />
-        </span>
+        <LogoMark size={48} />
         <h2 id="login-prompt-title" className="mt-5 text-[22px] font-extrabold text-ink">
           내 사진으로 지도를 칠해 보세요
         </h2>

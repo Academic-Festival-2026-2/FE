@@ -135,12 +135,12 @@ export function MapModeToggle({
   );
 }
 
-// 시간대 한 칸의 대표 픽셀 색 (피그마 D2)
+// 시간대 한 칸의 대표 픽셀 색 (로고 4색과 같음: logo-mark.tsx)
 const BAND_PIXEL: Record<TimeBand, string> = {
-  DAWN: "#c9ccd3",
-  DAY: "#7fb1e5",
-  SUNSET: "#ff8a3d",
-  NIGHT: "#5e6a8f",
+  DAWN: "#c4b7e9",
+  DAY: "#8ab4e9",
+  SUNSET: "#ee8156",
+  NIGHT: "#2d2670",
 };
 
 // 계절 선택 (지도 아래 시간대 바 왼쪽, 목록은 위로 펼침)
