@@ -8,6 +8,7 @@ import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
+import { useUserStore } from "../../stores/user-store";
 import { useBoundaries } from "../map/map-data";
 import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
@@ -63,8 +64,17 @@ export function PhotoUploadPage() {
   const expireSession = useExpireSession();
   // 헤더 프로필 메뉴가 세션 만료로 토큰을 지우면 로그인 링크로 바뀜
   const loggedIn = useAuthStore((state) => state.tokens !== null);
+  // 위치정보 이용에 동의한 회원만 좌표를 써요. 올리기 직전에 서버 값으로 다시 확인해요.
+  // 내 정보가 오기 전(undefined)에는 동의 여부를 몰라서 좌표는 쓰지 않되, "동의하지 않아" 안내도 띄우지 않아요.
+  const consent = useUserStore((state) => state.me?.locationAgreed);
+  const locationAgreed = consent === true;
+  const loadMe = useUserStore((state) => state.loadMe);
+  const setMe = useUserStore((state) => state.setMe);
   const { boundaries, error: boundaryError } = useBoundaries();
   const photo = photos[index];
+  // 미동의면 사진 속 GPS·지도에서 고른 위치를 모두 무시하고 동만 받아요
+  const latitude = locationAgreed ? photo?.latitude : undefined;
+  const longitude = locationAgreed ? photo?.longitude : undefined;
   const uploading = photos.some((p) => p.status === "uploading");
   const pending = photos.some((p) => p.status !== "success");
   const results = photos.filter((p) => p.result);
@@ -75,6 +85,11 @@ export function PhotoUploadPage() {
     alive.current = true;
     return () => { alive.current = false; currentUrls.forEach((url) => URL.revokeObjectURL(url)); currentUrls.clear(); };
   }, []);
+
+  // 헤더와 상관없이 이 화면에서도 내 정보를 불러와요 (이미 있으면 다시 안 부름, 세션 만료 처리는 헤더가 함)
+  useEffect(() => {
+    loadMe().catch(() => {});
+  }, [loadMe]);
 
   function update(id: string, changes: Partial<Photo>) {
     if (alive.current) setPhotos((list) => list.map((p) => p.id === id ? { ...p, ...changes } : p));
@@ -104,9 +119,9 @@ export function PhotoUploadPage() {
   }
 
   const features = boundaries?.features ?? [];
-  const located = photo?.latitude !== undefined && photo.longitude !== undefined ? findDong(features, photo.latitude, photo.longitude) : undefined;
+  const located = latitude !== undefined && longitude !== undefined ? findDong(features, latitude, longitude) : undefined;
   const selectedFeature = features.find((f) => f.properties.dongCode === photo?.dongCode) ?? located;
-  const outside = Boolean(boundaries && photo?.latitude !== undefined && photo.longitude !== undefined && !located);
+  const outside = Boolean(boundaries && latitude !== undefined && longitude !== undefined && !located);
 
   // 서버의 exifVerified 조건을 FE에서 미리 확인: 사진에 촬영 시각·GPS가 있고 둘 다 바꾸지 않았을 때만 true
   // (PhotoService: EXIF 시각과 같고 좌표가 거의 같아야 함). 업로드 팝업의 공개 잠금 안내에만 사용
@@ -115,7 +130,7 @@ export function PhotoUploadPage() {
 
   const locationMismatch = Boolean(located && selectedFeature && located.properties.dongCode !== selectedFeature.properties.dongCode);
   // 촬영 위치(좌표)가 정해졌고 고른 동 안에 있을 때 → 지도 버튼을 "선택된 위치 수정"으로 표시
-  const locationPicked = photo?.latitude !== undefined && photo.longitude !== undefined && !locationMismatch && !outside;
+  const locationPicked = latitude !== undefined && longitude !== undefined && !locationMismatch && !outside;
 
   // isPublic: 업로드 팝업에서 고른 값 (동 상세에 사진을 보여 줄지)
   async function submit(isPublic: boolean) {
@@ -125,9 +140,17 @@ export function PhotoUploadPage() {
     sending.current = true;
     update(photo.id, { status: "uploading", error: undefined, isPublic });
     try {
-      await getMyInfo();
+      // 토큰 재발급 겸 최신 동의 상태 확인
+      const me = await getMyInfo();
+      setMe(me);
+      // 화면에 보인 동의 상태와 다르면(내 정보를 불러오기 전이거나 다른 탭에서 바꾼 경우) 화면을 맞추고 다시 확인받아요.
+      // 서버 값만 보고 좌표를 보내면, 동만 고르던 화면에서 GPS와 다른 동을 고른 경우 DONG_GPS_MISMATCH로 실패해요.
+      if (me.locationAgreed !== locationAgreed) {
+        update(photo.id, { status: "ready", error: "위치정보 동의 상태를 다시 확인해 화면을 맞췄어요. 촬영 위치를 확인한 뒤 다시 눌러 주세요." });
+        return;
+      }
       const result = await uploadPhoto(photo.file, {
-        dongCode: selectedFeature.properties.dongCode, latitude: photo.latitude, longitude: photo.longitude,
+        dongCode: selectedFeature.properties.dongCode, latitude, longitude,
         takenAt, isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
       });
       update(photo.id, { status: "success", result });
@@ -216,17 +239,20 @@ export function PhotoUploadPage() {
                 <div className="mt-3 grid grid-cols-4 gap-2.5">{bands.map(([band, label, range]) => <div key={band} className={`flex h-[68px] flex-col justify-center gap-1 rounded-[10px] border px-2.5 ${timeBand(photo.takenAt) === band ? "border-navy bg-navy text-white" : "border-field-line bg-white"}`}><p className="text-[15px] font-bold">{label}</p><p className={`font-mono text-xs ${timeBand(photo.takenAt) === band ? "text-navy-sub" : "text-ink-muted"}`}>{range}</p></div>)}</div>
               </div>
               <div className="border-t border-divider px-6 pt-6 pb-6">
-                <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 위치</h2>{photo.metadata.latitude === undefined && <span className={badgeNeed}>직접 입력 필요</span>}</div>
+                <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 위치</h2>{consent === false ? <span className={badgeNeed}>동만 선택</span> : locationAgreed && photo.metadata.latitude === undefined && <span className={badgeNeed}>직접 입력 필요</span>}</div>
+                {consent === false && <p className="mb-3 rounded-xl bg-field p-3 text-xs leading-5 text-ink-sub">위치정보 이용에 동의하지 않아 촬영 위치는 저장하지 않고 동만 저장해요. 이 사진은 나의 지도에만 반영되고 모두의 지도에는 반영되지 않아요. 동의는 마이페이지에서 바꿀 수 있어요.</p>}
                 {boundaryError && <p role="alert" className="mb-3 text-sm text-danger">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
                 {locationMismatch && <p role="alert" className="mb-3 text-sm text-brand-strong">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
                 {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
                 <span className="relative block"><select aria-label="행정동" disabled={!boundaries} value={selectedFeature?.properties.dongCode ?? ""} onChange={(e) => update(photo.id, { dongCode: e.target.value, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })} className={`${field} appearance-none border-select-line pr-10 disabled:bg-field disabled:text-ink-faint`}><option value="">{boundaries ? "구 · 동을 골라 주세요" : "행정동 불러오는 중…"}</option>{features.map((f) => <option key={f.properties.dongCode} value={f.properties.dongCode}>{f.properties.guName} · {f.properties.name}</option>)}</select><img src={chevronDown} alt="" width={16} height={16} className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2" /></span>
+                {locationAgreed && <>
                 <button type="button" disabled={!selectedFeature} onClick={() => setMapOpen(true)} className="mt-2.5 flex h-11 w-full items-center gap-2 rounded-[10px] bg-field px-3.5 text-left text-sm text-ink transition-colors hover:bg-[#e9edf4] disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-field">{locationPicked
                   // 위치를 고른 뒤: 아이콘을 지도에 더하기 버튼과 같은 파란색으로
                   ? <span aria-hidden className="size-4 shrink-0 bg-brand" style={{ maskImage: `url("${mapPin}")`, WebkitMaskImage: `url("${mapPin}")`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%" }} />
                   : <img src={mapPin} alt="" width={16} height={16} />}
                   {locationPicked ? "선택된 위치 수정" : "지도에서 촬영 위치 선택"}</button>
                 <p className="mt-4 text-xs leading-5 text-ink-muted">촬영 시각이나 위치를 직접 입력하면 개인 지도에만 반영될 수 있어요.</p>
+                </>}
               </div>
               <div className="flex flex-col gap-3 border-t border-divider px-6 pt-6 pb-3">
                 <p className="text-center text-xs text-ink-muted">누르면 사진 공개 여부를 고를 수 있어요</p>
@@ -236,8 +262,8 @@ export function PhotoUploadPage() {
             <div className="flex flex-wrap justify-between gap-3 px-6 pt-3 pb-6 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-ink-sub underline underline-offset-4 disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="font-bold text-brand-strong underline underline-offset-4 disabled:opacity-40">사진 추가</button></div>
           </section>
         </div>
-        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => { setConfirmOpen(false); void submit(isPublic); }} />}
-        {mapOpen && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} initialPoint={photo.latitude !== undefined && photo.longitude !== undefined ? { lat: photo.latitude, lng: photo.longitude } : undefined} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
+        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact && locationAgreed} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => { setConfirmOpen(false); void submit(isPublic); }} />}
+        {mapOpen && locationAgreed && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} initialPoint={latitude !== undefined && longitude !== undefined ? { lat: latitude, lng: longitude } : undefined} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
       </>}
     </main>
   </div>;

@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { ApiError } from "../../api/client";
 import { updateMyInfo, type MyInfoResponse } from "../../api/user";
 import { TextField } from "../../components/form/text-field";
+import { TermsDialog } from "../../components/terms-dialog";
+import { LOCATION_TERMS } from "../../constants/terms/location-terms";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { cn } from "../../utils/cn";
 import { validateNickname } from "../../utils/validation";
@@ -55,6 +57,7 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
   const [locationAgreed, setLocationAgreed] = useState(info.locationAgreed);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isSavingLocation, setIsSavingLocation] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   async function handleToggleLocation() {
     const next = !locationAgreed;
@@ -108,7 +111,16 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
           <p className="text-sm font-bold text-ink">
             위치정보 이용 동의 <span className="text-ink-muted">(선택)</span>
           </p>
-          <p className="mt-1.5 text-xs leading-[18px] text-ink-muted">[위치정보 이용 목적 안내 문구]</p>
+          <p className="mt-1.5 text-xs leading-[18px] text-ink-muted">
+            사진이 찍힌 동을 찾고, 모두의 지도 색칠과 지도의 사진 위치 점 표시에 써요.{" "}
+            <button
+              type="button"
+              onClick={() => setIsTermsOpen(true)}
+              className="whitespace-nowrap text-ink-muted underline underline-offset-4 hover:text-ink"
+            >
+              약관 보기
+            </button>
+          </p>
           {locationError && (
             <p role="alert" className="mt-1 text-xs text-[#c2402f]">
               {locationError}
@@ -135,6 +147,8 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
           />
         </button>
       </div>
+
+      {isTermsOpen && <TermsDialog term={LOCATION_TERMS} onClose={() => setIsTermsOpen(false)} />}
     </section>
   );
 }

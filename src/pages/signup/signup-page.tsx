@@ -5,6 +5,11 @@ import { ApiError } from "../../api/client";
 import { Checkbox } from "../../components/form/checkbox";
 import { TextField } from "../../components/form/text-field";
 import { AuthLayout } from "../../components/layout/auth-layout";
+import { TermsDialog } from "../../components/terms-dialog";
+import { LOCATION_TERMS } from "../../constants/terms/location-terms";
+import { PRIVACY_TERMS } from "../../constants/terms/privacy-terms";
+import { SERVICE_TERMS } from "../../constants/terms/service-terms";
+import type { TermContent } from "../../constants/terms/types";
 import {
   EMAIL_PATTERN,
   PASSWORD_PATTERN,
@@ -16,12 +21,13 @@ const FIELDS = ["email", "password", "passwordConfirm", "nickname"] as const;
 type Field = (typeof FIELDS)[number];
 type FormValues = Record<Field, string>;
 
-type Term = "service" | "privacy" | "location" | "notification";
+type Term = "age" | "service" | "privacy" | "location" | "notification";
 
-const TERMS: { key: Term; label: string; required: boolean }[] = [
-  { key: "service", label: "서비스 이용약관", required: true },
-  { key: "privacy", label: "개인정보 수집·이용", required: true },
-  { key: "location", label: "위치정보 이용 (사진 촬영 위치)", required: false },
+const TERMS: { key: Term; label: string; required: boolean; content?: TermContent }[] = [
+  { key: "age", label: "만 14세 이상입니다", required: true },
+  { key: "service", label: "서비스 이용약관", required: true, content: SERVICE_TERMS },
+  { key: "privacy", label: "개인정보 수집·이용", required: true, content: PRIVACY_TERMS },
+  { key: "location", label: "위치정보 이용 (사진 촬영 위치)", required: false, content: LOCATION_TERMS },
   // 저장할 BE 필드가 아직 없어 화면에만 표시
   { key: "notification", label: "색 알림 수신", required: false },
 ];
@@ -57,14 +63,16 @@ export function SignUpPage() {
   });
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
   const [agreements, setAgreements] = useState<Record<Term, boolean>>({
+    age: false,
     service: false,
     privacy: false,
     location: false,
     notification: false,
   });
+  // 지금 열려 있는 약관 (null이면 팝업 닫힘)
+  const [openTerm, setOpenTerm] = useState<TermContent | null>(null);
   const [serverErrors, setServerErrors] = useState<Partial<Record<Field, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const errors = validate(values);
@@ -87,12 +95,7 @@ export function SignUpPage() {
   }
 
   function toggleAll(checked: boolean) {
-    setAgreements({ service: checked, privacy: checked, location: checked, notification: checked });
-  }
-
-  // 아직 BE API가 없는 기능
-  function showNotReady(feature: string) {
-    setNotice(`${feature} 기능은 준비 중이에요.`);
+    setAgreements({ age: checked, service: checked, privacy: checked, location: checked, notification: checked });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -228,21 +231,18 @@ export function SignUpPage() {
                     {term.label}
                   </span>
                 </label>
-                {/* 약관 본문이 아직 없어 안내만 표시 */}
-                <button
-                  type="button"
-                  onClick={() => showNotReady("약관 보기")}
-                  className="shrink-0 text-[13px] whitespace-nowrap text-ink-muted underline underline-offset-4 hover:text-ink"
-                >
-                  보기
-                </button>
+                {/* 약관 본문이 있는 항목만 보기 버튼 표시 */}
+                {term.content && (
+                  <button
+                    type="button"
+                    onClick={() => setOpenTerm(term.content ?? null)}
+                    className="shrink-0 text-[13px] whitespace-nowrap text-ink-muted underline underline-offset-4 hover:text-ink"
+                  >
+                    보기
+                  </button>
+                )}
               </div>
             ))}
-            {notice && (
-              <p role="status" className="text-sm text-ink-muted">
-                {notice}
-              </p>
-            )}
           </fieldset>
 
           {formError && (
@@ -260,6 +260,9 @@ export function SignUpPage() {
           </button>
         </div>
       </form>
+
+      {/* form 밖에 둬야 팝업 안 버튼이 가입 폼을 제출하지 않음 */}
+      {openTerm && <TermsDialog term={openTerm} onClose={() => setOpenTerm(null)} />}
 
       <p className="mt-[26px] text-center text-sm text-ink-sub">
         이미 계정이 있으신가요?{" "}
