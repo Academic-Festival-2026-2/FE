@@ -1,3 +1,4 @@
+import type { BadgeType } from "./badge";
 import { authRequest, request } from "./client";
 import type { TimeBand } from "./map";
 
@@ -23,6 +24,8 @@ export type PhotoUploadResult = {
   firstInCell: boolean;
   aiVerdict?: "PUBLIC" | "PERSONAL_ONLY" | "UNCHECKED";
   aiReason?: "NOT_SCENERY" | "PRIVACY" | null;
+  // 이번 업로드로 새로 받은 배지 (배지 기능 전 BE에서는 없음)
+  newBadges?: BadgeType[];
 };
 
 export function uploadPhoto(image: File, data: PhotoUploadData) {

@@ -2,16 +2,12 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { MyInfoResponse } from "../../api/user";
 import { Avatar } from "../../components/avatar";
+import { formatDate } from "../../utils/date";
 import { currentTimeBand } from "../../utils/time-band";
 import { ProfileImageDialog } from "./profile-image-dialog";
 
 // 부천 37개 동 × 시간대 4개
 const TOTAL_CELLS = 148;
-
-// "2026-10-01T12:34:56" → "2026.10.01"
-function formatDate(value: string) {
-  return value.slice(0, 10).replaceAll("-", ".");
-}
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
