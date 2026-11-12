@@ -129,7 +129,7 @@ export function MapModeToggle({
         onClick={() => onChange(true)}
         className={cn(glassTab(mine), "rounded-[10px] px-[7px] sm:px-[9px]")}
       >
-        내 지도
+        나의 지도
       </button>
     </div>
   );
@@ -380,7 +380,7 @@ export function MyMapPanel({
   );
 }
 
-// 내 지도에 아직 칠한 칸이 하나도 없을 때 지도 가운데에 띄우는 안내 (피그마 "18 · 내 지도 비어 있음")
+// 나의 지도에 아직 칠한 칸이 하나도 없을 때 지도 가운데에 띄우는 안내 (피그마 "18 · 나의 지도 비어 있음")
 export function EmptyMyMapCard() {
   return (
     <div className="flex w-[min(372px,calc(100vw-72px))] flex-col items-center rounded-[18px] bg-white px-6 pt-6 pb-6 text-center shadow-[0_16px_20px_rgba(22,22,26,0.18)]">
@@ -393,7 +393,7 @@ export function EmptyMyMapCard() {
           ),
         )}
       </span>
-      <p className="mt-3.5 text-lg font-extrabold text-ink">내 지도는 아직 비어 있어요</p>
+      <p className="mt-3.5 text-lg font-extrabold text-ink">나의 지도는 아직 비어 있어요</p>
       <p className="mt-1 text-sm text-ink-sub">사진 한 장이면 첫 동이 칠해져요.</p>
       <Link
         to="/upload"
@@ -405,7 +405,7 @@ export function EmptyMyMapCard() {
   );
 }
 
-// 내 지도가 비어 있을 때 오른쪽 패널: 어떻게 채워지는지 3단계 안내
+// 나의 지도가 비어 있을 때 오른쪽 패널: 어떻게 채워지는지 3단계 안내
 export function MyMapGuidePanel({ regionName, dongCount }: { regionName: string; dongCount: number }) {
   const steps = [
     "사진을 올리면 찍은 동에 첫 색이 칠해져요",

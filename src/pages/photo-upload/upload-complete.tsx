@@ -49,8 +49,8 @@ export function UploadComplete({ photos, boundaries, onAdd }: {
         <p className="font-mono text-[13px] tracking-[1.04px] text-brand-strong">DONE · {photos.length} / {photos.length}</p>
         <h1 className="my-5 text-[32px] leading-tight font-black tracking-[-0.8px]">부천에 내 픽셀<br />{photos.length}개가 찍혔어요</h1>
         <div className="grid grid-cols-2 divide-x divide-line border-t border-line pt-4">
-          <p><strong className="block text-2xl font-extrabold">{shared}</strong><span className="text-[13px] text-ink-muted">모두의 지도 반영</span></p>
-          <p className="pl-4"><strong className="block text-2xl font-extrabold">{photos.length - shared}</strong><span className="text-[13px] text-ink-muted">개인 지도만</span></p>
+          <p><strong className="block text-2xl font-extrabold">{shared}</strong><span className="text-[13px] text-ink-muted">공유 지도 반영</span></p>
+          <p className="pl-4"><strong className="block text-2xl font-extrabold">{photos.length - shared}</strong><span className="text-[13px] text-ink-muted">나의 지도만</span></p>
         </div>
       </section>
       {newBadges.length > 0 && <section className="rounded-[20px] border border-select-line bg-brand-soft p-6" aria-label="새로 받은 배지">
@@ -65,7 +65,7 @@ export function UploadComplete({ photos, boundaries, onAdd }: {
       <section className="flex-1 rounded-[20px] border border-card-line bg-white p-6">
         <ul className="max-h-80 divide-y divide-divider overflow-auto">{photos.map((photo, i) => <li key={photo.id} className="flex items-center gap-3 py-4">
           <span className="w-4 font-mono text-xs text-ink-muted">{i + 1}</span><span className="size-9 shrink-0 rounded-md" style={{ background: photo.color }} />
-          <div className="min-w-0"><p className="text-sm font-bold">{photo.result.name} · {labels[photo.result.timeBand]}</p><p className="truncate font-mono text-xs text-ink-muted">{photo.filename}</p><p className="mt-1 text-xs text-ink-sub">{photo.result.exifVerified ? "사진 정보 확인됨" : "직접 입력 포함"} ·{" "}{photo.result.isPublic ? "공개" : "비공개"}</p>{photo.result.aiVerdict === "PERSONAL_ONLY" && (<p className="mt-1 text-xs text-warn">개인 지도에만 반영 ·{" "}{photo.result.aiReason === "PRIVACY"? "얼굴·번호판 포함": photo.result.aiReason === "NOT_SCENERY"? "풍경 사진 아님": "검수 결과에 따라 공개 제외"}</p>)}{photo.result.aiVerdict === "UNCHECKED" && (<p className="mt-1 text-xs text-warn">검수 미완료 · 개인 지도에만 반영</p>)}</div>
+          <div className="min-w-0"><p className="text-sm font-bold">{photo.result.name} · {labels[photo.result.timeBand]}</p><p className="truncate font-mono text-xs text-ink-muted">{photo.filename}</p><p className="mt-1 text-xs text-ink-sub">{photo.result.exifVerified ? "사진 정보 확인됨" : "직접 입력 포함"} ·{" "}{photo.result.isPublic ? "공개" : "비공개"}</p>{photo.result.aiVerdict === "PERSONAL_ONLY" && (<p className="mt-1 text-xs text-warn">나의 지도에만 반영 ·{" "}{photo.result.aiReason === "PRIVACY"? "얼굴·번호판 포함": photo.result.aiReason === "NOT_SCENERY"? "풍경 사진 아님": "검수 결과에 따라 공개 제외"}</p>)}{photo.result.aiVerdict === "UNCHECKED" && (<p className="mt-1 text-xs text-warn">검수 미완료 · 나의 지도에만 반영</p>)}</div>
         </li>)}</ul>
         <div className="mt-5 grid grid-cols-[1.5fr_1fr] gap-2.5 text-center"><Link to="/map" search={{ timeBand: photos[0]?.result.timeBand ?? "SUNSET" }} className="flex h-[52px] items-center justify-center rounded-xl bg-brand px-3 text-base font-extrabold text-white transition-colors hover:bg-brand-hover">지도에서 보기</Link><button type="button" onClick={onAdd} className="h-[52px] rounded-xl border border-ink px-3 text-base font-bold text-ink hover:bg-field">사진 더 올리기</button></div>
       </section>

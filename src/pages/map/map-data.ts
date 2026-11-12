@@ -178,7 +178,7 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
       .catch((err) => {
         if (cancelled) return;
         if (isSessionExpired(err)) expireSession();
-        else setError("내 지도를 불러오지 못했어요.");
+        else setError("나의 지도를 불러오지 못했어요.");
       });
     return () => {
       cancelled = true;
@@ -207,7 +207,7 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
     (cell) => cell.timeBand === timeBand && cell.filled,
   ).length;
 
-  // 새벽·낮·노을·밤 어디에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음 (내 지도 비어 있음 안내용)
+  // 새벽·낮·노을·밤 어디에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음 (나의 지도 비어 있음 안내용)
   const empty = cells !== null && !cells.some((cell) => cell.filled);
 
   return { dongs, filledCount, empty, loading: enabled && cells === null && !error, error };

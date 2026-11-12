@@ -64,7 +64,7 @@ export function MapPage() {
   const shownDongs = mine ? myMap.dongs : dongs;
   const shownLoading = mine ? myMap.loading : loading;
   const shownError = mine ? myMap.error : colorError;
-  // 내 지도인데 어느 시간대에도 칠한 칸이 없으면 안내 카드·패널을 보여 줌
+  // 나의 지도인데 어느 시간대에도 칠한 칸이 없으면 안내 카드·패널을 보여 줌
   const myMapEmpty = mine && myMap.empty;
 
   const seasonInfo = seasonOf(season);
@@ -166,7 +166,7 @@ export function MapPage() {
 
             {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
             <div className={`absolute top-[23px] left-[23px] ${leaveFade}`}>
-              {/* 공유·내 지도는 옆 토글이 알려 주므로 제목은 같게 */}
+              {/* 공유·나의 지도는 옆 토글이 알려 주므로 제목은 같게 */}
               <MapTitlePanel title={`${REGION_NAME}의 ${bandLabel(timeBand)}`}>
                 {mine ? "칠한 동 " : "칠해진 동 "}
                 <b className="text-ink">

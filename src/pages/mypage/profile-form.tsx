@@ -112,7 +112,7 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
             위치정보 이용 동의 <span className="text-ink-muted">(선택)</span>
           </p>
           <p className="mt-1.5 text-xs leading-[18px] text-ink-muted">
-            사진이 찍힌 동을 찾고, 모두의 지도 색칠과 지도의 사진 위치 점 표시에 써요.{" "}
+            사진이 찍힌 동을 찾고, 공유 지도 색칠과 지도의 사진 위치 점 표시에 써요.{" "}
             <button
               type="button"
               onClick={() => setIsTermsOpen(true)}

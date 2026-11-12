@@ -37,7 +37,7 @@ export function LoginPromptDialog({ open, onClose }: LoginPromptDialogProps) {
           내 사진으로 지도를 칠해 보세요
         </h2>
         <p className="mt-2 text-sm leading-[22px] text-ink-sub">
-          사진을 올리고 내 지도를 모으려면
+          사진을 올리고 나의 지도를 모으려면
           <br />
           로그인이 필요해요.
         </p>

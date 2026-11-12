@@ -46,7 +46,7 @@ function paletteShares({ palette, ratios }: Colors) {
 const steps = [
   ["대표색 뽑기", "사진마다 많이 쓰인 색 5개를 비율과 함께 뽑아요."],
   ["한 장씩 확인", "시간대와 동이 비어 있으면 직접 골라 주세요."],
-  ["지도에 더하기", "공유 지도 또는 내 지도에만 칠해요."],
+  ["지도에 더하기", "공유 지도 또는 나의 지도에만 칠해요."],
 ];
 
 function uploadErrorMessage(error: unknown): string {
@@ -284,8 +284,8 @@ export function PhotoUploadPage() {
               </div>
               <div className="border-t border-divider px-6 pt-6 pb-6">
                 <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 위치</h2>{consent === false ? <span className={badgeNeed}>동만 선택</span> : locationAgreed && photo.metadata.latitude === undefined && <span className={badgeNeed}>직접 입력 필요</span>}</div>
-                {consent === false && <p className="mb-3 rounded-xl bg-field p-3 text-xs leading-5 text-ink-sub">위치정보 이용에 동의하지 않아 촬영 위치는 저장하지 않고 동만 저장해요. 이 사진은 나의 지도에만 반영되고 모두의 지도에는 반영되지 않아요. 동의는 마이페이지에서 바꿀 수 있어요.</p>}
-                {locationAgreed && photo.status !== "reading" && photo.status !== "invalid" && photo.metadata.latitude === undefined && <p className="mb-3 rounded-xl bg-brand-soft p-3 text-xs leading-5 text-brand-strong">사진의 GPS 정보를 확인하지 못했어요. 휴대폰에서 사진을 선택하거나 촬영하는 과정에서 위치정보가 빠질 수 있어요. 위치를 직접 선택하면 개인 지도에만 반영돼요.</p>}
+                {consent === false && <p className="mb-3 rounded-xl bg-field p-3 text-xs leading-5 text-ink-sub">위치정보 이용에 동의하지 않아 촬영 위치는 저장하지 않고 동만 저장해요. 이 사진은 나의 지도에만 반영되고 공유 지도에는 반영되지 않아요. 동의는 마이페이지에서 바꿀 수 있어요.</p>}
+                {locationAgreed && photo.status !== "reading" && photo.status !== "invalid" && photo.metadata.latitude === undefined && <p className="mb-3 rounded-xl bg-brand-soft p-3 text-xs leading-5 text-brand-strong">사진의 GPS 정보를 확인하지 못했어요. 휴대폰에서 사진을 선택하거나 촬영하는 과정에서 위치정보가 빠질 수 있어요. 위치를 직접 선택하면 나의 지도에만 반영돼요.</p>}
                 {boundaryError && <p role="alert" className="mb-3 text-sm text-danger">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
                 {locationMismatch && <p role="alert" className="mb-3 text-sm text-brand-strong">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
                 {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
@@ -296,7 +296,7 @@ export function PhotoUploadPage() {
                   ? <span aria-hidden className="size-4 shrink-0 bg-brand" style={{ maskImage: `url("${mapPin}")`, WebkitMaskImage: `url("${mapPin}")`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%" }} />
                   : <img src={mapPin} alt="" width={16} height={16} />}
                   {locationPicked ? "선택된 위치 수정" : "지도에서 촬영 위치 선택"}</button>
-                <p className="mt-4 text-xs leading-5 text-ink-muted">촬영 시각이나 위치를 직접 입력하면 개인 지도에만 반영될 수 있어요.</p>
+                <p className="mt-4 text-xs leading-5 text-ink-muted">촬영 시각이나 위치를 직접 입력하면 나의 지도에만 반영될 수 있어요.</p>
                 </>}
               </div>
               <div className="flex flex-col gap-3 border-t border-divider px-6 pt-6 pb-3">

@@ -376,7 +376,7 @@ export function DongPage() {
       {/* 지도(경계·카카오맵 타일)를 그리는 중. 오류가 있으면 오류 배너만 */}
       <MapLoading show={!errorMessage && tilesReadyFor !== dongCode} />
 
-      {/* 지도 화면과 같은 유리 패널. 제목은 공유·내 지도 같게 ("역곡3동의 새벽") */}
+      {/* 지도 화면과 같은 유리 패널. 제목은 공유·나의 지도 같게 ("역곡3동의 새벽") */}
       {/* 왼쪽 위: 제목 패널 + 그 아래 에러 배너 (오른쪽 아래 확대 버튼을 가리지 않게) */}
       <div className="absolute top-4 left-4 z-10 flex max-w-[calc(100%-2rem)] flex-col items-start gap-2">
         <div className={cn(GLASS, "rounded-[14px] px-4 py-2.5")}>

@@ -19,12 +19,12 @@ export const BADGES: Record<BadgeType, BadgeInfo> = {
   DONG_FIRST: {
     name: "동네 개척자",
     earnedText: "{동}의 첫 색을 칠했어요",
-    condition: "아직 아무도 칠하지 않은 동에 모두의 지도 첫 사진 올리기",
+    condition: "아직 아무도 칠하지 않은 동에 공유 지도 첫 사진 올리기",
   },
   DONG_TOP10: {
     name: "초기 탐험대",
     earnedText: "{동}의 처음 10장 안에 들었어요",
-    condition: "모두의 지도에서 한 동의 처음 10장 안에 들기",
+    condition: "공유 지도에서 한 동의 처음 10장 안에 들기",
   },
   DONG_FIVE: {
     name: "동네 마실",
