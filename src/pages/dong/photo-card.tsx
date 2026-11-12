@@ -28,6 +28,22 @@ function paletteShares({ palette, bins }: PhotoDetail) {
   return unique.map((color) => ({ color, share: 1 / unique.length }));
 }
 
+// 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜
+// 세로 사진은 조금 더 길게 허용, 너무 좁아지면 아래 닉네임·시간대 줄이 들어갈 최소 폭 유지
+const BUBBLE_PHOTO_MAX_WIDTH = 264;
+const BUBBLE_PHOTO_MAX_HEIGHT = 240;
+const BUBBLE_PHOTO_MAX_HEIGHT_PORTRAIT = 300;
+const BUBBLE_PHOTO_MIN_WIDTH = 168;
+// 카드 안쪽 여백(p-2 양쪽) + 테두리(양쪽 1px)
+const BUBBLE_CARD_CHROME = 18;
+
+function bubblePhotoSize(naturalWidth: number, naturalHeight: number) {
+  const ratio = naturalWidth / naturalHeight;
+  const maxHeight = ratio < 1 ? BUBBLE_PHOTO_MAX_HEIGHT_PORTRAIT : BUBBLE_PHOTO_MAX_HEIGHT;
+  const width = Math.round(Math.min(BUBBLE_PHOTO_MAX_WIDTH, maxHeight * ratio));
+  return { width, height: Math.round(width / ratio) };
+}
+
 // 사진 위에 떠 있는 작은 버튼 (닫기·이전·다음). 어떤 사진 위에서도 보이게 어두운 반투명 + 흐림
 const PHOTO_BUTTON =
   "flex size-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55";
@@ -64,7 +80,10 @@ export function PhotoCard({
   const [photo, setPhoto] = useState<PhotoDetail | null>(null);
   const [failedId, setFailedId] = useState<number | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+  // 다 받은 사진의 원래 크기 (말풍선 카드 폭을 사진 비율에 맞출 때 씀)
+  const [loaded, setLoaded] = useState<{ url: string; width: number; height: number } | null>(
+    null,
+  );
   const photoId = points[index].photoId;
 
   useEffect(() => {
@@ -97,6 +116,9 @@ export function PhotoCard({
   const current = photo?.photoId === photoId ? photo : null;
   const failed = failedId === photoId;
   const showImage = current?.imageUrl && current.imageUrl !== failedUrl;
+  const imageLoaded = Boolean(showImage && loaded?.url === current?.imageUrl);
+  const bubbleSize =
+    bubble && imageLoaded && loaded ? bubblePhotoSize(loaded.width, loaded.height) : null;
 
   const card = (
     <section
@@ -104,12 +126,22 @@ export function PhotoCard({
       className={cn(
         "rounded-[22px] border border-white/70 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_16px_40px_rgba(26,36,64,0.18)] backdrop-blur-[14px] backdrop-saturate-150",
         bubble
-          ? "w-max max-w-[280px] min-w-[220px] rounded-bl-[6px] bg-white/95"
+          ? cn("rounded-bl-[6px] bg-white/95", !bubbleSize && "w-[280px]")
           : "w-full bg-white/90 sm:w-auto sm:max-w-[360px] sm:min-w-[260px]",
       )}
+      style={
+        bubbleSize
+          ? { width: Math.max(bubbleSize.width, BUBBLE_PHOTO_MIN_WIDTH) + BUBBLE_CARD_CHROME }
+          : undefined
+      }
     >
       {/* 사진 영역: 원래 비율 그대로 (잘리지 않게, 너무 길면 높이만 제한) */}
-      <div className="relative flex min-h-[180px] items-center justify-center overflow-hidden rounded-[16px] bg-field">
+      <div
+        className={cn(
+          "relative flex items-center justify-center overflow-hidden rounded-[16px] bg-field",
+          !imageLoaded && "min-h-[180px]",
+        )}
+      >
         {failed ? (
           <p className="px-4 py-16 text-sm text-danger">사진을 불러오지 못했어요.</p>
         ) : !current ? (
@@ -118,12 +150,21 @@ export function PhotoCard({
           <img
             src={current.imageUrl ?? ""}
             alt={`${current.name}에서 찍은 사진`}
-            onLoad={() => setLoadedUrl(current.imageUrl)}
+            onLoad={(event) =>
+              setLoaded({
+                url: current.imageUrl ?? "",
+                width: event.currentTarget.naturalWidth,
+                height: event.currentTarget.naturalHeight,
+              })
+            }
             onError={() => setFailedUrl(current.imageUrl)}
+            style={bubbleSize ?? undefined}
             className={cn(
-              "block h-auto w-auto max-w-full transition-opacity duration-300",
-              bubble ? "max-h-[240px]" : "max-h-[min(42vh,420px)] sm:max-h-[min(55vh,480px)]",
-              loadedUrl === current.imageUrl ? "opacity-100" : "opacity-0",
+              "block transition-opacity duration-300",
+              !bubbleSize && "h-auto w-auto max-w-full",
+              !bubble && "max-h-[min(42vh,420px)] sm:max-h-[min(55vh,480px)]",
+              bubble && !bubbleSize && "max-h-[240px]",
+              imageLoaded ? "opacity-100" : "opacity-0",
             )}
           />
         ) : (
