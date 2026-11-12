@@ -39,7 +39,8 @@ export function MapPage() {
   }, [returnFrom]);
   // 지도 카드 (동을 누르면 svg-map이 이 크기에서 화면 전체로 커지며 확대)
   const stageRef = useRef<HTMLElement>(null);
-  const leaveFade = `transition-opacity duration-300 ${leaving ? "pointer-events-none opacity-0" : ""}`;
+  // 숨길 때는 바로 숨김(유리 패널의 backdrop-filter가 움직이는 지도 위에서 무거움), 다시 보일 때만 서서히
+  const leaveFade = leaving ? "invisible opacity-0" : "opacity-100 transition-opacity duration-300";
   const { boundaries, error: boundaryError } = useBoundaries();
   const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
   const myMap = useMyMap(mine, timeBand);

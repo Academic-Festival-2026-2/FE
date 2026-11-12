@@ -115,10 +115,9 @@ export function SvgMap({
   const shapes = useMemo(() => shapesOf(boundaries), [boundaries]);
   const svgRef = useRef<SVGSVGElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  // 동으로 확대할 때 매 프레임 직접 바꾸는 흐림 값 (확대해도 화면상 흐림 크기가 그대로이도록)
-  const blurRef = useRef<SVGFEGaussianBlurElement>(null);
-  const featherRef = useRef<SVGFEGaussianBlurElement>(null);
-  const edgeStrokeRef = useRef<SVGGElement>(null);
+  // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (가장자리 흐림, 부천 모양 자르기)
+  const edgeGroupRef = useRef<SVGGElement>(null);
+  const clipGroupRef = useRef<SVGGElement>(null);
   const focusOverlayRef = useRef<SVGPathElement>(null);
   const [view, setView] = useState<View>(FULL_VIEW);
   const viewRef = useRef<View>(FULL_VIEW);
@@ -200,7 +199,7 @@ export function SvgMap({
   // 동으로 들어갈 때(카드 → 화면 전체)와 돌아올 때(화면 전체 → 카드) 둘 다 씀.
   // 상자 크기와 viewBox를 같은 프레임에 바꿔야 흔들리지 않으므로 React 상태 대신 DOM에 바로 씀
   // (상태로 바꾸면 viewBox가 한 프레임 늦게 들어가서 상자 크기와 어긋나며 떨림)
-  function runStage(shape: DongShape, from: StageFrame, to: StageFrame, normalPxPerUnit: number, onDone: () => void) {
+  function runStage(shape: DongShape, from: StageFrame, to: StageFrame, onDone: () => void) {
     const root = rootRef.current;
     const svg = svgRef.current;
     if (!root || !svg) {
@@ -217,6 +216,10 @@ export function SvgMap({
     root.style.zIndex = "50";
     root.style.overflow = "hidden";
     root.style.backgroundColor = "#ffffff";
+    // 렉 줄이기: 가장자리 흐림(가우시안 블러 + 마스크)과 부천 모양 자르기(clip-path)는 viewBox가 바뀔 때마다
+    // 지도 전체를 다시 계산해서 가장 무거움. 움직이는 동안에는 차이가 거의 안 보이므로 꺼 두고 끝나면 되돌림
+    edgeGroupRef.current?.style.setProperty("display", "none");
+    clipGroupRef.current?.removeAttribute("clip-path");
 
     const draw = (e: number) => {
       const box = {
@@ -240,11 +243,6 @@ export function SvgMap({
       const next = { x: centerX - size / 2, y: centerY - size / 2, size };
       viewRef.current = next;
       svg.setAttribute("viewBox", `${next.x} ${next.y} ${next.size} ${next.size}`);
-      // 흐림·가장자리 두께는 지도 단위라서 확대할수록 화면에서 엄청 커지고 무거워짐 → 평소 화면상 크기를 유지
-      const ratio = normalPxPerUnit / pxPerUnit;
-      blurRef.current?.setAttribute("stdDeviation", String(EDGE_BLUR * ratio));
-      featherRef.current?.setAttribute("stdDeviation", String((EDGE_WIDTH / 4) * ratio));
-      edgeStrokeRef.current?.setAttribute("stroke-width", String(EDGE_WIDTH * ratio));
       // 동 바깥 회색 덮개 (동 상세와 같은 색·진하기)
       overlay?.setAttribute("fill-opacity", String(lerp(from.dim, to.dim, e)));
     };
@@ -271,9 +269,8 @@ export function SvgMap({
         root.style[name] = "";
       }
     }
-    blurRef.current?.setAttribute("stdDeviation", String(EDGE_BLUR));
-    featherRef.current?.setAttribute("stdDeviation", String(EDGE_WIDTH / 4));
-    edgeStrokeRef.current?.setAttribute("stroke-width", String(EDGE_WIDTH));
+    edgeGroupRef.current?.style.removeProperty("display");
+    clipGroupRef.current?.setAttribute("clip-path", `url(#${clipId})`);
     viewRef.current = FULL_VIEW;
     svgRef.current?.setAttribute("viewBox", `${FULL_VIEW.x} ${FULL_VIEW.y} ${FULL_VIEW.size} ${FULL_VIEW.size}`);
   }
@@ -341,7 +338,7 @@ export function SvgMap({
     const rootRect = root.getBoundingClientRect();
     const current = viewRef.current;
     const from = cardFrame(shape, rootRect, current, HOVER_DIM);
-    runStage(shape, from, fullscreenFrame(shape), from.dongPx / (shape.bounds[3] - shape.bounds[1]), finish);
+    runStage(shape, from, fullscreenFrame(shape), finish);
   }
 
   // 동 상세에서 돌아왔으면: 동 상세와 같은 모습(화면 전체)에서 시작해 카드 안 전체 지도로 줄어듦.
@@ -367,7 +364,7 @@ export function SvgMap({
       onReturnEnd?.();
     };
     const timer = window.setTimeout(finish, STAGE_MS + 250);
-    runStage(shape, fullscreenFrame(shape), to, to.dongPx / (shape.bounds[3] - shape.bounds[1]), finish);
+    runStage(shape, fullscreenFrame(shape), to, finish);
     return () => {
       // 개발 모드(StrictMode)에서 effect가 한 번 더 실행될 때를 위해 정리
       window.clearTimeout(timer);
@@ -463,10 +460,10 @@ export function SvgMap({
             ))}
           </clipPath>
           <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur ref={blurRef} stdDeviation={EDGE_BLUR} />
+            <feGaussianBlur stdDeviation={EDGE_BLUR} />
           </filter>
           <filter id={featherId} x="-10%" y="-10%" width="120%" height="120%">
-            <feGaussianBlur ref={featherRef} stdDeviation={EDGE_WIDTH / 4} />
+            <feGaussianBlur stdDeviation={EDGE_WIDTH / 4} />
           </filter>
           <mask
             id={edgesId}
@@ -479,7 +476,6 @@ export function SvgMap({
             <g
               fill="none"
               stroke="#ffffff"
-              ref={edgeStrokeRef}
               strokeWidth={EDGE_WIDTH}
               strokeLinejoin="round"
               filter={`url(#${featherId})`}
@@ -491,7 +487,7 @@ export function SvgMap({
           </mask>
         </defs>
 
-        <g clipPath={`url(#${clipId})`}>
+        <g ref={clipGroupRef} clipPath={`url(#${clipId})`}>
           <g>
             {shapes.map((shape) => (
               <path
@@ -514,7 +510,7 @@ export function SvgMap({
               />
             ))}
           </g>
-          <g mask={`url(#${edgesId})`} pointerEvents="none">
+          <g ref={edgeGroupRef} mask={`url(#${edgesId})`} pointerEvents="none">
             <g filter={`url(#${blurId})`}>{fills}</g>
           </g>
         </g>
@@ -564,7 +560,7 @@ export function SvgMap({
       </div>
 
       <div
-        className={`liquid-glass absolute flex flex-col gap-0.5 rounded-xl p-1 transition-opacity duration-300 pointer-coarse:hidden ${controlsClassName} ${selecting ? "pointer-events-none opacity-0" : ""}`}
+        className={`liquid-glass absolute flex flex-col gap-0.5 rounded-xl p-1 transition-opacity duration-300 pointer-coarse:hidden ${controlsClassName} ${selecting ? "invisible" : ""}`}
       >
         <button
           type="button"
