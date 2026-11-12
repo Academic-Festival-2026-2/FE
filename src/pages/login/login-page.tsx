@@ -135,7 +135,7 @@ export function LoginPage() {
             </div>
 
             {errorMessage && (
-              <p role="alert" className="text-sm text-red-500">
+              <p role="alert" className="text-sm text-danger">
                 {errorMessage}
               </p>
             )}
