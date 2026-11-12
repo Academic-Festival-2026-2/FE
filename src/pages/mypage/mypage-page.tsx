@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "../../api/client";
 import { getMyInfo, type MyInfoResponse } from "../../api/user";
 import { AuthHeader } from "../../components/layout/auth-header";
+import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useUserStore } from "../../stores/user-store";
 import { AccountSection } from "./account-section";
@@ -43,25 +44,28 @@ export function MyPage() {
 
   return (
     // 공통 헤더(별도 이슈)가 생기면 AuthHeader 자리를 AppLayout으로 교체
-    <div className="min-h-screen bg-[#f7f5f0]">
-      <AuthHeader />
+    <div className="min-h-screen bg-page">
+      {/* 프로필 메뉴(닉네임·로그아웃)는 이 화면 본문에 이미 있어서 업로드 버튼만 둠 */}
+      <AuthHeader>
+        <UploadButton />
+      </AuthHeader>
       {/* 본문 폭 1160px(양옆 여백 16px 포함 1192px) */}
-      <main className="mx-auto w-full max-w-[1192px] px-4 pt-7 pb-12">
-        <p className="font-mono text-xs tracking-[0.15em] text-[#c4581a]">MY PAGE</p>
-        <h1 className="mt-1.5 text-[28px] font-extrabold text-gray-900">마이페이지</h1>
-        <p className="mt-1 text-sm text-gray-600">내 정보와 계정 설정을 관리해요.</p>
+      <main className="mx-auto w-full max-w-[1192px] px-4 pt-4 pb-12">
+        {/* 업로드 화면 "UPLOAD / 사진 한 장, 픽셀 하나"와 같은 크기·굵기 */}
+        <p className="mt-2 font-mono text-[13px] tracking-[1.04px] text-brand-strong">MY PAGE</p>
+        <h1 className="mt-3 text-[30px] font-extrabold tracking-[-0.9px] text-ink">마이페이지</h1>
 
         {loadError && (
-          <p role="alert" className="mt-6 text-sm text-red-500">
+          <p role="alert" className="mt-6 text-sm text-danger">
             {loadError}
           </p>
         )}
-        {!info && !loadError && <p className="mt-6 text-sm text-gray-500">불러오는 중...</p>}
+        {!info && !loadError && <p className="mt-6 text-sm text-ink-muted">불러오는 중...</p>}
         {info && (
           <div className="mt-4 flex flex-col gap-4">
             <ProfileSummary info={info} onUpdated={handleUpdated} />
-            {/* 시안 비율 프로필 5 : 비밀번호 6, 두 카드 높이는 같게(stretch) */}
-            <div className="grid gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+            {/* 피그마 비율 프로필 516 : 비밀번호 628, 두 카드 높이는 같게(stretch) */}
+            <div className="grid gap-4 md:grid-cols-[minmax(0,516fr)_minmax(0,628fr)]">
               <ProfileForm info={info} onUpdated={handleUpdated} />
               <PasswordForm />
             </div>

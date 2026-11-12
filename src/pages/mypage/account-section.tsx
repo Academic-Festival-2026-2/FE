@@ -7,15 +7,12 @@ export function AccountSection() {
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
   return (
-    <section className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-3xl border border-[#e8e4dc] bg-white px-6 py-4">
-      <h2 className="text-[15px] font-bold text-gray-900">계정</h2>
-      <p className="flex-1 text-xs text-gray-500">
-        로그아웃해도 올린 사진과 나의 지도는 그대로 남아요.
-      </p>
+    <section className="flex flex-wrap items-center gap-x-[18px] gap-y-3 rounded-2xl border border-card-line bg-white px-6 py-4">
+      <h2 className="flex-1 text-[15px] leading-[23px] font-bold text-ink">계정</h2>
       <button
         type="button"
         onClick={() => setIsWithdrawOpen(true)}
-        className="text-[13px] text-gray-500 transition-colors hover:text-gray-900"
+        className="mr-1.5 text-[13px] text-ink-muted transition-colors hover:text-ink"
       >
         회원 탈퇴
       </button>
@@ -23,7 +20,7 @@ export function AccountSection() {
         type="button"
         onClick={logout}
         disabled={isLoggingOut}
-        className="h-10 rounded-[10px] border border-[#ddd8ce] bg-white px-4 text-sm font-bold text-[#c4581a] transition-colors hover:bg-[#f7f5f0] disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-10 rounded-[10px] border border-card-line bg-white px-4 text-sm font-bold text-danger transition-colors hover:bg-danger-soft disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
       </button>

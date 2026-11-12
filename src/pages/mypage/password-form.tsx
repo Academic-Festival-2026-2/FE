@@ -70,12 +70,12 @@ export function PasswordForm() {
   const errorOf = (field: Field) => serverErrors[field] ?? clientErrors[field];
 
   return (
-    <section className="rounded-3xl border border-[#e8e4dc] bg-white p-6">
-      <h2 className="flex items-baseline gap-2 text-[17px] font-bold text-gray-900">
-        <span className="font-mono text-xs font-normal text-[#c4581a]">02</span>비밀번호 변경
+    <section className="flex flex-col rounded-2xl border border-card-line bg-white px-6 py-5">
+      <h2 className="flex items-baseline gap-2.5 text-[17px] leading-[25px] font-bold text-ink">
+        <span className="font-mono text-xs font-normal text-brand-strong">02</span>비밀번호 변경
       </h2>
 
-      <form className="mt-4 flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
+      <form className="mt-3.5 flex flex-1 flex-col gap-2.5" onSubmit={handleSubmit} noValidate>
         <TextField
           id="currentPassword"
           size="sm"
@@ -109,17 +109,17 @@ export function PasswordForm() {
         />
 
         {formError && (
-          <p role="alert" className="text-sm text-red-500">
+          <p role="alert" className="text-sm text-danger">
             {formError}
           </p>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-4 pt-2">
-          <p className="text-xs text-gray-500">변경하면 다시 로그인해야 해요.</p>
+        <div className="mt-auto flex items-center justify-between gap-4 pt-4">
+          <p className="text-xs leading-[18px] text-ink-muted">변경하면 다시 로그인해야 해요.</p>
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-10 shrink-0 rounded-[10px] bg-gray-900 px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="h-10 shrink-0 rounded-[10px] bg-brand px-4 text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isSubmitting ? "변경 중..." : "비밀번호 변경"}
           </button>

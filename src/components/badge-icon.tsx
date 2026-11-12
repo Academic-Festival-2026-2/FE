@@ -66,13 +66,14 @@ const GLYPHS: Record<BadgeType, ReactNode> = {
       <rect x="46" y="13" width="10" height="10" rx="2" fill="#c9b6ec" {...line} />
     </>
   ),
-  // 새벽·낮·노을·밤 네 조각 해
+  // 새벽·낮·노을·밤 네 조각 해. 색·자리는 픽셀 로고(logo-mark.tsx)와 같게
+  // (왼쪽 위 새벽 라벤더, 오른쪽 위 낮 하늘, 왼쪽 아래 노을 주황, 오른쪽 아래 밤 남색)
   ALL_TIME_BANDS: (
     <>
-      <path d="M32 32V14a18 18 0 0 1 18 18z" fill="#f5b5c4" />
-      <path d="M32 32h18a18 18 0 0 1-18 18z" fill="#ffd36e" />
-      <path d="M32 32v18a18 18 0 0 1-18-18z" fill="#ff8a3d" />
-      <path d="M32 32H14a18 18 0 0 1 18-18z" fill="#4b5a8c" />
+      <path d="M32 32V14a18 18 0 0 1 18 18z" fill="#8ab4e9" />
+      <path d="M32 32h18a18 18 0 0 1-18 18z" fill="#2d2670" />
+      <path d="M32 32v18a18 18 0 0 1-18-18z" fill="#ee8156" />
+      <path d="M32 32H14a18 18 0 0 1 18-18z" fill="#c4b7e9" />
       <circle cx="32" cy="32" r="18" fill="none" {...line} />
       <path d="M32 14v36M14 32h36" {...line} />
       <Sparkle x={53} y={12} />
@@ -104,7 +105,7 @@ export function BadgeIcon({ type, earned = true, size = 72 }: BadgeIconProps) {
     <span
       className={cn(
         "relative grid shrink-0 place-items-center rounded-full",
-        earned ? "bg-[#fff1e5]" : "bg-[#f2f0eb]",
+        earned ? "bg-brand-soft" : "bg-field",
       )}
       style={{ width: size, height: size }}
       aria-hidden
@@ -119,8 +120,8 @@ export function BadgeIcon({ type, earned = true, size = 72 }: BadgeIconProps) {
         {GLYPHS[type]}
       </svg>
       {!earned && (
-        <span className="absolute right-0 bottom-0 grid h-6 w-6 place-items-center rounded-full border border-[#e2ded5] bg-white">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8a857c" strokeWidth="2.4" strokeLinecap="round">
+        <span className="absolute right-0 bottom-0 grid size-6 place-items-center rounded-full border border-line bg-white text-ink-faint">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
             <rect x="5" y="11" width="14" height="10" rx="2" />
             <path d="M8 11V8a4 4 0 0 1 8 0v3" />
           </svg>

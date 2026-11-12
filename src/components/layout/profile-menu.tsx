@@ -4,6 +4,8 @@ import { isSessionExpired } from "../../hooks/use-expire-session";
 import { useLogout } from "../../hooks/use-logout";
 import { useAuthStore } from "../../stores/auth-store";
 import { useUserStore } from "../../stores/user-store";
+import logOutIcon from "../../assets/icons/log-out.svg";
+import userIcon from "../../assets/icons/user.svg";
 import { Avatar } from "../avatar";
 
 // 헤더 오른쪽 위 프로필 버튼 + 드롭다운 (로그인 상태에서만 사용)
@@ -51,7 +53,7 @@ export function ProfileMenu() {
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
         className={`block rounded-full p-0.5 ring-2 ${
-          open ? "ring-[#ff8a3d]" : "ring-transparent hover:ring-[#e3dfd7]"
+          open ? "ring-navy" : "ring-transparent hover:ring-line"
         }`}
       >
         <Avatar image={me?.profileImage} size={36} />
@@ -60,34 +62,22 @@ export function ProfileMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute top-full right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-[#e8e4dc] bg-white shadow-lg"
+          className="absolute top-full right-0 z-50 mt-2 w-[260px] overflow-hidden rounded-[14px] border border-line bg-white pb-1.5 shadow-[0_8px_20px_rgba(22,22,26,0.1)]"
         >
-          <div className="flex items-center gap-3 px-4 py-4">
+          <div className="flex items-center gap-3 border-b border-divider p-4">
             <Avatar image={me?.profileImage} size={40} />
             <div className="min-w-0">
-              <p className="truncate font-bold text-gray-900">{nickname}</p>
-              <p className="truncate text-sm text-gray-500">{me?.email}</p>
+              <p className="truncate text-[15px] font-bold text-ink">{nickname}</p>
+              <p className="mt-0.5 truncate text-[13px] text-ink-muted">{me?.email}</p>
             </div>
           </div>
           <Link
             to="/mypage"
             role="menuitem"
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 border-t border-[#eeebe5] px-4 py-3 text-sm text-gray-900 hover:bg-[#f7f5f0]"
+            className="flex h-11 items-center gap-2.5 border-b border-divider px-4 text-sm text-ink hover:bg-field"
           >
-            {/* 사람 아이콘 */}
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden
-            >
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
-            </svg>
+            <img src={userIcon} alt="" width={18} height={18} />
             마이페이지
           </Link>
           <button
@@ -95,20 +85,9 @@ export function ProfileMenu() {
             role="menuitem"
             disabled={isLoggingOut}
             onClick={logout}
-            className="flex w-full items-center gap-2.5 border-t border-[#eeebe5] px-4 py-3 text-sm text-[#c4581a] hover:bg-[#fdf3ec] disabled:opacity-50"
+            className="flex h-11 w-full items-center gap-2.5 px-4 text-sm text-danger hover:bg-danger-soft disabled:opacity-50"
           >
-            {/* 나가기 아이콘 */}
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden
-            >
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-            </svg>
+            <span aria-hidden className="size-[18px] shrink-0 bg-danger" style={{ maskImage: `url("${logOutIcon}")`, WebkitMaskImage: `url("${logOutIcon}")`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%" }} />
             {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
           </button>
         </div>

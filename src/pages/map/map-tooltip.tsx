@@ -10,18 +10,18 @@ type Props = {
 
 export function MapTooltip({ dong, guName, bandLabel, hint }: Props) {
   return (
-    <div className="w-52 rounded-xl border border-[#e8e4dc] bg-white p-3 shadow-lg">
+    <div className="w-64 rounded-xl border border-line bg-white p-4 shadow-[0_8px_20px_rgba(22,22,26,0.1)]">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-bold text-gray-900">{dong.name}</span>
-        <span className="text-xs text-gray-500">{guName}</span>
+        <span className="text-base font-extrabold text-ink">{dong.name}</span>
+        <span className="text-xs text-ink-muted">{guName}</span>
       </div>
-      <div className="mt-2">
+      <div className="mt-3">
         <ColorBar colors={(dong.colorRatio ?? []).slice(0, 4)} />
       </div>
-      <p className="mt-2 text-xs text-gray-600">
+      <p className="mt-3 text-[13px] text-ink-sub">
         {bandLabel} 사진 {dong.photoCount}장
       </p>
-      <p className="mt-1 text-xs font-bold text-[#c4581a]">{hint}</p>
+      <p className="mt-1 text-[13px] font-bold text-brand-strong">{hint}</p>
     </div>
   );
 }

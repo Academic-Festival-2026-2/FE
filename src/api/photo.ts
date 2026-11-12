@@ -47,6 +47,7 @@ export type PhotoDetail = {
   takenAt: string;
   timeBand: TimeBand;
   palette: string[];
+  // 업로드 때 보낸 40칸 색 비율. 없거나 이상하면 5색 같은 폭으로 표시 (photo-color-ratios.ts)
   bins?: number[] | null;
 };
 

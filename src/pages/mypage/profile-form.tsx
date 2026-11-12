@@ -78,12 +78,12 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
   }
 
   return (
-    <section className="rounded-3xl border border-[#e8e4dc] bg-white p-6">
-      <h2 className="flex items-baseline gap-2 text-[17px] font-bold text-gray-900">
-        <span className="font-mono text-xs font-normal text-[#c4581a]">01</span>프로필
+    <section className="rounded-2xl border border-card-line bg-white px-6 py-5">
+      <h2 className="flex items-baseline gap-2.5 text-[17px] leading-[25px] font-bold text-ink">
+        <span className="font-mono text-xs font-normal text-brand-strong">01</span>프로필
       </h2>
 
-      <form className="mt-4" onSubmit={handleSaveNickname} noValidate>
+      <form className="mt-3.5" onSubmit={handleSaveNickname} noValidate>
         <TextField
           id="nickname"
           size="sm"
@@ -96,7 +96,7 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
             <button
               type="submit"
               disabled={!canSaveNickname}
-              className="h-10 shrink-0 rounded-[10px] bg-[#ff8a3d] px-4 text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-10 shrink-0 rounded-[10px] bg-brand px-4 text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSavingNickname ? "저장 중" : "저장"}
             </button>
@@ -104,25 +104,25 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
         />
       </form>
 
-      <hr className="my-6 border-[#e8e4dc]" />
+      <hr className="my-6 border-divider" />
 
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="font-bold text-gray-900">
-            위치정보 이용 동의 <span className="font-normal text-gray-500">(선택)</span>
+          <p className="text-sm font-bold text-ink">
+            위치정보 이용 동의 <span className="text-ink-muted">(선택)</span>
           </p>
-          <p className="mt-1 text-xs text-gray-500">
-            사진이 찍힌 동을 찾고, 모두의 지도 색칠과 지도의 사진 위치 점 표시에 써요.{" "}
+          <p className="mt-1.5 text-xs leading-[18px] text-ink-muted">
+            사진이 찍힌 동을 찾고, 공유 지도 색칠과 지도의 사진 위치 점 표시에 써요.{" "}
             <button
               type="button"
               onClick={() => setIsTermsOpen(true)}
-              className="whitespace-nowrap text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
+              className="whitespace-nowrap text-ink-muted underline underline-offset-4 hover:text-ink"
             >
               약관 보기
             </button>
           </p>
           {locationError && (
-            <p role="alert" className="mt-1 text-xs text-red-500">
+            <p role="alert" className="mt-1 text-xs text-danger">
               {locationError}
             </p>
           )}
@@ -135,14 +135,14 @@ export function ProfileForm({ info, onUpdated }: ProfileFormProps) {
           disabled={isSavingLocation}
           onClick={handleToggleLocation}
           className={cn(
-            "relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50",
-            locationAgreed ? "bg-gray-900" : "bg-[#ddd8ce]",
+            "relative h-[26px] w-11 shrink-0 rounded-full transition-colors disabled:opacity-50",
+            locationAgreed ? "bg-brand" : "bg-[#c5ccda]",
           )}
         >
           <span
             className={cn(
-              "absolute top-1 left-1 h-5 w-5 rounded-full transition-transform",
-              locationAgreed ? "translate-x-5 bg-[#ff8a3d]" : "bg-white",
+              "absolute top-[3px] left-[3px] size-5 rounded-full bg-white transition-transform",
+              locationAgreed && "translate-x-[18px]",
             )}
           />
         </button>

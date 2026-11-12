@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { signUp } from "../../api/auth";
 import { ApiError } from "../../api/client";
+import { Checkbox } from "../../components/form/checkbox";
 import { TextField } from "../../components/form/text-field";
 import { AuthLayout } from "../../components/layout/auth-layout";
 import { TermsDialog } from "../../components/terms-dialog";
@@ -137,10 +138,10 @@ export function SignUpPage() {
   return (
     // 시안: 모바일 Signup-A, PC Signup-B
     <AuthLayout cardClassName="max-w-[1000px] rounded-[20px] px-5 pt-7 pb-6 sm:rounded-3xl sm:px-[46px] sm:pt-11 sm:pb-[34px]">
-      <h1 className="text-[26px] font-extrabold tracking-[-0.5px] text-gray-900 sm:text-[32px]">
+      <h1 className="text-[26px] font-black tracking-[-0.5px] text-ink sm:text-[32px]">
         회원가입
       </h1>
-      <p className="mt-2 text-[15px] text-[#55524c] sm:mt-2.5">
+      <p className="mt-2 text-[15px] text-ink-sub sm:mt-2.5">
         내 사진이 동네의 색이 되도록,
         <br className="sm:hidden" /> 계정을 만들어 주세요.
       </p>
@@ -208,30 +209,23 @@ export function SignUpPage() {
 
         <div className="flex flex-col gap-[18px]">
           {/* 약관 박스가 남는 높이를 채우고(줄 간격은 고르게) 버튼 아랫선을 왼쪽 닉네임 칸과 맞춤 */}
-          <fieldset className="flex flex-1 flex-col justify-between gap-2 rounded-xl border border-[#e2ded5] px-3.5 pt-1.5 pb-3.5 text-sm sm:px-4">
-            <legend className="px-1 text-sm font-bold text-gray-900">약관 동의</legend>
-            <label className="flex cursor-pointer items-center gap-2.5 border-b border-[#ece8e1] pt-1.5 pb-3 font-bold text-gray-900">
-              <input
-                type="checkbox"
-                checked={allAgreed}
-                onChange={(event) => toggleAll(event.target.checked)}
-                className="h-[18px] w-[18px] shrink-0 accent-[#ff8a3d]"
-              />
+          <fieldset className="flex flex-1 flex-col justify-between gap-2 rounded-xl border border-field-line px-3.5 pt-1.5 pb-3.5 text-sm sm:px-4">
+            <legend className="px-1 text-sm font-bold text-ink">약관 동의</legend>
+            <label className="flex cursor-pointer items-center gap-2.5 border-b border-divider pt-1.5 pb-3 font-bold text-ink">
+              <Checkbox checked={allAgreed} onChange={toggleAll} />
               전체 동의
             </label>
             {TERMS.map((term) => (
               <div key={term.key} className="flex items-center justify-between gap-3">
-                <label className="flex min-w-0 cursor-pointer items-center gap-2.5 text-gray-900">
-                  <input
-                    type="checkbox"
+                <label className="flex min-w-0 cursor-pointer items-center gap-2.5 text-ink">
+                  <Checkbox
                     checked={agreements[term.key]}
-                    onChange={(event) =>
-                      setAgreements((prev) => ({ ...prev, [term.key]: event.target.checked }))
+                    onChange={(checked) =>
+                      setAgreements((prev) => ({ ...prev, [term.key]: checked }))
                     }
-                    className="h-[18px] w-[18px] shrink-0 accent-[#ff8a3d]"
                   />
                   <span>
-                    <b className={term.required ? "text-[#b5470e]" : "text-[#6b675f]"}>
+                    <b className={term.required ? "text-brand-strong" : "text-ink-muted"}>
                       {term.required ? "[필수]" : "[선택]"}
                     </b>{" "}
                     {term.label}
@@ -242,7 +236,7 @@ export function SignUpPage() {
                   <button
                     type="button"
                     onClick={() => setOpenTerm(term.content ?? null)}
-                    className="shrink-0 text-[13px] whitespace-nowrap text-[#6b675f] underline underline-offset-4 hover:text-gray-900"
+                    className="shrink-0 text-[13px] whitespace-nowrap text-ink-muted underline underline-offset-4 hover:text-ink"
                   >
                     보기
                   </button>
@@ -252,7 +246,7 @@ export function SignUpPage() {
           </fieldset>
 
           {formError && (
-            <p role="alert" className="text-sm text-red-500">
+            <p role="alert" className="text-sm text-danger">
               {formError}
             </p>
           )}
@@ -260,7 +254,7 @@ export function SignUpPage() {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="h-[52px] w-full shrink-0 rounded-xl bg-[#ff8a3d] font-extrabold text-gray-900 transition-colors hover:bg-[#f57a2a] disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-[52px] w-full shrink-0 rounded-xl bg-brand font-black text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? "가입 중..." : "가입하기"}
           </button>
@@ -270,9 +264,9 @@ export function SignUpPage() {
       {/* form 밖에 둬야 팝업 안 버튼이 가입 폼을 제출하지 않음 */}
       {openTerm && <TermsDialog term={openTerm} onClose={() => setOpenTerm(null)} />}
 
-      <p className="mt-[26px] text-center text-sm text-[#55524c]">
+      <p className="mt-[26px] text-center text-sm text-ink-sub">
         이미 계정이 있으신가요?{" "}
-        <Link to="/login" className="font-bold text-[#b5470e] underline underline-offset-4 hover:text-[#8a350a]">
+        <Link to="/login" className="font-bold text-brand-strong underline underline-offset-4 hover:text-brand">
           로그인
         </Link>
       </p>
