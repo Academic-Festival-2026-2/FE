@@ -21,6 +21,7 @@ import {
 } from "../map/map-data";
 import { ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
 import { cn } from "../../utils/cn";
+import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
 import { PhotoCard } from "./photo-card";
 
 const SELECTED_STROKE = "#1a1a1a";
@@ -132,7 +133,8 @@ export function DongPage() {
         level: 5,
       });
 
-      map.setMaxLevel(8);
+      // 지도 화면의 확대 전환이 이 값을 기준으로 계산함 (kakao-fit.ts)
+      map.setMaxLevel(DONG_MAX_LEVEL);
 
       const bounds = new kakao.maps.LatLngBounds();
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
@@ -175,7 +177,7 @@ export function DongPage() {
         outlinePolygonsRef.current.push(polygon);
       }
 
-      map.setBounds(bounds, 40, 40, 40, 40);
+      map.setBounds(bounds, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING);
       dongBoundsRef.current = bounds;
 
       // 경계 밖 흐림 레이어 마스크: 화면 전체에서 동 모양만 뺀 영역 (동 안은 흐리지 않음)
@@ -267,7 +269,7 @@ export function DongPage() {
   }
 
   function resetView() {
-    if (map && dongBoundsRef.current) map.setBounds(dongBoundsRef.current, 40, 40, 40, 40);
+    if (map && dongBoundsRef.current) map.setBounds(dongBoundsRef.current, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING);
   }
 
   const notFound = boundaries !== null && !feature;

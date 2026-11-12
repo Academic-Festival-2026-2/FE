@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
+import { prepareDongTransition } from "../../utils/view-transition";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
@@ -26,6 +27,11 @@ export function MapPage() {
   const mine = mode === "mine" && loggedIn;
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  // 동을 눌러 그 동으로 확대하는 중 (지도 위 패널을 숨기고 동 상세로 넘어갈 준비)
+  const [leaving, setLeaving] = useState(false);
+  // 지도 카드 (동을 누르면 svg-map이 이 크기에서 화면 전체로 커지며 확대)
+  const stageRef = useRef<HTMLElement>(null);
+  const leaveFade = `transition-opacity duration-300 ${leaving ? "pointer-events-none opacity-0" : ""}`;
   const { boundaries, error: boundaryError } = useBoundaries();
   const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
   const myMap = useMyMap(mine, timeBand);
@@ -88,7 +94,11 @@ export function MapPage() {
       <main className="mx-auto w-full max-w-[1440px] px-5 pt-4 pb-12 sm:px-12">
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           {/* 지도를 카드에 꽉 채우고 조작부는 유리 패널로 위에 띄움 (피그마 "지도 카드 · D2") */}
-          <section className="relative h-[560px] min-w-0 overflow-hidden rounded-[20px] border border-card-line bg-white sm:h-[680px]">
+          {/* 동을 누르면 이 카드 크기에서 지도가 화면 전체로 커지며 동으로 확대됨 (svg-map) */}
+          <section
+            ref={stageRef}
+            className="relative h-[560px] min-w-0 overflow-hidden rounded-[20px] border border-card-line bg-white sm:h-[680px]"
+          >
             <div
               className={`absolute -top-[22px] right-0 -bottom-[48px] left-0 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
             >
@@ -98,11 +108,15 @@ export function MapPage() {
                   dongs={shownDongs}
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}
+                  stageRef={stageRef}
+                  onSelectStart={() => setLeaving(true)}
                   onSelect={(dongCode) =>
                     navigate({
                       to: "/dong/$dongCode",
                       params: { dongCode },
                       search: { timeBand, mode },
+                      // 확대가 끝난 화면과 동 상세가 같은 모습이라 아주 짧게만 겹쳐 바꿈 (미지원·동작 줄이기면 바로 이동)
+                      viewTransition: prepareDongTransition(),
                     })
                   }
                   controlsClassName="right-6 bottom-[72px]"
@@ -121,7 +135,8 @@ export function MapPage() {
               )}
             </div>
 
-            <div className="absolute top-[23px] left-[23px]">
+            {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
+            <div className={`absolute top-[23px] left-[23px] ${leaveFade}`}>
               {/* 공유·내 지도는 옆 토글이 알려 주므로 제목은 같게 */}
               <MapTitlePanel title={`${REGION_NAME}의 ${bandLabel(timeBand)}`}>
                 {mine ? "칠한 동 " : "칠해진 동 "}
@@ -142,12 +157,12 @@ export function MapPage() {
 
             {/* 피그마처럼 카드 정중앙보다 30px 아래 (지도 가운데 근처) */}
             {myMapEmpty && (
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:top-[calc(50%+30px)]">
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:top-[calc(50%+30px)] ${leaveFade}`}>
                 <EmptyMyMapCard />
               </div>
             )}
 
-            <div className="absolute bottom-[27px] left-1/2 w-max -translate-x-1/2">
+            <div className={`absolute bottom-[27px] left-1/2 w-max -translate-x-1/2 ${leaveFade}`}>
               <TimeBandBar season={season} timeBand={timeBand} onChange={changeTimeBand} />
             </div>
           </section>

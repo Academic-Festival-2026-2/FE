@@ -86,3 +86,22 @@ select {
 button {
   cursor: pointer;
 }
+
+/*
+  지도 → 동 상세 전환 (utils/view-transition.ts가 html에 vt-dong을 붙임)
+  - 확대는 지도 화면에서 끝내고(svg-map), 끝난 모습이 동 상세와 같으므로 넘어갈 때는 아주 짧게만 겹침
+  - 0이면 카카오맵 타일이 뜨기 전 빈 화면이 잠깐 보일 수 있어 100ms만 둠
+  - OS "동작 줄이기"가 켜져 있으면 전환 자체를 하지 않음 (JS에서 막음 + 아래 규칙)
+*/
+html.vt-dong::view-transition-old(root),
+html.vt-dong::view-transition-new(root) {
+  animation-duration: 100ms;
+  animation-timing-function: linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

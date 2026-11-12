@@ -10,6 +10,9 @@ export type DongShape = {
   path: string;
   label: [number, number];
   bounds: [number, number, number, number];
+  // 동의 위도·경도 범위(도). 동 상세(카카오맵)에서 동이 그려질 크기를 계산할 때 씀
+  latSpan: number;
+  lngSpan: number;
   area: number;
 };
 
@@ -51,6 +54,9 @@ export function toShapes(boundaries: Boundaries): DongShape[] {
   ];
 
   return boundaries.features.map((feature) => {
+    const lonLats = feature.geometry.coordinates.flat(2);
+    const [dongMinLng, dongMaxLng] = extent(lonLats.map(([lng]) => lng));
+    const [dongMinLat, dongMaxLat] = extent(lonLats.map(([, lat]) => lat));
     const rings = feature.geometry.coordinates.flat().map((ring) => ring.map(project));
     const [minX, maxX] = extent(rings.flat().map(([x]) => x));
     const [minY, maxY] = extent(rings.flat().map(([, y]) => y));
@@ -64,6 +70,8 @@ export function toShapes(boundaries: Boundaries): DongShape[] {
       path,
       label: project(labelPoint(feature)),
       bounds: [minX, minY, maxX, maxY],
+      latSpan: dongMaxLat - dongMinLat,
+      lngSpan: dongMaxLng - dongMinLng,
       area: rings.reduce((sum, ring) => sum + ringArea(ring), 0),
     };
   });
