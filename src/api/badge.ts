@@ -1,6 +1,6 @@
 import { authRequest } from "./client";
 
-// BE BadgeType과 같은 값. 순서는 BE가 내려주는 목록 순서를 따름
+// BE BadgeType과 같은 값. 화면 순서는 constants/badges.ts의 BADGES 선언 순서를 따름
 export type BadgeType =
   | "FIRST_PHOTO"
   | "DONG_FIRST"

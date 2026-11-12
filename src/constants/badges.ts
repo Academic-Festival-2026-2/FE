@@ -9,6 +9,7 @@ type BadgeInfo = {
 };
 
 // BE BadgeService의 조건과 맞춤. 조건을 바꾸면 양쪽을 같이 수정
+// 선언 순서가 화면(업로드 완료·마이페이지)의 배지 순서
 export const BADGES: Record<BadgeType, BadgeInfo> = {
   FIRST_PHOTO: {
     name: "첫 픽셀",
@@ -45,6 +46,13 @@ export const BADGES: Record<BadgeType, BadgeInfo> = {
 // FE가 아는 배지인지 확인. BE에 먼저 추가된 배지나 "constructor" 같은 값은 false
 export function isKnownBadge(type: string): type is BadgeType {
   return Object.hasOwn(BADGES, type);
+}
+
+const BADGE_ORDER = Object.keys(BADGES);
+
+// 배지 목록을 BADGES 선언 순서로 정렬. BE가 보내는 순서가 바뀌어도 두 화면이 같은 순서를 유지
+export function sortByBadgeOrder<T extends { type: BadgeType }>(badges: T[]) {
+  return [...badges].sort((a, b) => BADGE_ORDER.indexOf(a.type) - BADGE_ORDER.indexOf(b.type));
 }
 
 export function badgeEarnedText(type: BadgeType, dongName?: string | null) {

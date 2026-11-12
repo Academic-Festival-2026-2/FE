@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getMyBadges, type MyBadges } from "../../api/badge";
 import { BadgeIcon } from "../../components/badge-icon";
-import { BADGES, badgeEarnedText, isKnownBadge } from "../../constants/badges";
+import { BADGES, badgeEarnedText, isKnownBadge, sortByBadgeOrder } from "../../constants/badges";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { formatDate } from "../../utils/date";
 
@@ -27,8 +27,8 @@ export function BadgeSection() {
     };
   }, [expireSession]);
 
-  // 모르는 배지(BE에 먼저 추가된 경우)는 빼고, 개수도 화면에 보이는 배지로 셈
-  const badges = data?.badges.filter((badge) => isKnownBadge(badge.type)) ?? [];
+  // 모르는 배지(BE에 먼저 추가된 경우)는 빼고, 개수도 화면에 보이는 배지로 셈. 순서는 업로드 완료 화면과 같게
+  const badges = sortByBadgeOrder(data?.badges.filter((badge) => isKnownBadge(badge.type)) ?? []);
   const earnedCount = badges.filter((badge) => badge.earned).length;
 
   return (
