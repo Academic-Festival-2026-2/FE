@@ -51,14 +51,6 @@ function PhotoThumbnail({ photo }: { photo: MyPhotoItem }) {
   );
 }
 
-// 이 사진이 어느 지도에 보이는지 (지도 화면 토글 이름과 같게). 나의 지도에는 항상 보이고,
-// 공유 지도(동 상세 사진 점)는 공개 + AI 검수 통과일 때만 (BE findPhotoPoints 기준)
-// ⚠️ BE는 촬영 정보 자동 확인(exifVerified)·위치도 보지만 목록 응답에 없어서 여기선 빠짐.
-//    업로드 화면에서 직접 입력한 사진은 공개를 막아 두어 대부분 맞음
-function sharedMapVisible(photo: MyPhotoItem) {
-  return photo.isPublic && photo.aiVerdict === "PUBLIC";
-}
-
 // 상세 팝업 사진 크기 한도. 팝업 폭이 사진 폭에 맞게 바뀜 (좌우 여백 px-6 = 48px)
 const DIALOG_PADDING = 48;
 const DIALOG_PHOTO_MAX_WIDTH = 560;
@@ -189,8 +181,9 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
                   ))}
                 </div>
               )}
+              {/* 업로드 때 고른 공개 여부만 표시 (공유 지도 색 반영은 공개 여부와 별개라 여기서 말하지 않음) */}
               <p className="mt-4 inline-block rounded-full bg-brand-soft px-3 py-1 text-xs font-bold text-brand-strong">
-                {sharedMapVisible(photo) ? "공유 지도" : "나의 지도"}
+                {photo.isPublic ? "공개" : "나만 보기"}
               </p>
               <h3 className="mt-7 border-b border-divider pb-3 text-sm font-bold text-ink">촬영 정보</h3>
               <dl className="space-y-4 py-4 text-sm">
