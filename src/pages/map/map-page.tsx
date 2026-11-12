@@ -5,6 +5,7 @@ import { peekReturnFrom, prepareDongTransition } from "../../utils/view-transiti
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
+import { UploadButton } from "../../components/layout/upload-button";
 import { REGION_NAME, bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
 import { LoginPromptDialog } from "./login-prompt-dialog";
@@ -94,12 +95,7 @@ export function MapPage() {
         {loggedIn ? (
           // 사진 올리기는 오른쪽 위 프로필 옆에 둠 (오른쪽 칸의 업로드 카드 대신)
           <div className="flex items-center gap-4">
-            <Link
-              to="/upload"
-              className="flex h-10 items-center rounded-[10px] bg-brand px-4 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
-            >
-              사진 업로드
-            </Link>
+            <UploadButton />
             <ProfileMenu />
           </div>
         ) : (

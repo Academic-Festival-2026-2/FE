@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "../../api/client";
 import { getMyInfo, type MyInfoResponse } from "../../api/user";
 import { AuthHeader } from "../../components/layout/auth-header";
+import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useUserStore } from "../../stores/user-store";
 import { AccountSection } from "./account-section";
@@ -43,7 +44,10 @@ export function MyPage() {
   return (
     // 공통 헤더(별도 이슈)가 생기면 AuthHeader 자리를 AppLayout으로 교체
     <div className="min-h-screen bg-page">
-      <AuthHeader />
+      {/* 프로필 메뉴(닉네임·로그아웃)는 이 화면 본문에 이미 있어서 업로드 버튼만 둠 */}
+      <AuthHeader>
+        <UploadButton />
+      </AuthHeader>
       {/* 본문 폭 1160px(양옆 여백 16px 포함 1192px) */}
       <main className="mx-auto w-full max-w-[1192px] px-4 pt-4 pb-12">
         {/* 업로드 화면 "UPLOAD / 사진 한 장, 픽셀 하나"와 같은 크기·굵기 */}
