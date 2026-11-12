@@ -31,6 +31,12 @@ const FULL_VIEW: View = { x: 0, y: 0, size: VIEW_SIZE };
 // 동을 눌렀을 때 지도가 화면 전체로 커지며 그 동으로 확대되는 시간 (끝나면 바로 동 상세).
 // 동 상세에서 돌아올 때 화면 전체에서 카드로 줄어드는 시간도 같음
 const STAGE_MS = 650;
+// 돌아올 때: 천천히 시작해 천천히 멈춤
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+// 들어갈 때: 위(끝에서 멈춤)와 점점 빨라지기(t²)의 중간. 끝에서 완전히 멈추지 않고 적당한 속도로 동 상세에 이어짐
+// ZOOM_IN_MIX를 0에 가깝게 하면 끝에서 더 멈추고, 1에 가깝게 하면 더 쭉 파고듦
+const ZOOM_IN_MIX = 0.5;
+const easeZoomIn = (t: number) => (1 - ZOOM_IN_MIX) * easeInOut(t) + ZOOM_IN_MIX * t * t;
 // 지도 카드 모서리 (map-page의 rounded-[20px]과 같음)
 const CARD_RADIUS = 20;
 // 동 바깥 덮개 진하기: 마우스를 올렸을 때 / 동 상세와 같은 진하기
@@ -221,7 +227,13 @@ export function SvgMap({
   // 동으로 들어갈 때(카드 → 화면 전체)와 돌아올 때(화면 전체 → 카드) 둘 다 씀.
   // 상자 크기와 viewBox를 같은 프레임에 바꿔야 흔들리지 않으므로 React 상태 대신 DOM에 바로 씀
   // (상태로 바꾸면 viewBox가 한 프레임 늦게 들어가서 상자 크기와 어긋나며 떨림)
-  function runStage(shape: DongShape, from: StageFrame, to: StageFrame, onDone: () => void) {
+  function runStage(
+    shape: DongShape,
+    from: StageFrame,
+    to: StageFrame,
+    onDone: () => void,
+    ease: (t: number) => number = easeInOut,
+  ) {
     const root = rootRef.current;
     const svg = svgRef.current;
     if (!root || !svg) {
@@ -275,8 +287,7 @@ export function SvgMap({
     const step = (now: number) => {
       if (startTime === null) startTime = now;
       const t = Math.min(1, (now - startTime) / STAGE_MS);
-      // 천천히 시작해 천천히 멈춤
-      draw(t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2);
+      draw(ease(t));
       if (t < 1) frameRef.current = requestAnimationFrame(step);
       else onDone();
     };
@@ -360,7 +371,7 @@ export function SvgMap({
     const rootRect = root.getBoundingClientRect();
     const current = viewRef.current;
     const from = cardFrame(shape, rootRect, current, HOVER_DIM);
-    runStage(shape, from, fullscreenFrame(shape), finish);
+    runStage(shape, from, fullscreenFrame(shape), finish, easeZoomIn);
   }
 
   // 동 상세에서 돌아왔으면: 동 상세와 같은 모습(화면 전체)에서 시작해 카드 안 전체 지도로 줄어듦.
