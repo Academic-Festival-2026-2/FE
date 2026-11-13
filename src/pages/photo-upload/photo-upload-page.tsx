@@ -13,6 +13,7 @@ import { useUserStore } from "../../stores/user-store";
 import { useBoundaries } from "../map/map-data";
 import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
+import { UploadPixels } from "./upload-pixels";
 import { UploadConfirmDialog } from "./upload-confirm-dialog";
 import { readPhoto, type PhotoMetadata } from "./photo-metadata";
 import { findDong, parseLocalTime, photoSeasonError, timeBand, validateColors } from "./photo-validation";
@@ -29,7 +30,6 @@ const field = "h-11 w-full rounded-[10px] border border-field-line bg-white px-3
 const badgeNeed = "rounded-md border border-brand bg-white px-2 py-[3px] text-xs font-bold text-brand-strong";
 const primary = "h-12 w-full rounded-xl bg-brand px-5 text-base font-extrabold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-text";
 const bands = [ ["DAWN", "새벽", "05–08"], ["DAY", "낮", "08–16"], ["SUNSET", "노을", "16–19"], ["NIGHT", "밤", "19–05"] ];
-const squares = ["#7F93B5", "#C9CCD3", "#FFA05A", "#2E3A78", "", "#9C8DB8", "#E2C07E", "#5E6A8F", "#7FB1E5"];
 const PREVIEW_MAX_HEIGHT = 560;
 const MIN_BAR_SHARE = 0.04;
 
@@ -244,9 +244,7 @@ export function PhotoUploadPage() {
         <h1 className="mt-3 text-[30px] font-extrabold tracking-[-0.9px]">사진 한 장, 픽셀 하나</h1>
         <p className="mt-2 text-base text-ink-sub">촬영 시각과 위치로 동·시간대를 정하고, 사진의 대표색을 뽑아 지도에 더합니다.</p>
         <div className={`mt-4 flex min-h-[457px] flex-col items-center justify-center gap-6 rounded-[20px] border border-dashed px-5 py-12 text-center transition-colors ${dragging ? "border-brand bg-brand-soft" : "border-[#c5ccda] bg-white"}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); void select(e.dataTransfer.files); }}>
-          <div className="grid grid-cols-3 gap-[5px]" aria-hidden>{squares.map((color, i) => i === 4
-            ? <span key="empty" className="size-8 rounded-[5px] border-2 border-dashed border-brand bg-brand-soft" />
-            : <span key={color} className="size-8 rounded-[5px]" style={{ background: color }} />)}</div>
+          <UploadPixels dragging={dragging} />
           <h2 className="text-2xl font-extrabold tracking-[-0.56px] sm:text-[28px]">사진을 끌어다 놓으면, 픽셀이 됩니다</h2>
           <p className="flex flex-wrap items-center justify-center gap-2 text-base text-ink-sub">여러 장을 한 번에 올려도 한 장씩 확인해요 <span className="text-[#aeb6c4]" aria-hidden>·</span><span className="font-mono text-sm">JPG PNG · 10MB 이하</span></p>
           <button type="button" onClick={() => input.current?.click()} className="h-[52px] rounded-xl bg-brand px-[30px] text-base font-extrabold text-white transition-colors hover:bg-brand-hover">사진 고르기</button>
