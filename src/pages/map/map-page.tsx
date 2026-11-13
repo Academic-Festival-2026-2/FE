@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
 import { peekReturnFrom, prepareDongTransition } from "../../utils/view-transition";
@@ -8,6 +8,7 @@ import { ProfileMenu } from "../../components/layout/profile-menu";
 import { UploadButton } from "../../components/layout/upload-button";
 import { REGION_NAME, bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
+import { bboxOf, fitView } from "./map-geometry.ts";
 import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
   ErrorBanner,
@@ -59,6 +60,8 @@ export function MapPage() {
   // 숨길 때는 바로 숨김(유리 패널의 backdrop-filter가 움직이는 지도 위에서 무거움), 다시 보일 때만 서서히
   const leaveFade = leaving ? "invisible opacity-0" : "opacity-100 transition-opacity duration-300";
   const { boundaries, error: boundaryError } = useBoundaries();
+  const homeView = useMemo(() => (boundaries ? fitView(bboxOf(boundaries)) : null), [boundaries]);
+  const regions = useMemo(() => (boundaries ? [boundaries] : []), [boundaries]);
   const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
   const myMap = useMyMap(mine, timeBand);
   const shownDongs = mine ? myMap.dongs : dongs;
@@ -123,9 +126,10 @@ export function MapPage() {
             <div
               className={`absolute -top-[22px] right-0 -bottom-[48px] left-0 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
             >
-              {boundaries && (
+              {boundaries && homeView && (
                 <SvgMap
-                  boundaries={boundaries}
+                  regions={regions}
+                  homeView={homeView}
                   dongs={shownDongs}
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}

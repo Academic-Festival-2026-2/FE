@@ -6,7 +6,6 @@ import { currentTimeBand } from "../../utils/time-band";
 import {
   getBoundaries,
   getMapDongs,
-  type BoundaryFeature,
   type Boundaries,
   type DongColor,
   type TimeBand,
@@ -229,36 +228,7 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
   return { dongs, filledCount, empty, loading: enabled && cells === null && !error, error };
 }
 
-export function labelPoint(feature: BoundaryFeature): [number, number] {
-  let best = feature.geometry.coordinates[0][0];
-  let bestArea = 0;
-  let bestCx = 0;
-  let bestCy = 0;
 
-  for (const polygon of feature.geometry.coordinates) {
-    const ring = polygon[0];
-    let area = 0;
-    let cx = 0;
-    let cy = 0;
-    for (let i = 0; i < ring.length - 1; i++) {
-      const [x1, y1] = ring[i];
-      const [x2, y2] = ring[i + 1];
-      const cross = x1 * y2 - x2 * y1;
-      area += cross;
-      cx += (x1 + x2) * cross;
-      cy += (y1 + y2) * cross;
-    }
-    if (Math.abs(area) > Math.abs(bestArea)) {
-      best = ring;
-      bestArea = area;
-      bestCx = cx;
-      bestCy = cy;
-    }
-  }
-
-  if (bestArea === 0) return [best[0][0], best[0][1]];
-  return [bestCx / (3 * bestArea), bestCy / (3 * bestArea)];
-}
 
 export const TIME_BANDS: { value: TimeBand; label: string; swatch: string[] }[] = [
   { value: "DAWN", label: "새벽", swatch: ["#8a86c8", "#a9a3d6", "#6f7fbf", "#c3b3dc"] },
