@@ -47,7 +47,7 @@ export function UploadComplete({ photos, boundaries, onAdd }: {
     <div className="flex flex-col gap-4">
       <section className="rounded-[20px] border border-card-line bg-white p-7">
         <p className="font-mono text-[13px] tracking-[1.04px] text-brand-strong">DONE · {photos.length} / {photos.length}</p>
-        <h1 className="my-5 text-[32px] leading-tight font-black tracking-[-0.8px]">부천에 내 픽셀<br />{photos.length}개가 찍혔어요</h1>
+        <h1 className="my-5 text-[32px] leading-tight font-black tracking-[-0.8px]">지도에 내 픽셀<br />{photos.length}개가 찍혔어요</h1>
         <div className="grid grid-cols-2 divide-x divide-line border-t border-line pt-4">
           <p><strong className="block text-2xl font-extrabold">{shared}</strong><span className="text-[13px] text-ink-muted">공유 지도 반영</span></p>
           <p className="pl-4"><strong className="block text-2xl font-extrabold">{photos.length - shared}</strong><span className="text-[13px] text-ink-muted">나의 지도만</span></p>
