@@ -5,7 +5,10 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { cn } from "../../utils/cn";
 import { SectionCard } from "./section-card";
 
-// TODO: 공유 링크로 여는 화면(라우트)은 나의 지도 담당과 주소를 정한 뒤 추가. 지금은 /shared/{shareKey}로 가정
+// 공유 링크 주소는 /shared/{shareKey}로 확정 (PR #87 리뷰, 나의 지도 담당 ani3d)
+// TODO: 공유 화면(라우트)이 생기면 true로 바꿔 링크 복사를 열기. 그 전에는 받은 사람이 404를 봐서 막아 둠
+const SHARE_PAGE_READY = false;
+
 function shareUrl(shareKey: string) {
   return `${window.location.origin}/shared/${shareKey}`;
 }
@@ -66,7 +69,7 @@ export function ShareSection() {
   }
 
   async function handleCopy() {
-    if (!sharing) return;
+    if (!sharing || !SHARE_PAGE_READY) return;
     try {
       await navigator.clipboard.writeText(shareUrl(shareKey));
       setCopied(true);
@@ -115,11 +118,16 @@ export function ShareSection() {
           <button
             type="button"
             onClick={handleCopy}
-            className="h-10 shrink-0 rounded-[10px] border border-card-line bg-white px-4 text-sm font-bold text-ink transition-colors hover:bg-field"
+            disabled={!SHARE_PAGE_READY}
+            title={SHARE_PAGE_READY ? undefined : "공유 화면을 준비 중이에요"}
+            className="h-10 shrink-0 rounded-[10px] border border-card-line bg-white px-4 text-sm font-bold text-ink transition-colors hover:bg-field disabled:cursor-not-allowed disabled:bg-field disabled:text-ink-faint disabled:hover:bg-field"
           >
-            {copied ? "복사했어요" : "링크 복사"}
+            {!SHARE_PAGE_READY ? "준비 중" : copied ? "복사했어요" : "링크 복사"}
           </button>
         </div>
+      )}
+      {sharing && !SHARE_PAGE_READY && (
+        <p className="mt-2 text-xs text-ink-muted">링크로 내 지도를 보는 화면은 준비 중이에요. 곧 링크를 복사할 수 있어요.</p>
       )}
 
       {loadError && <p className="mt-3 text-xs text-danger">공유 설정을 불러오지 못했어요.</p>}
