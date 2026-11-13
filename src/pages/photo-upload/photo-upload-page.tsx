@@ -323,7 +323,7 @@ export function PhotoUploadPage() {
                       onChange={(e) => update(photo.id, { regionCode: e.target.value, dongCode: "", latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}
                       className={`${field} appearance-none border-select-line pr-10 disabled:bg-field disabled:text-ink-faint`}
                     >
-                                            <option value="">{regionList ? "지역을 골라 주세요" : "지역 불러오는 중…"}</option>
+                      <option value="">{regionList ? "지역을 골라 주세요" : "지역 불러오는 중…"}</option>
                       {regionList?.regions.map((r) => <option key={r.regionCode} value={r.regionCode}>{r.name}</option>)}
                     </select>
                     <img src={chevronDown} alt="" width={16} height={16} className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2" />
