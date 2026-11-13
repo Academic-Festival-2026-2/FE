@@ -24,7 +24,9 @@ export function getMyMap(params: { season?: string; regionCode?: string } = {}) 
   const query = new URLSearchParams();
   if (params.season) query.set("season", params.season);
   if (params.regionCode) query.set("regionCode", params.regionCode);
-  const suffix = query.size ? `?${query}` : "";
+  // URLSearchParams.size는 Safari 17부터라 toString()으로 비었는지 확인
+  const qs = query.toString();
+  const suffix = qs ? `?${qs}` : "";
   return authRequest<MyMap>(`/api/users/me/map${suffix}`);
 }
 
