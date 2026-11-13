@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { project, unproject, fitView, regionsInView, WORLD_WIDTH, WORLD_HEIGHT } from '../src/pages/map/map-geometry.ts';
+import { project, unproject, fitView, regionsInView, regionAt, WORLD_WIDTH, WORLD_HEIGHT } from '../src/pages/map/map-geometry.ts';
 
 const close = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} ≠ ${b}`);
 
@@ -39,4 +39,16 @@ test('화면과 겹치는 지역만 고르고, 먼 지역은 뺀다', () => {
   ];
   const view = fitView(regions[0].bbox);
   assert.deepEqual(regionsInView(regions, view), ['3105', '3115']);
+});
+
+test('점이 들어 있는 지역을 찾고, 구멍 안이나 밖이면 null', () => {
+  const square = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
+  const regions = [
+    { regionCode: 'A', features: [{ geometry: { coordinates: [[square(0, 0, 10, 10), square(4, 4, 6, 6)]] } }] },
+    { regionCode: 'B', features: [{ geometry: { coordinates: [[square(10, 0, 20, 10)]] } }] },
+  ];
+  assert.equal(regionAt(regions, [2, 2]), 'A');
+  assert.equal(regionAt(regions, [15, 5]), 'B');
+  assert.equal(regionAt(regions, [5, 5]), null); // A의 구멍
+  assert.equal(regionAt(regions, [30, 30]), null); // 밖
 });

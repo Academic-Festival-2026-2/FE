@@ -6,9 +6,9 @@ import type { DongColor, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { UploadButton } from "../../components/layout/upload-button";
-import { REGION_NAME, bandLabel, seasonOf, useDongColors, useMyMap, useRegionBoundaries, useRegionList } from "./map-data";
+import { bandLabel, seasonOf, useDongColors, useMyMap, useRegionBoundaries, useRegionList } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
-import { fitView, regionsInView, type View } from "./map-geometry";
+import { fitView, regionsInView, regionAt, unproject, type View } from "./map-geometry";
 import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
   ErrorBanner,
@@ -27,7 +27,7 @@ import { SvgMap } from "./svg-map";
 const BAND_ORDER: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
 
 export function MapPage() {
-  const { timeBand, mode } = useSearch({ from: "/map" });
+  const { timeBand, mode, region: regionParam } = useSearch({ from: "/map" });
   const navigate = useNavigate();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
@@ -61,25 +61,44 @@ export function MapPage() {
   // 숨길 때는 바로 숨김(유리 패널의 backdrop-filter가 움직이는 지도 위에서 무거움), 다시 보일 때만 서서히
   const leaveFade = leaving ? "invisible opacity-0" : "opacity-100 transition-opacity duration-300";
   const { regionList, error: regionError } = useRegionList();
-  // 첫 화면: 기본 지역(부천)이 꽉 차게
-  const homeView = useMemo(() => {
-    const home = regionList?.regions.find((r) => r.regionCode === regionList.defaultRegionCode);
-    return home ? fitView(home.bbox) : null;
-  }, [regionList]);
+  // 처음 열 때의 지역: URL ?region= (새로고침·동 상세에서 돌아온 경우), 없거나 모르는 코드면 기본 지역
+  const [startCode] = useState(regionParam === undefined ? undefined : String(regionParam));
+  const startRegion = useMemo(() => {
+    if (!regionList) return null;
+    const find = (code?: string) => regionList.regions.find((r) => r.regionCode === code);
+    return find(startCode) ?? find(regionList.defaultRegionCode) ?? null;
+  }, [regionList, startCode]);
+  // 첫 화면: 처음 지역이 꽉 차게 ("전체" 버튼도 여기로)
+  const homeView = useMemo(() => (startRegion ? fitView(startRegion.bbox) : null), [startRegion]);
   // 지도가 알려 준 지금 화면 (움직이기 전에는 첫 화면)
   const [view, setView] = useState<View | null>(null);
   const shownView = view ?? homeView;
-  // 화면에 보이는 지역 (기본 지역을 맨 앞에: 제목·Top 3는 아직 기본 지역 기준, 5단계에서 가운데 지역으로)
+  // 화면 가운데 지역 (제목·Top 3 기준). 바다·서울처럼 경기도 밖이면 직전 지역을 그대로 둠
+  const [centerCode, setCenterCode] = useState<string | null>(null);
+  const currentCode = centerCode ?? startRegion?.regionCode ?? null;
+  // 화면에 보이는 지역 (가운데 지역을 맨 앞에: 그 지역은 나머지 시간대 색도 미리 받음)
   const visibleCodes = useMemo(() => {
     if (!regionList || !shownView) return [];
     const codes = regionsInView(regionList.regions, shownView);
-    const home = regionList.defaultRegionCode;
-    return codes.includes(home) ? [home, ...codes.filter((c) => c !== home)] : codes;
-  }, [regionList, shownView]);
+    return currentCode && codes.includes(currentCode)
+      ? [currentCode, ...codes.filter((c) => c !== currentCode)]
+      : codes;
+  }, [regionList, shownView, currentCode]);
   const { regions, error: boundaryError } = useRegionBoundaries(visibleCodes);
   const { dongs, colorsOf, season, error: colorError, loading } = useDongColors(timeBand, visibleCodes);
-  const homeColors = regionList ? colorsOf(regionList.defaultRegionCode) : undefined;
-  const topDongs = homeColors?.topDongs ?? [];
+  const currentRegion = regionList?.regions.find((r) => r.regionCode === currentCode);
+  const currentColors = currentCode ? colorsOf(currentCode) : undefined;
+  const topDongs = currentColors?.topDongs ?? [];
+
+  // 화면 이동이 멈추면 가운데 지역을 다시 정하고, 바뀌었으면 URL에도 남김
+  function handleViewChange(next: View) {
+    setView(next);
+    const code = regionAt(regions, unproject([next.x + next.size / 2, next.y + next.size / 2]));
+    if (code && code !== currentCode) {
+      setCenterCode(code);
+      navigate({ to: "/map", search: { timeBand, mode, region: Number(code) }, replace: true });
+    }
+  }
   const myMap = useMyMap(mine, timeBand);
   // 지도에 칠할 색: 공유 지도는 보이는 지역 전부, 나의 지도는 내 칸
   const shownDongs = mine ? myMap.dongs : dongs;
@@ -90,7 +109,7 @@ export function MapPage() {
 
   const seasonInfo = seasonOf(season);
   // 제목의 칸 수·사진 수는 한 지역 기준 (지금은 기본 지역, 5단계에서 화면 가운데 지역으로)
-  const titleDongs = mine ? myMap.dongs : (homeColors?.dongs ?? new Map<string, DongColor>());
+  const titleDongs = mine ? myMap.dongs : (currentColors?.dongs ?? new Map<string, DongColor>());
   const totalPhotos = [...titleDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
   const filledCount = mine
     ? myMap.filledCount
@@ -109,9 +128,11 @@ export function MapPage() {
       setLoginPromptOpen(true);
       return;
     }
-    navigate({ to: "/map", search: { timeBand, mode: nextMine ? "mine" : undefined } });
+    navigate({
+      to: "/map",
+      search: {timeBand, mode: nextMine ? "mine" : undefined, region: currentCode ? Number(currentCode) : undefined },
+    });
   }
-
   return (
     <div className="min-h-screen bg-page">
       <AuthHeader>
@@ -153,7 +174,7 @@ export function MapPage() {
                   dongs={shownDongs}
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}
-                  onViewChange={setView}
+                  onViewChange={handleViewChange}
                   stageRef={stageRef}
                   fillWave={wave.direction}
                   returnFrom={returnFrom}
@@ -192,10 +213,10 @@ export function MapPage() {
             {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
             <div className={`absolute top-[23px] left-[23px] ${leaveFade}`}>
               {/* 공유·나의 지도는 옆 토글이 알려 주므로 제목은 같게 */}
-              <MapTitlePanel title={`${REGION_NAME}의 ${bandLabel(timeBand)}`}>
+              <MapTitlePanel title={`${currentRegion?.name ?? ""}의 ${bandLabel(timeBand)}`}>
                 {mine ? "칠한 동 " : "칠해진 동 "}
                 <b className="text-ink">
-                  {filledCount}/{shownDongs.size}
+                  {filledCount}/{currentRegion?.dongCount ?? titleDongs.size}
                 </b>
                 {mine ? " · 내 사진 " : " · 사진 "}
                 <b className="text-ink">{totalPhotos.toLocaleString()}</b>장
@@ -225,7 +246,7 @@ export function MapPage() {
             className={`flex flex-col gap-4 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
           >
             {myMapEmpty ? (
-              <MyMapGuidePanel regionName={REGION_NAME} dongCount={homeColors?.dongs.size ?? shownDongs.size} />
+              <MyMapGuidePanel regionName={currentRegion?.name ?? ""} dongCount={currentRegion?.dongCount ?? shownDongs.size} />
             ) : mine ? (
               <MyMapPanel
                 timeBand={timeBand}

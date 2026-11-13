@@ -12,7 +12,7 @@ import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
 import {
-  WORLD_HEIGHT, WORLD_WIDTH, toShapes,
+  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel,
   type DongShape, type View, MAX_VIEW_SCALE
 } from "./map-geometry";
 
@@ -136,7 +136,11 @@ export function SvgMap({
 }: Props) {
   const maxSize = homeView.size * MAX_VIEW_SCALE;
   const shapes = useMemo(() => regions.flatMap(shapesOf), [regions]);
-
+  // 지역 이름과 띄울 자리
+  const regionLabels = useMemo(
+    () => regions.map((b) => ({ code: b.regionCode, name: b.regionName, at: regionLabel(shapesOf(b)) })),
+    [regions],
+  );
   // 동마다 색 전환 시작을 늦추는 시간 (동 가운데의 가로 위치 기준)
   // ltr: 왼쪽 동 0ms → 오른쪽 동 FILL_WAVE_MS / rtl: 반대
   const fillDelays = useMemo(() => {
@@ -586,6 +590,29 @@ export function SvgMap({
               strokeWidth={0.8}
               vectorEffect="non-scaling-stroke"
             />
+          ))}
+        </g>
+
+        {/* 지역 이름. 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로 보이게 */}
+        <g pointerEvents="none" aria-hidden="true">
+          {regionLabels.map(({ code, name, at: [x, y] }) => (
+            <text
+              key={code}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={view.size * 0.04}
+              fontWeight={800}
+              fill="#2b3245"
+              fillOpacity={0.6}
+              stroke="#ffffff"
+              strokeOpacity={0.8}
+              strokeWidth={view.size * 0.008}
+              paintOrder="stroke"
+            >
+              {name}
+            </text>
           ))}
         </g>
 

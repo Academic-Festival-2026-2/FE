@@ -50,7 +50,7 @@ export function fitView([minLng, minLat, maxLng, maxLat]: number[], padding = 0.
 
 // 화면(view)과 겹치는 지역 코드. 지도 카드는 가로가 더 넓어서 정사각형 view 바깥도 보이고,
 // 드래그하면 바로 보이도록 view 한 변의 margin배만큼 바깥까지 미리 고른다
-export function regionsInView(regions: Region[], view: View, margin = 0.5): string[] {
+export function regionsInView(regions: Region[], view: View, margin = 0.25): string[] {
   const pad = view.size * margin;
   const left = view.x - pad;
   const top = view.y - pad;
@@ -147,4 +147,41 @@ export function bboxOf(boundaries: Boundaries): [number, number, number, number]
   const [minLng, maxLng] = extent(points.map(([lng]) => lng));
   const [minLat, maxLat] = extent(points.map(([, lat]) => lat));
   return [minLng, minLat, maxLng, maxLat];
+}
+
+function inRing(ring: number[][], x: number, y: number) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+// 점([경도, 위도])이 들어 있는 지역 코드. 받아 둔 경계에서만 찾고, 없으면 null (바다·서울 등 경기도 밖)
+export function regionAt(regions: Boundaries[], [lng, lat]: number[]): string | null {
+  for (const region of regions) {
+    for (const feature of region.features) {
+      for (const [outer, ...holes] of feature.geometry.coordinates) {
+        if (inRing(outer, lng, lat) && !holes.some((hole) => inRing(hole, lng, lat))) {
+          return region.regionCode;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// 지역 이름을 띄울 자리 (화면 좌표): 동 이름 자리들을 동 넓이로 가중 평균
+export function regionLabel(shapes: DongShape[]): [number, number] {
+  let area = 0;
+  let x = 0;
+  let y = 0;
+  for (const shape of shapes) {
+    area += shape.area;
+    x += shape.label[0] * shape.area;
+    y += shape.label[1] * shape.area;
+  }
+  return area ? [x / area, y / area] : [0, 0];
 }
