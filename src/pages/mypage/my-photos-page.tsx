@@ -332,7 +332,7 @@ export function MyPhotosPage() {
           <div className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center">
             <p className="font-bold text-ink">아직 업로드한 사진이 없어요.</p>
             <p className="mt-2 text-sm text-ink-muted">사진을 업로드하고 동네의 색을 기록해 보세요.</p>
-            <Link to="/upload" className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">첫 사진 올리기</Link>
+            <Link to="/upload" className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">첫 사진 업로드</Link>
           </div>
         ) : (
           <>

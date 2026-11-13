@@ -13,7 +13,8 @@ type BadgeInfo = {
 export const BADGES: Record<BadgeType, BadgeInfo> = {
   FIRST_PHOTO: {
     name: "첫 픽셀",
-    earnedText: "동네에 첫 픽셀을 찍었어요",
+    // 지역 이름은 넣지 않음 (경기도로 넓히면 부천만이 아님)
+    earnedText: "지도에 첫 픽셀을 찍었어요",
     condition: "사진 1장 올리기",
   },
   DONG_FIRST: {

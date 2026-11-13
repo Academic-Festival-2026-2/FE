@@ -248,7 +248,7 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
       const k = `${accessToken}:${code}`;
       if (requestedRef.current.has(k)) continue;
       requestedRef.current.add(k);
-      getMyMap(code)
+      getMyMap({ regionCode: code })
         .then((data) => {
           if (!aliveRef.current) return;
           setLoaded((prev) => {

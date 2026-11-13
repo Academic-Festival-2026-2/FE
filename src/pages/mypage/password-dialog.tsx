@@ -6,12 +6,14 @@ import { TextField } from "../../components/form/text-field";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from "../../utils/validation";
+import { DialogActions, DialogShell } from "./dialog-shell";
 
 const FIELDS = ["currentPassword", "newPassword", "newPasswordConfirm"] as const;
 type Field = (typeof FIELDS)[number];
 type Errors = Partial<Record<Field, string>>;
 
-export function PasswordForm() {
+// 비밀번호 변경 팝업 (설정의 "비밀번호 변경" 줄). 바꾸면 이 기기도 로그아웃 → 로그인 화면
+export function PasswordDialog({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const clearTokens = useAuthStore((state) => state.clearTokens);
   const expireSession = useExpireSession();
@@ -70,12 +72,9 @@ export function PasswordForm() {
   const errorOf = (field: Field) => serverErrors[field] ?? clientErrors[field];
 
   return (
-    <section className="flex flex-col rounded-2xl border border-card-line bg-white px-6 py-5">
-      <h2 className="flex items-baseline gap-2.5 text-[17px] leading-[25px] font-bold text-ink">
-        <span className="font-mono text-xs font-normal text-brand-strong">02</span>비밀번호 변경
-      </h2>
-
-      <form className="mt-3.5 flex flex-1 flex-col gap-2.5" onSubmit={handleSubmit} noValidate>
+    <DialogShell eyebrow="PASSWORD" title="비밀번호 변경" titleId="password-dialog-title" busy={isSubmitting} onClose={onClose}>
+      <p className="mt-1 text-xs leading-[18px] text-ink-muted">변경하면 다시 로그인해야 해요.</p>
+      <form className="mt-4 flex flex-col gap-2.5" onSubmit={handleSubmit} noValidate>
         <TextField
           id="currentPassword"
           size="sm"
@@ -114,17 +113,14 @@ export function PasswordForm() {
           </p>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-4 pt-4">
-          <p className="text-xs leading-[18px] text-ink-muted">변경하면 다시 로그인해야 해요.</p>
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="h-10 shrink-0 rounded-[10px] bg-brand px-4 text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {isSubmitting ? "변경 중..." : "비밀번호 변경"}
-          </button>
-        </div>
+        <DialogActions
+          busy={isSubmitting}
+          canSubmit={canSubmit}
+          submitLabel="비밀번호 변경"
+          busyLabel="변경 중..."
+          onCancel={onClose}
+        />
       </form>
-    </section>
+    </DialogShell>
   );
 }

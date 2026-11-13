@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import type { ColorRatio, DongColor, TimeBand, TopDong } from "../../api/map";
+import type { ColorRatio, TimeBand } from "../../api/map";
 import chevronDown from "../../assets/icons/chevron-down-navy.svg";
 import { cn } from "../../utils/cn";
-import { BAND_PIXEL, SEASON_OPTIONS, TIME_BANDS, bandLabel } from "./map-data";
+import { BAND_PIXEL, SEASON_OPTIONS, TIME_BANDS } from "./map-data";
 
 // 지도 위에 띄우는 유리 패널 (리퀴드 글라스 느낌). 값은 index.css의 liquid-glass에서 조정
 export const GLASS = "liquid-glass";
@@ -273,31 +273,44 @@ export function ColorBar({ colors }: { colors: ColorRatio[] }) {
 
 const PANEL = "rounded-[18px] border border-card-line bg-white p-6";
 
-export function RankPanel({
-  timeBand,
+// 오른쪽 패널에 보여 줄 동 (공유 지도는 BE topDongs, 나의 지도는 내 칸에서 고름)
+export type TopDongItem = {
+  dongCode: string;
+  name: string;
+  // 구가 없는 시·군은 비어 있음
+  guName?: string | null;
+  photoCount: number;
+  colorRatio: ColorRatio[];
+};
+
+// 공유 지도·나의 지도 오른쪽 패널: "{제목}" + 사진 많은 순 상위 동 (최대 3개)
+export function TopDongsPanel({
+  title,
   season,
-  topDongs,
+  dongs,
+  emptyText,
   onHover,
 }: {
-  timeBand: TimeBand;
+  title: string;
   season: { name: string; months: string } | undefined;
-  topDongs: TopDong[];
+  dongs: TopDongItem[];
+  emptyText: string;
   onHover: (dongCode: string | null) => void;
 }) {
   return (
     <section className={PANEL}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-extrabold text-ink">{bandLabel(timeBand)}이 예쁜 동</h2>
+        <h2 className="text-lg font-extrabold text-ink">{title}</h2>
         <span className="text-xs text-ink-muted">
           {season ? `${season.name} · ` : ""}사진 많은 순
         </span>
       </div>
 
-      {topDongs.length === 0 ? (
-        <p className="mt-6 text-sm text-ink-muted">아직 이 시간대 사진이 없어요.</p>
+      {dongs.length === 0 ? (
+        <p className="mt-6 text-sm text-ink-muted">{emptyText}</p>
       ) : (
         <ol className="mt-3">
-          {topDongs.map((dong, index) => (
+          {dongs.map((dong, index) => (
             <li
               key={dong.dongCode}
               onMouseEnter={() => onHover(dong.dongCode)}
@@ -310,71 +323,14 @@ export function RankPanel({
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-base font-extrabold text-ink">{dong.name}</span>
                 <span className="text-xs text-ink-muted">
-                  {dong.guName && `${dong.guName} · `}{dong.photoCount}장
+                  {dong.guName ? `${dong.guName} · ` : ""}
+                  {dong.photoCount}장
                 </span>
               </div>
               <ColorBar colors={dong.colorRatio} />
             </li>
           ))}
         </ol>
-      )}
-    </section>
-  );
-}
-
-export function MyMapPanel({
-  timeBand,
-  dongs,
-  onHover,
-}: {
-  timeBand: TimeBand;
-  dongs: DongColor[];
-  onHover: (dongCode: string | null) => void;
-}) {
-  const filled = dongs
-    .filter((dong) => dong.dominantColor)
-    .sort((a, b) => b.photoCount - a.photoCount);
-  const empty = dongs.length - filled.length;
-  const percent = dongs.length ? (filled.length / dongs.length) * 100 : 0;
-
-  return (
-    <section className={PANEL}>
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-extrabold text-ink">내가 칠한 동</h2>
-        <span className="text-xs text-ink-muted">
-          {filled.length} / {dongs.length}곳
-        </span>
-      </div>
-
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-field">
-        <div className="h-full rounded-full bg-brand" style={{ width: `${percent}%` }} />
-      </div>
-
-      {filled.length === 0 ? (
-        <p className="mt-6 text-sm text-ink-muted">
-          아직 {bandLabel(timeBand)} 사진으로 칠한 동이 없어요.
-        </p>
-      ) : (
-        <ol className="mt-3">
-          {filled.map((dong, index) => (
-            <li
-              key={dong.dongCode}
-              onMouseEnter={() => onHover(dong.dongCode)}
-              onMouseLeave={() => onHover(null)}
-              className="flex h-[45px] items-center gap-4 border-t border-divider"
-            >
-              <span className="w-3 font-mono text-[13px] text-brand-strong">{index + 1}</span>
-              <span className="flex-1 text-[15px] font-bold text-ink">{dong.name}</span>
-              <span className="text-xs text-ink-muted">{dong.photoCount}장</span>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      {empty > 0 && (
-        <p className="mt-4 border-t border-divider pt-4 text-[15px] font-bold text-brand-strong">
-          {empty}개 동이 아직 비어 있어요
-        </p>
       )}
     </section>
   );
@@ -399,7 +355,7 @@ export function EmptyMyMapCard() {
         to="/upload"
         className="mt-4 flex h-12 items-center rounded-xl bg-brand px-[22px] text-[15px] font-extrabold text-white transition-colors hover:bg-brand-hover"
       >
-        첫 사진 올리기
+        첫 사진 업로드
       </Link>
     </div>
   );
