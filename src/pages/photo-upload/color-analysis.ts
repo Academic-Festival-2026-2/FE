@@ -1,7 +1,9 @@
-// MVP 임시 알고리즘입니다. 팀 최종 합의 후 이 모듈에서 교체합니다.
 // 순서는 BE ColorBins.HEX와 동일하며 API 저장 인덱스이므로 변경하면 안 됩니다.
-export const COLOR_HEX = ["#861318", "#E31C24", "#F17E83", "#863213", "#E3511C", "#F19D7E", "#864A13", "#E37B1C", "#F1B57E", "#866413", "#E3A91C", "#F1CF7E", "#868113", "#E3DB1C", "#F1EC7E", "#608613", "#A1E31C", "#CBF17E", "#13861D", "#1CE32D", "#7EF188", "#13867C", "#1CE3D2", "#7EF1E7", "#135186", "#1C88E3", "#7EBCF1", "#131886", "#1C24E3", "#7E83F1", "#561386", "#901CE3", "#C17EF1", "#861360", "#E31CA1", "#F17ECB", "#1C1C1C", "#555555", "#9E9E9E", "#E6E6E6"] as const;
-export const ACHROMATIC_SATURATION = 0.15;
+export const COLOR_HEX = ["#D4E6F5", "#9CC8EC", "#5A8FD0", "#A9B6CC", "#B2A6D6", "#F2AEB8",
+  "#F39A52", "#F7BD6E", "#5B5592", "#1E2850", "#3C8FB5", "#4FA7A3", "#2A5E78", "#5C9A55", "#36603D",
+  "#A9CF72", "#C2AE72", "#EDD23A", "#E2783A", "#C9432F", "#F6C6D3", "#E27BA6", "#9B7BC8", "#EAE2D2",
+  "#D9C7A6", "#A9573F", "#8A6245", "#A8DCCF", "#F8DD98", "#DA5A95", "#4F63D6", "#43BFC4", "#E8384F",
+  "#7A3FA0", "#23262D", "#3E434E", "#6C7078", "#A2A5AA", "#C9CDD3", "#F0F2F4"] as const;
 export const SAMPLE_MAX_SIZE = 256;
 export type ColorAnalysis = { palette: string[]; bins: number[]; ratios: number[] };
 
@@ -23,14 +25,11 @@ export function analyzePixels(pixels: Uint8ClampedArray): ColorAnalysis {
   for (let i = 0; i < pixels.length; i += 4) {
     const alpha = pixels[i + 3] / 255;
     if (!alpha) continue;
-    const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
-    const max = Math.max(r, g, b);
-    const gray = max === 0 || (max - Math.min(r, g, b)) / max < ACHROMATIC_SATURATION;
-    const value = lab(r, g, b);
-    let best = gray ? 36 : 0, distance = Infinity;
-    for (let j = gray ? 36 : 0; j < (gray ? 40 : 36); j++) {
-      // 무채색은 밝기, 유채색은 Lab 유클리드 거리로 분류합니다. 동점은 작은 인덱스입니다.
-      const d = value.reduce((sum, v, k) => sum + (gray && k > 0 ? 0 : (v - references[j][k]) ** 2), 0);
+    const value = lab(pixels[i], pixels[i + 1], pixels[i + 2]);
+    let best = 0, distance = Infinity;
+    for (let j = 0; j < COLOR_HEX.length; j++) {
+      // 40색 중 Lab 거리로 가장 가까운 색을 고릅니다. 동점은 작은 인덱스입니다.
+      const d = value.reduce((sum, v, k) => sum + (v - references[j][k]) ** 2, 0);
       if (d < distance) { best = j; distance = d; }
     }
     counts[best] += alpha;

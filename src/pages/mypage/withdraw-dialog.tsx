@@ -69,19 +69,19 @@ export function WithdrawDialog({ open, onClose }: WithdrawDialogProps) {
         if (!isSubmitting) handleClose();
       }}
       // Tailwind 기본 스타일이 margin을 0으로 만들어서 m-auto로 가운데 정렬
-      className="m-auto w-[min(420px,calc(100%-32px))] rounded-3xl bg-white p-6 backdrop:bg-black/40"
+      className="m-auto w-[min(420px,calc(100%-32px))] rounded-[18px] bg-white p-6 shadow-[0_12px_32px_rgba(0,0,0,0.1)] backdrop:bg-black/40"
     >
-      <p className="font-mono text-xs tracking-[0.15em] text-[#c4581a]">WITHDRAW</p>
-      <h2 id="withdraw-title" className="mt-1 text-xl font-extrabold text-gray-900">
+      <p className="font-mono text-[11px] tracking-[1.2px] text-brand-strong">WITHDRAW</p>
+      <h2 id="withdraw-title" className="mt-1 text-xl leading-7 font-bold text-ink">
         정말 탈퇴할까요?
       </h2>
-      <ul className="mt-4 list-disc rounded-xl bg-[#f2f0eb] py-3 pr-4 pl-8 text-[13px] leading-relaxed text-gray-700">
+      <ul className="mt-3.5 flex list-disc flex-col gap-1 rounded-[10px] bg-field py-3 pr-3.5 pl-7 text-xs leading-[1.6] text-[#3a3f4b] marker:text-ink-muted">
         <li>이메일과 닉네임은 바로 지워져요. 같은 이메일로 다시 가입할 수 있어요.</li>
         <li>올린 사진과 지도에 칠한 색은 남아요.</li>
         <li>탈퇴하면 되돌릴 수 없어요.</li>
       </ul>
 
-      <form className="mt-5 flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+      <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
         <TextField
           id="withdrawPassword"
           size="sm"
@@ -101,7 +101,7 @@ export function WithdrawDialog({ open, onClose }: WithdrawDialogProps) {
             type="button"
             disabled={isSubmitting}
             onClick={handleClose}
-            className="h-11 rounded-[10px] border border-[#ddd8ce] bg-white text-sm text-gray-900 transition-colors hover:bg-[#f7f5f0] disabled:opacity-50"
+            className="h-11 rounded-[10px] border border-card-line bg-white text-sm text-ink transition-colors hover:bg-field disabled:opacity-50"
           >
             취소
           </button>

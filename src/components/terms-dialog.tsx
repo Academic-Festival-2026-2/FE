@@ -38,25 +38,25 @@ export function TermsDialog({ term, onClose }: TermsDialogProps) {
       onClick={(event) => {
         if (event.target === event.currentTarget) close();
       }}
-      className="m-auto w-[min(560px,calc(100%-32px))] rounded-3xl bg-white p-0 backdrop:bg-black/40"
+      className="m-auto w-[min(560px,calc(100%-32px))] rounded-[20px] bg-white p-0 text-ink shadow-[0_12px_32px_rgba(0,0,0,0.1)] backdrop:bg-black/40"
     >
       <div className="flex max-h-[calc(100dvh-64px)] flex-col p-6">
-        <h2 id="terms-dialog-title" className="text-xl font-extrabold text-gray-900">
+        <h2 id="terms-dialog-title" className="text-xl font-extrabold text-ink">
           {term.title}
         </h2>
 
         {/* 본문만 스크롤 */}
-        <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1 text-sm leading-relaxed text-gray-700">
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1 text-sm leading-relaxed text-ink-sub">
           {term.sections.map((section, index) => (
             <section key={index} className="mt-5 first:mt-0">
-              {section.heading && <h3 className="font-bold text-gray-900">{section.heading}</h3>}
+              {section.heading && <h3 className="font-bold text-ink">{section.heading}</h3>}
               {section.body.map((line, lineIndex) => (
                 <p
                   key={lineIndex}
                   className={cn(
                     "mt-1",
                     line.startsWith("- ") && "pl-3",
-                    line.startsWith("※") && "text-gray-500",
+                    line.startsWith("※") && "text-ink-muted",
                   )}
                 >
                   {line}
@@ -69,7 +69,7 @@ export function TermsDialog({ term, onClose }: TermsDialogProps) {
         <button
           type="button"
           onClick={close}
-          className="mt-5 h-11 w-full shrink-0 rounded-[10px] bg-[#ff8a3d] text-sm font-bold text-gray-900 transition-colors hover:bg-[#f57a2a]"
+          className="mt-5 h-12 w-full shrink-0 rounded-xl bg-brand text-[15px] font-extrabold text-white transition-colors hover:bg-brand-hover"
         >
           확인
         </button>

@@ -1,46 +1,147 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
-import type { TimeBand } from "../../api/map";
+import { peekReturnFrom, prepareDongTransition } from "../../utils/view-transition";
+import type { DongColor, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
-import { bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
+import { UploadButton } from "../../components/layout/upload-button";
+import { bandLabel, seasonOf, useDongColors, useMyMap, useRegionBoundaries, useRegionList } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
+import { fitView, regionsInView, regionAt, unproject, type View } from "./map-geometry";
 import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
   ErrorBanner,
   MapModeToggle,
-  RankPanel,
-  SeasonChip,
-  TimeBandTabs,
-  UploadCta,
-  MyMapPanel,
+  EmptyMyMapCard,
+  MapTitlePanel,
+  MyMapGuidePanel,
+  TimeBandBar,
+  TopDongsPanel,
+  type TopDongItem,
 } from "./map-ui";
+import { MapLoading } from "./map-loading";
 import { SvgMap } from "./svg-map";
+import { useUserStore } from "../../stores/user-store";
+
+// 시간대 탭 순서 (지도 아래 바 왼쪽부터)
+const BAND_ORDER: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
 
 export function MapPage() {
-  const { timeBand, mode } = useSearch({ from: "/map" });
+  const { timeBand, mode, region: regionParam } = useSearch({ from: "/map" });
   const navigate = useNavigate();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
+  // 지도 색이 번져 나가는 방향: 시간대 탭이나 지도 종류 토글이 오른쪽으로 가면 왼쪽 → 오른쪽, 왼쪽으로 가면 반대
+  // (직전 값과 비교해 바뀌는 순간 방향을 정함. 렌더 중 이전 값 비교는 React 권장 방식)
+  const [wave, setWave] = useState<{ timeBand: TimeBand; mine: boolean; direction: "ltr" | "rtl" }>(
+    { timeBand, mine, direction: "ltr" },
+  );
+  if (wave.timeBand !== timeBand || wave.mine !== mine) {
+    const forward =
+      wave.timeBand !== timeBand
+        ? BAND_ORDER.indexOf(timeBand) > BAND_ORDER.indexOf(wave.timeBand)
+        : mine;
+    setWave({ timeBand, mine, direction: forward ? "ltr" : "rtl" });
+  }
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
-  const { boundaries, error: boundaryError } = useBoundaries();
-  const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
-  const myMap = useMyMap(mine, timeBand);
+  // 동을 눌러 그 동으로 확대하는 중 (지도 위 패널을 숨기고 동 상세로 넘어갈 준비)
+  // 동 상세에서 돌아왔으면 그 동 (지도가 그 동에서 줄어들며 시작)
+  const [returnFrom] = useState(peekReturnFrom);
+  const [leaving, setLeaving] = useState(returnFrom !== null);
+
+  // 지도를 못 그리는 경우(경계 불러오기 실패 등)에도 패널이 숨겨진 채 남지 않게
+  useEffect(() => {
+    if (!returnFrom) return;
+    const timer = window.setTimeout(() => setLeaving(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, [returnFrom]);
+  // 지도 카드 (동을 누르면 svg-map이 이 크기에서 화면 전체로 커지며 확대)
+  const stageRef = useRef<HTMLElement>(null);
+  // 숨길 때는 바로 숨김(유리 패널의 backdrop-filter가 움직이는 지도 위에서 무거움), 다시 보일 때만 서서히
+  const leaveFade = leaving ? "invisible opacity-0" : "opacity-100 transition-opacity duration-300";
+  const { regionList, error: regionError } = useRegionList();
+  // 처음 열 때의 지역: URL ?region= (새로고침·동 상세에서 돌아온 경우), 없거나 모르는 코드면 기본 지역
+  const [startCode] = useState(regionParam === undefined ? undefined : String(regionParam));
+  const startRegion = useMemo(() => {
+    if (!regionList) return null;
+    const find = (code?: string) => regionList.regions.find((r) => r.regionCode === code);
+    return find(startCode) ?? find(regionList.defaultRegionCode) ?? null;
+  }, [regionList, startCode]);
+  // 첫 화면: 처음 지역이 꽉 차게 ("전체" 버튼도 여기로)
+  const homeView = useMemo(() => (startRegion ? fitView(startRegion.bbox) : null), [startRegion]);
+  // 지도가 알려 준 지금 화면 (움직이기 전에는 첫 화면)
+  const [view, setView] = useState<View | null>(null);
+  const shownView = view ?? homeView;
+  // 화면 가운데 지역 (제목·Top 3 기준). 바다·서울처럼 경기도 밖이면 직전 지역을 그대로 둠
+  const [centerCode, setCenterCode] = useState<string | null>(null);
+  const currentCode = centerCode ?? startRegion?.regionCode ?? null;
+  // 화면에 보이는 지역 (가운데 지역을 맨 앞에: 그 지역은 나머지 시간대 색도 미리 받음)
+  const visibleCodes = useMemo(() => {
+    if (!regionList || !shownView) return [];
+    const codes = regionsInView(regionList.regions, shownView);
+    return currentCode && codes.includes(currentCode)
+      ? [currentCode, ...codes.filter((c) => c !== currentCode)]
+      : codes;
+  }, [regionList, shownView, currentCode]);
+  const { regions, error: boundaryError } = useRegionBoundaries(visibleCodes);
+  const { dongs, colorsOf, season, error: colorError, loading } = useDongColors(timeBand, visibleCodes);
+  const currentRegion = regionList?.regions.find((r) => r.regionCode === currentCode);
+  const currentColors = currentCode ? colorsOf(currentCode) : undefined;
+  const topDongs = currentColors?.topDongs ?? [];
+
+  // 화면 이동이 멈추면 가운데 지역을 다시 정하고, 바뀌었으면 URL에도 남김.
+  // useCallback으로 고정: 렌더마다 새 함수면 지도가 0.2초 타이머를 다시 걸어 마우스만 올려도 다시 불림.
+  // 새 지역 경계(regions)가 오면 함수가 바뀌어 한 번 더 불리므로, 늦게 온 가운데 지역도 반영된다
+  const handleViewChange = useCallback(
+    (next: View) => {
+      setView(next);
+      const code = regionAt(regions, unproject([next.x + next.size / 2, next.y + next.size / 2]));
+      if (code && code !== currentCode) {
+        setCenterCode(code);
+        navigate({ to: "/map", search: { timeBand, mode, region: Number(code) }, replace: true });
+      }
+    },
+    [regions, currentCode, timeBand, mode, navigate],
+  );
+  const myMap = useMyMap(mine, timeBand, visibleCodes);
+  // 지도에 칠할 색: 공유 지도는 보이는 지역 전부, 나의 지도는 내 칸
   const shownDongs = mine ? myMap.dongs : dongs;
   const shownLoading = mine ? myMap.loading : loading;
   const shownError = mine ? myMap.error : colorError;
+  // 어느 지역에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음. 내 정보(헤더가 불러옴)의 칸 수는 전체 지역 합계
+  const filledTotal = useUserStore((state) => state.me?.filledCellCount);
+  const myMapEmpty = mine && filledTotal === 0;
 
   const seasonInfo = seasonOf(season);
-  const totalPhotos = [...shownDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
-  const title = [seasonInfo?.name, `${bandLabel(timeBand)}의 ${mine ? "내 " : ""}부천`]
-    .filter(Boolean)
-    .join(" ");
+  // 제목의 칸 수·사진 수는 한 지역 기준 (화면 가운데 지역)
+  const titleDongs = mine
+    ? myMap.dongsOf(currentCode)
+    : (currentColors?.dongs ?? new Map<string, DongColor>());
+  const totalPhotos = [...titleDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
+  const filledCount = [...titleDongs.values()].filter((dong) => dong.dominantColor).length;
   const hoveredDong = hoveredCode ? shownDongs.get(hoveredCode) : undefined;
-  const hoveredGu = boundaries?.features.find(
-    (feature) => feature.properties.dongCode === hoveredCode,
-  )?.properties.guName;
+  const hoveredGu = regions
+    .flatMap((b) => b.features)
+    .find((feature) => feature.properties.dongCode === hoveredCode)?.properties.guName;
+
+  // 왼쪽 위 제목과 오른쪽 패널이 같이 쓰는 지역 이름 (화면 가운데 지역). 지역 목록을 받기 전에는 빈 값
+  const regionName = currentRegion?.name ?? "";
+
+  // 나의 지도 오른쪽 패널: 이 시간대에 칠한 동 중 내 사진이 많은 순 상위 3개 (같으면 동 코드 순)
+  const myTopDongs: TopDongItem[] = mine
+    ? [...titleDongs.values()]
+        .filter((dong) => dong.dominantColor && dong.photoCount > 0)
+        .sort((a, b) => b.photoCount - a.photoCount || a.dongCode.localeCompare(b.dongCode))
+        .slice(0, 3)
+        .map((dong) => ({
+          ...dong,
+          guName: regions
+            .flatMap((b) => b.features)
+            .find((feature) => feature.properties.dongCode === dong.dongCode)?.properties.guName,
+        }))
+    : [];
 
   function changeTimeBand(value: TimeBand) {
     navigate({ to: "/map", search: (prev) => ({ ...prev, timeBand: value }), replace: true });
@@ -51,72 +152,74 @@ export function MapPage() {
       setLoginPromptOpen(true);
       return;
     }
-    navigate({ to: "/map", search: { timeBand, mode: nextMine ? "mine" : undefined } });
+    navigate({
+      to: "/map",
+      search: {timeBand, mode: nextMine ? "mine" : undefined, region: currentCode ? Number(currentCode) : undefined },
+    });
   }
-
   return (
-    <div className="min-h-screen bg-[#f7f5f0]">
+    <div className="min-h-screen bg-page">
       <AuthHeader>
         {loggedIn ? (
-          <ProfileMenu />
+          // 사진 업로드는 오른쪽 위 프로필 옆에 둠 (오른쪽 칸의 업로드 카드 대신)
+          <div className="flex items-center gap-4">
+            <UploadButton />
+            <ProfileMenu />
+          </div>
         ) : (
-          <div className="flex items-center gap-3 text-sm">
-            <Link to="/login" className="text-[#55524c] hover:text-gray-900">
+          <div className="flex items-center gap-4 text-sm">
+            <Link to="/login" className="text-ink-sub underline underline-offset-4 hover:text-ink">
               로그인
             </Link>
             <Link
               to="/signup"
-              className="rounded-lg bg-[#ff8a3d] px-3 py-1.5 font-bold text-gray-900 hover:bg-[#f57a2a]"
+              className="flex h-10 items-center rounded-[10px] bg-brand px-4 font-bold text-white transition-colors hover:bg-brand-hover"
             >
               회원가입
             </Link>
           </div>
         )}
       </AuthHeader>
-      <main className="mx-auto w-full max-w-[1192px] px-4 pt-7 pb-12">
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="flex min-w-0 flex-col rounded-3xl border border-[#e8e4dc] bg-white p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h1 className="text-[26px] font-extrabold text-gray-900">{title}</h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  {mine
-                    ? `내 사진 ${totalPhotos.toLocaleString()}장 · 칠한 동 ${myMap.filledCount}/${shownDongs.size}곳`
-                    : `사진 ${totalPhotos.toLocaleString()}장 · 동 ${shownDongs.size}곳`}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <TimeBandTabs value={timeBand} onChange={changeTimeBand} />
-                {seasonInfo && <SeasonChip season={seasonInfo} />}
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <MapModeToggle mine={mine} onChange={changeMode} />
-            </div>
-
+      <main className="mx-auto w-full max-w-[1440px] px-5 pt-4 pb-12 sm:px-12">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          {/* 지도를 카드에 꽉 채우고 조작부는 유리 패널로 위에 띄움 (피그마 "지도 카드 · D2") */}
+          {/* 동을 누르면 이 카드 크기에서 지도가 화면 전체로 커지며 동으로 확대됨 (svg-map) */}
+          <section
+            ref={stageRef}
+            className="relative h-[560px] min-w-0 overflow-hidden rounded-[20px] border border-card-line bg-white sm:h-[680px]"
+          >
             <div
-              className={`relative mt-2 h-[560px] transition-opacity ${shownLoading ? "opacity-50" : ""}`}
+              className={`absolute -top-[22px] right-0 -bottom-[48px] left-0 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
             >
-              {boundaries && (
+              {homeView && regions.length > 0 && (
                 <SvgMap
-                  boundaries={boundaries}
+                  regions={regions}
+                  homeView={homeView}
                   dongs={shownDongs}
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}
+                  onViewChange={handleViewChange}
+                  stageRef={stageRef}
+                  fillWave={wave.direction}
+                  returnFrom={returnFrom}
+                  onReturnEnd={() => setLeaving(false)}
+                  onSelectStart={() => setLeaving(true)}
                   onSelect={(dongCode) =>
                     navigate({
                       to: "/dong/$dongCode",
                       params: { dongCode },
                       search: { timeBand, mode },
+                      // 확대가 끝난 화면과 동 상세가 같은 모습이라 아주 짧게만 겹쳐 바꿈 (미지원·동작 줄이기면 바로 이동)
+                      viewTransition: prepareDongTransition(),
                     })
                   }
+                  controlsClassName="right-6 bottom-[72px]"
                   tooltip={
                     !shownLoading &&
                     hoveredDong && (
                       <MapTooltip
                         dong={hoveredDong}
-                        guName={hoveredGu ?? ""}
+                        guName={hoveredGu ?? null}
                         bandLabel={`${mine ? "내 " : ""}${bandLabel(timeBand)}`}
                         hint="눌러서 확대 →"
                       />
@@ -124,34 +227,64 @@ export function MapPage() {
                   }
                 />
               )}
-              <div className="absolute left-2 top-2">
-                <ErrorBanner message={boundaryError ?? shownError} />
+            </div>
+
+            {/* 경계·색을 받는 중 (오류면 오류 배너만) */}
+            <MapLoading
+              show={!leaving && ((regions.length === 0 && !boundaryError) || (shownLoading && !shownError))}
+            />
+
+            {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
+            <div className={`absolute top-[23px] left-[23px] ${leaveFade}`}>
+              {/* 공유·나의 지도는 옆 토글이 알려 주므로 제목은 같게 */}
+
+              {currentRegion && (
+                <MapTitlePanel title={`${currentRegion.name}의 ${bandLabel(timeBand)}`}>
+                  {mine ? "칠한 동 " : "칠해진 동 "}
+                  <b className="text-ink">
+                    {filledCount}/{currentRegion.dongCount}
+                  </b>
+                  {mine ? " · 내 사진 " : " · 사진 "}
+                  <b className="text-ink">{totalPhotos.toLocaleString()}</b>장
+                </MapTitlePanel>
+              )}
+              <div className="mt-2 flex">
+                <MapModeToggle mine={mine} onChange={changeMode} />
+              </div>
+              <div className="mt-2 max-w-[360px]">
+                <ErrorBanner message={regionError ?? boundaryError ?? shownError} />
               </div>
             </div>
 
-            <p className="mt-2 text-xs text-gray-500">
-              동에 마우스를 올리면 그 동만 선명해지고, 누르면 확대돼요
-            </p>
+            {/* 피그마처럼 카드 정중앙보다 30px 아래 (지도 가운데 근처) */}
+            {myMapEmpty && (
+              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:top-[calc(50%+30px)] ${leaveFade}`}>
+                <EmptyMyMapCard />
+              </div>
+            )}
+
+            <div className={`absolute bottom-[27px] left-1/2 w-max -translate-x-1/2 ${leaveFade}`}>
+              <TimeBandBar season={season} timeBand={timeBand} onChange={changeTimeBand} />
+            </div>
           </section>
 
           <aside
             className={`flex flex-col gap-4 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
           >
-            {mine ? (
-              <MyMapPanel
-                timeBand={timeBand}
-                dongs={[...shownDongs.values()]}
-                onHover={setHoveredCode}
+            {myMapEmpty ? (
+              <MyMapGuidePanel
+                regionName={regionName || "동네"}
+                dongCount={currentRegion?.dongCount ?? shownDongs.size}
               />
             ) : (
-              <RankPanel
-                timeBand={timeBand}
+              <TopDongsPanel
+                title={mine ? `내가 칠한 ${regionName || "동"}` : `함께 칠한 ${regionName || "동"}`}
                 season={seasonInfo}
-                topDongs={topDongs}
+                dongs={mine ? myTopDongs : topDongs}
+                emptyText={`아직 ${bandLabel(timeBand)} 사진으로 ${mine ? "칠한" : "칠해진"} 동이 없어요.`}
                 onHover={setHoveredCode}
               />
             )}
-            <UploadCta />
           </aside>
         </div>
         <LoginPromptDialog open={loginPromptOpen} onClose={() => setLoginPromptOpen(false)} />
