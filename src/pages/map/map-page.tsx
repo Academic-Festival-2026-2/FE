@@ -99,7 +99,7 @@ export function MapPage() {
       navigate({ to: "/map", search: { timeBand, mode, region: Number(code) }, replace: true });
     }
   }
-  const myMap = useMyMap(mine, timeBand);
+  const myMap = useMyMap(mine, timeBand, visibleCodes);
   // 지도에 칠할 색: 공유 지도는 보이는 지역 전부, 나의 지도는 내 칸
   const shownDongs = mine ? myMap.dongs : dongs;
   const shownLoading = mine ? myMap.loading : loading;
@@ -109,11 +109,11 @@ export function MapPage() {
 
   const seasonInfo = seasonOf(season);
   // 제목의 칸 수·사진 수는 한 지역 기준 (지금은 기본 지역, 5단계에서 화면 가운데 지역으로)
-  const titleDongs = mine ? myMap.dongs : (currentColors?.dongs ?? new Map<string, DongColor>());
+  const titleDongs = mine
+    ? myMap.dongsOf(currentCode)
+    : (currentColors?.dongs ?? new Map<string, DongColor>());
   const totalPhotos = [...titleDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
-  const filledCount = mine
-    ? myMap.filledCount
-    : [...titleDongs.values()].filter((dong) => dong.dominantColor).length;
+  const filledCount = [...titleDongs.values()].filter((dong) => dong.dominantColor).length;
   const hoveredDong = hoveredCode ? shownDongs.get(hoveredCode) : undefined;
   const hoveredGu = regions
   .flatMap((b) => b.features)
@@ -250,7 +250,7 @@ export function MapPage() {
             ) : mine ? (
               <MyMapPanel
                 timeBand={timeBand}
-                dongs={[...shownDongs.values()]}
+                dongs={[...titleDongs.values()]}
                 onHover={setHoveredCode}
               />
             ) : (

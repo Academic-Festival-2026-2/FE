@@ -226,36 +226,51 @@ export function toKakaoPath(rings: number[][][]) {
   return rings.map((ring) => ring.map(([lng, lat]) => new kakao.maps.LatLng(lat, lng)));
 }
 
-export function useMyMap(enabled: boolean, timeBand: TimeBand) {
+// 나의 지도: 보이는 지역마다 내 칸을 받음 (지역 하나에 4개 시간대가 한 번에 옴).
+// 로그인한 사람(토큰)이 바뀌면 받은 것을 버리고 새로 받음
+export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: string[]) {
   const accessToken = useAuthStore((state) => state.tokens?.accessToken);
   const expireSession = useExpireSession();
-  const [loaded, setLoaded] = useState<{ token: string; cells: MyMapCell[] } | null>(null);
+  const key = regionCodes.join(",");
+  const [loaded, setLoaded] = useState<{ token: string; cells: Map<string, MyMapCell[]> } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 이미 요청한 "토큰:지역" (받는 중에 같은 지역을 또 요청하지 않게)
+  const requestedRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!enabled || !accessToken) return;
     let cancelled = false;
-    getMyMap(DEFAULT_REGION_CODE)
+    for (const code of key ? key.split(",") : []) {
+      const k = `${accessToken}:${code}`;
+      if (requestedRef.current.has(k)) continue;
+      requestedRef.current.add(k);
+      getMyMap(code)
       .then((data) => {
         if (cancelled) return;
-        setLoaded({ token: accessToken, cells: data.cells });
+        setLoaded((prev) => {
+          const base = prev && prev.token === accessToken ? prev.cells : new Map<string, MyMapCell[]>();
+          return { token: accessToken, cells: new Map(base).set(code, data.cells) };
+        });
         setError(null);
       })
       .catch((err) => {
+        requestedRef.current.delete(k);
         if (cancelled) return;
         if (isSessionExpired(err)) expireSession();
         else setError("나의 지도를 불러오지 못했어요.");
       });
+    }
     return () => {
       cancelled = true;
     };
-  }, [enabled, accessToken, expireSession]);
+  }, [enabled, accessToken, key, expireSession]);
 
-  const cells = loaded && loaded.token === accessToken ? loaded.cells : null;
+  const cellsByRegion = loaded && loaded.token === accessToken ? loaded.cells : null;
 
-  const dongs = useMemo(() => {
+  // 지역 하나의 내 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
+  function dongsOf(regionCode: string | null) {
     const result = new Map<string, DongColor>();
-    for (const cell of cells ?? []) {
+    for (const cell of (regionCode && cellsByRegion?.get(regionCode)) || []) {
       if (cell.timeBand !== timeBand) continue;
       result.set(cell.dongCode, {
         dongCode: cell.dongCode,
@@ -267,16 +282,25 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
       });
     }
     return result;
-  }, [cells, timeBand]);
+  }
 
-  const filledCount = (cells ?? []).filter(
-    (cell) => cell.timeBand === timeBand && cell.filled,
-  ).length;
+  const codes = key ? key.split(",") : [];
+  // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
+  const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
+  // 받은 지역 어디에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음 (나의 지도 비어 있음 안내용)
+  const empty =
+    cellsByRegion !== null &&
+    codes.every((code) => cellsByRegion.has(code)) &&
+    ![...cellsByRegion.values()].some((cells) => cells.some((cell) => cell.filled));
+  const first = codes[0];
 
-  // 새벽·낮·노을·밤 어디에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음 (나의 지도 비어 있음 안내용)
-  const empty = cells !== null && !cells.some((cell) => cell.filled);
-
-  return { dongs, filledCount, empty, loading: enabled && cells === null && !error, error };
+  return {
+    dongs,
+    dongsOf,
+    empty,
+    loading: enabled && Boolean(first) && !cellsByRegion?.has(first) && !error,
+    error,
+  };
 }
 
 

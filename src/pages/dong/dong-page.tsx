@@ -123,7 +123,7 @@ export function DongPage() {
   const mine = mode === "mine" && loggedIn;
   const { dongs, season, error: colorError } = useDongColors(timeBand, DONG_PAGE_REGIONS);
   const seasonName = seasonOf(season)?.name;
-  const myMap = useMyMap(mine, timeBand);
+  const myMap = useMyMap(mine, timeBand, DONG_PAGE_REGIONS);
   const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
   // 카카오맵 타일이 처음 다 그려진 동 (그 전까지 로딩 안내 표시)
