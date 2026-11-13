@@ -110,8 +110,8 @@ export function useRegionBoundaries(regionCodes: string[]) {
     for (const code of key ? key.split(",") : []) {
       if (boundariesCache.has(code)) continue;
       loadBoundaries(code)
-      .then(() => !cancelled && setVersion((v) => v + 1))
-      .catch(() => !cancelled && setError("동 경계를 불러오지 못했어요."));
+        .then(() => !cancelled && setVersion((v) => v + 1))
+        .catch(() => !cancelled && setError("동 경계를 불러오지 못했어요."));
     }
     return () => {
       cancelled = true;
@@ -168,28 +168,28 @@ export function useDongColors(timeBand: TimeBand, regionCodes: string[]) {
       if (requested.has(k)) continue;
       requested.add(k);
       getMapDongs(band, code)
-      .then(({ dongs, topDongs, season }) => {
-        const state: RegionColors = {
-          dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
-          topDongs,
-          season,
-        };
-        lastDongColors.set(k, state);
-        if (!aliveRef.current) return;
-        setCache((prev) => new Map(prev).set(k, state));
-        setErrors((prev) => {
-          if (!prev.has(k)) return prev;
-          const next = new Map(prev);
-          next.delete(k);
-          return next;
+        .then(({ dongs, topDongs, season }) => {
+          const state: RegionColors = {
+            dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
+            topDongs,
+            season,
+          };
+          lastDongColors.set(k, state);
+          if (!aliveRef.current) return;
+          setCache((prev) => new Map(prev).set(k, state));
+          setErrors((prev) => {
+            if (!prev.has(k)) return prev;
+            const next = new Map(prev);
+            next.delete(k);
+            return next;
+          });
+        })
+        .catch(() => {
+          // 실패한 것은 다음에 다시 요청
+          requested.delete(k);
+          if (!aliveRef.current) return;
+          setErrors((prev) => new Map(prev).set(k, "동 색을 불러오지 못했어요."));
         });
-      })
-      .catch(() => {
-        // 실패한 것은 다음에 다시 요청
-        requested.delete(k);
-        if (!aliveRef.current) return;
-        setErrors((prev) => new Map(prev).set(k, "동 색을 불러오지 못했어요."));
-      });
     }
   }, [timeBand, key]);
 
@@ -249,20 +249,20 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
       if (requestedRef.current.has(k)) continue;
       requestedRef.current.add(k);
       getMyMap(code)
-      .then((data) => {
-        if (!aliveRef.current) return;
-        setLoaded((prev) => {
-          const base = prev && prev.token === accessToken ? prev.cells : new Map<string, MyMapCell[]>();
-          return { token: accessToken, cells: new Map(base).set(code, data.cells) };
+        .then((data) => {
+          if (!aliveRef.current) return;
+          setLoaded((prev) => {
+            const base = prev && prev.token === accessToken ? prev.cells : new Map<string, MyMapCell[]>();
+            return { token: accessToken, cells: new Map(base).set(code, data.cells) };
+          });
+          setError(null);
+        })
+        .catch((err) => {
+          requestedRef.current.delete(k);
+          if (!aliveRef.current) return;
+          if (isSessionExpired(err)) expireSession();
+          else setError("나의 지도를 불러오지 못했어요.");
         });
-        setError(null);
-      })
-      .catch((err) => {
-        requestedRef.current.delete(k);
-        if (!aliveRef.current) return;
-        if (isSessionExpired(err)) expireSession();
-        else setError("나의 지도를 불러오지 못했어요.");
-      });
     }
   }, [enabled, accessToken, key, expireSession]);
 
