@@ -93,7 +93,7 @@ export function MapPage() {
     <div className="min-h-screen bg-page">
       <AuthHeader>
         {loggedIn ? (
-          // 사진 올리기는 오른쪽 위 프로필 옆에 둠 (오른쪽 칸의 업로드 카드 대신)
+          // 사진 업로드는 오른쪽 위 프로필 옆에 둠 (오른쪽 칸의 업로드 카드 대신)
           <div className="flex items-center gap-4">
             <UploadButton />
             <ProfileMenu />

@@ -1,78 +1,58 @@
-import { useEffect, useState } from "react";
-import { getMyBadges, type MyBadges } from "../../api/badge";
+import type { MyBadges } from "../../api/badge";
 import { BadgeIcon } from "../../components/badge-icon";
 import { BADGES, badgeEarnedText, isKnownBadge, sortByBadgeOrder } from "../../constants/badges";
-import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { formatDate } from "../../utils/date";
+import { MYPAGE_SECTION } from "./mypage-sections";
+import { SectionCard } from "./section-card";
 
-export function BadgeSection() {
-  const expireSession = useExpireSession();
-  const [data, setData] = useState<MyBadges | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let ignore = false;
-    getMyBadges()
-      .then((result) => {
-        if (!ignore) setData(result);
-      })
-      .catch((err: unknown) => {
-        if (ignore) return;
-        // 내 정보 요청 뒤에 세션이 끝난 경우에도 로그인 화면으로
-        if (isSessionExpired(err)) expireSession();
-        else setError(true);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [expireSession]);
-
+// 받은 배지 수를 요약 카드에서도 쓰므로 데이터는 마이페이지에서 받아서 넘김
+export function BadgeSection({ data, error }: { data: MyBadges | null; error: boolean }) {
   // 모르는 배지(BE에 먼저 추가된 경우)는 빼고, 개수도 화면에 보이는 배지로 셈. 순서는 업로드 완료 화면과 같게
   const badges = sortByBadgeOrder(data?.badges.filter((badge) => isKnownBadge(badge.type)) ?? []);
   const earnedCount = badges.filter((badge) => badge.earned).length;
 
   return (
-    <section className="rounded-2xl border border-card-line bg-white px-6 py-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="flex items-baseline gap-2.5 text-[17px] leading-[25px] font-bold text-ink">
-          <span className="font-mono text-xs font-normal text-brand-strong">03</span>활동 배지
-        </h2>
-        {data && (
-          <p className="text-sm text-ink-muted">
+    <SectionCard
+      id={MYPAGE_SECTION.badges}
+      title="활동 배지"
+      note="한 번 받은 배지는 사진을 지워도 남아요."
+      aside={
+        data && (
+          <p className="shrink-0 text-sm text-ink-muted">
             <span className="sr-only">받은 배지 </span>
             <b className="text-ink">{earnedCount}</b> / {badges.length}
           </p>
-        )}
-      </div>
-
+        )
+      }
+    >
       {error && <p className="mt-4 text-sm text-danger">배지를 불러오지 못했어요.</p>}
       {!data && !error && <p className="mt-4 text-sm text-ink-muted">불러오는 중...</p>}
       {data && (
-        <ul className="mt-5 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
+        // auto-rows-fr: 설명 길이와 상관없이 모든 줄 높이를 같게 (격자처럼 가지런히)
+        <ul className="mt-4 grid auto-rows-fr grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3">
           {badges.map((badge) => {
             const info = BADGES[badge.type];
+            const description = badge.earned ? badgeEarnedText(badge.type, badge.dongName) : info.condition;
             return (
               <li key={badge.type} className="flex flex-col items-center text-center">
-                <BadgeIcon type={badge.type} earned={badge.earned} />
-                <p className={badge.earned ? "mt-2.5 text-sm font-bold text-ink" : "mt-2.5 text-sm font-bold text-ink-faint"}>
+                <BadgeIcon type={badge.type} earned={badge.earned} size={64} />
+                <p className={badge.earned ? "mt-2 text-sm font-bold text-ink" : "mt-2 text-sm font-bold text-ink-faint"}>
                   {info.name}
                   {/* 아이콘(잠금 표시)은 화면 낭독기에서 숨기므로 받은 여부를 글로 알림 */}
                   <span className="sr-only">{badge.earned ? " (받은 배지)" : " (아직 받지 않은 배지)"}</span>
                 </p>
-                <p className="mt-1 text-xs leading-snug text-ink-muted">
-                  {badge.earned ? badgeEarnedText(badge.type, badge.dongName) : info.condition}
+                {/* 설명은 2줄까지만 (넘치면 …), 마우스를 올리면 전체 */}
+                <p title={description} className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-muted">
+                  {description}
                 </p>
                 {badge.earned && badge.earnedAt && (
-                  <p className="mt-1 font-mono text-[11px] text-brand-strong">{formatDate(badge.earnedAt)}</p>
+                  <p className="mt-0.5 font-mono text-[11px] text-brand-strong">{formatDate(badge.earnedAt)}</p>
                 )}
               </li>
             );
           })}
         </ul>
       )}
-      <p className="mt-5 text-xs text-ink-faint">
-        동네 개척자·초기 탐험대는 공유 지도에 반영된 사진만, 찍은 계절마다 따로 세요. 한 번 받은 배지는 사진을 지워도 남아요.
-      </p>
-    </section>
+    </SectionCard>
   );
 }
