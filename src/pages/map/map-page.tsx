@@ -123,23 +123,23 @@ export function MapPage() {
   const filledCount = [...titleDongs.values()].filter((dong) => dong.dominantColor).length;
   const hoveredDong = hoveredCode ? shownDongs.get(hoveredCode) : undefined;
   const hoveredGu = regions
-  .flatMap((b) => b.features)
-  .find((feature) => feature.properties.dongCode === hoveredCode)?.properties.guName;
+    .flatMap((b) => b.features)
+    .find((feature) => feature.properties.dongCode === hoveredCode)?.properties.guName;
 
-  // 왼쪽 위 제목과 오른쪽 패널이 같이 쓰는 지역 이름.
-  // 화면 위치 기준 지역(부천시 / 시흥시 / 파주시 …)으로 바뀌면 이 값만 바꾸면 오른쪽도 같이 바뀜
+  // 왼쪽 위 제목과 오른쪽 패널이 같이 쓰는 지역 이름 (화면 가운데 지역). 지역 목록을 받기 전에는 빈 값
   const regionName = currentRegion?.name ?? "";
 
   // 나의 지도 오른쪽 패널: 이 시간대에 칠한 동 중 내 사진이 많은 순 상위 3개 (같으면 동 코드 순)
   const myTopDongs: TopDongItem[] = mine
-    ? [...shownDongs.values()]
+    ? [...titleDongs.values()]
         .filter((dong) => dong.dominantColor && dong.photoCount > 0)
         .sort((a, b) => b.photoCount - a.photoCount || a.dongCode.localeCompare(b.dongCode))
         .slice(0, 3)
         .map((dong) => ({
           ...dong,
-          guName: regions.flatMap((b) => b.features).find((feature) => feature.properties.dongCode === dong.dongCode)
-            ?.properties.guName,
+          guName: regions
+            .flatMap((b) => b.features)
+            .find((feature) => feature.properties.dongCode === dong.dongCode)?.properties.guName,
         }))
     : [];
 
@@ -275,7 +275,7 @@ export function MapPage() {
               <MyMapGuidePanel regionName={regionName} dongCount={currentRegion?.dongCount ?? shownDongs.size} />
             ) : (
               <TopDongsPanel
-                title={mine ? `내가 칠한 ${regionName}` : `함께 칠한 ${regionName}`}
+                title={mine ? `내가 칠한 ${regionName || "동"}` : `함께 칠한 ${regionName || "동"}`}
                 season={seasonInfo}
                 dongs={mine ? myTopDongs : topDongs}
                 emptyText={`아직 ${bandLabel(timeBand)} 사진으로 ${mine ? "칠한" : "칠해진"} 동이 없어요.`}
