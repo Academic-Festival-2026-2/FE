@@ -310,7 +310,7 @@ export function RankPanel({
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-base font-extrabold text-ink">{dong.name}</span>
                 <span className="text-xs text-ink-muted">
-                  {dong.guName} · {dong.photoCount}장
+                  {dong.guName && `${dong.guName} · `}{dong.photoCount}장
                 </span>
               </div>
               <ColorBar colors={dong.colorRatio} />

@@ -149,7 +149,7 @@ export function MapPage() {
                     hoveredDong && (
                       <MapTooltip
                         dong={hoveredDong}
-                        guName={hoveredGu ?? ""}
+                        guName={hoveredGu ?? null}
                         bandLabel={`${mine ? "내 " : ""}${bandLabel(timeBand)}`}
                         hint="눌러서 확대 →"
                       />

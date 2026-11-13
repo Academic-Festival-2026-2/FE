@@ -19,8 +19,8 @@ export type MyMap = {
   cells: MyMapCell[];
 };
 
-export function getMyMap() {
-  return authRequest<MyMap>("/api/users/me/map");
+export function getMyMap(regionCode: string) {
+  return authRequest<MyMap>(`/api/users/me/map?regionCode=${regionCode}`);
 }
 
 export type MyDongPhotos = {

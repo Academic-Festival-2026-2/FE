@@ -388,7 +388,7 @@ export function DongPage() {
             >
               ← {REGION_NAME}
             </Link>
-            {feature && <span> / {feature.properties.guName}</span>}
+            {feature?.properties.guName && <span> / {feature.properties.guName}</span>}
           </p>
           {feature && (
             <h1 className="mt-0.5 text-[22px] leading-8 font-extrabold tracking-[-0.66px] text-ink">

@@ -13,6 +13,9 @@ import {
   type TopDong,
 } from "../../api/map";
 
+// 첫 화면 지역. 4단계에서 지역 목록 API의 defaultRegionCode로 바꿈
+export const DEFAULT_REGION_CODE = "3105";
+
 // 지도 제목·동 상세 경로에 들어가는 지역 이름 ("시"까지 포함, BE regions.name과 같은 형식)
 // 경기도 전체로 확장하면 고른 지역 값(API)으로 바꿀 자리. 화면에서 "시"를 따로 붙이지 않음
 export const REGION_NAME = "부천시";
@@ -56,7 +59,7 @@ let boundariesRequest: Promise<Boundaries> | null = null;
 
 function loadBoundaries() {
   if (!boundariesRequest) {
-    boundariesRequest = getBoundaries().then(
+    boundariesRequest = getBoundaries(DEFAULT_REGION_CODE).then(
       (result) => {
         boundariesCache = result;
         return result;
@@ -138,7 +141,7 @@ export function useDongColors(timeBand: TimeBand) {
     for (const band of order) {
       if (requested.has(band)) continue;
       requested.add(band);
-      getMapDongs(band)
+      getMapDongs(band, DEFAULT_REGION_CODE)
         .then(({ dongs, topDongs, season }) => {
           const state: MapDongsState = {
             timeBand: band,
@@ -182,7 +185,7 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
   useEffect(() => {
     if (!enabled || !accessToken) return;
     let cancelled = false;
-    getMyMap()
+    getMyMap(DEFAULT_REGION_CODE)
       .then((data) => {
         if (cancelled) return;
         setLoaded({ token: accessToken, cells: data.cells });
