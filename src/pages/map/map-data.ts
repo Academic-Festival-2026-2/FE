@@ -14,7 +14,7 @@ import {
   type TopDong,
 } from "../../api/map";
 
-// 첫 화면 지역. 4단계에서 지역 목록 API의 defaultRegionCode로 바꿈
+// 지역 목록을 받기 전·동 상세의 기본 지역 (BE Region.DEFAULT_CODE와 같음)
 export const DEFAULT_REGION_CODE = "3105";
 
 // 동 상세·업로드 위치 선택 지도에서 고른 동 바깥을 덮는 큰 사각형 [위도, 경도].
@@ -66,8 +66,8 @@ export function useRegionList() {
       },
     );
     regionListRequest
-    .then((result) => !cancelled && setRegionList(result))
-    .catch(() => !cancelled && setError("지역 목록을 불러오지 못했어요."));
+      .then((result) => !cancelled && setRegionList(result))
+      .catch(() => !cancelled && setError("지역 목록을 불러오지 못했어요."));
     return () => {
       cancelled = true;
     };
@@ -232,16 +232,25 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
   // 이미 요청한 "토큰:지역" (받는 중에 같은 지역을 또 요청하지 않게)
   const requestedRef = useRef(new Set<string>());
 
+  // 화면을 떠났는지. 보이는 지역이 바뀌어도 받는 중인 응답은 버리지 않고 저장한다
+  // (버리면 requestedRef에 "요청함"만 남아 그 지역을 다시 받지 않음). 저장할 때 토큰을 확인하므로 안전
+  const aliveRef = useRef(false);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     if (!enabled || !accessToken) return;
-    let cancelled = false;
     for (const code of key ? key.split(",") : []) {
       const k = `${accessToken}:${code}`;
       if (requestedRef.current.has(k)) continue;
       requestedRef.current.add(k);
       getMyMap(code)
       .then((data) => {
-        if (cancelled) return;
+        if (!aliveRef.current) return;
         setLoaded((prev) => {
           const base = prev && prev.token === accessToken ? prev.cells : new Map<string, MyMapCell[]>();
           return { token: accessToken, cells: new Map(base).set(code, data.cells) };
@@ -250,14 +259,11 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
       })
       .catch((err) => {
         requestedRef.current.delete(k);
-        if (cancelled) return;
+        if (!aliveRef.current) return;
         if (isSessionExpired(err)) expireSession();
         else setError("나의 지도를 불러오지 못했어요.");
       });
     }
-    return () => {
-      cancelled = true;
-    };
   }, [enabled, accessToken, key, expireSession]);
 
   const cellsByRegion = loaded && loaded.token === accessToken ? loaded.cells : null;
@@ -282,17 +288,11 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
   const codes = key ? key.split(",") : [];
   // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
   const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
-  // 받은 지역 어디에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음 (나의 지도 비어 있음 안내용)
-  const empty =
-    cellsByRegion !== null &&
-    codes.every((code) => cellsByRegion.has(code)) &&
-    ![...cellsByRegion.values()].some((cells) => cells.some((cell) => cell.filled));
   const first = codes[0];
 
   return {
     dongs,
     dongsOf,
-    empty,
     loading: enabled && Boolean(first) && !cellsByRegion?.has(first) && !error,
     error,
   };

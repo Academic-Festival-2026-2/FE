@@ -393,7 +393,7 @@ export function DongPage() {
               onClick={() => prepareDongTransition()}
               className="hover:text-ink"
             >
-              ← {regionName}
+              ← {regionName || "지도"}
             </Link>
             {feature?.properties.guName && <span> / {feature.properties.guName}</span>}
           </p>

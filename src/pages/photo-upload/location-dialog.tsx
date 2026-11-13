@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { BoundaryFeature } from "../../api/map";
 import { MASK_FRAME_POINTS, toKakaoPath } from "../map/map-data";
-import { labelPoint } from "../map/map-geometry.ts";
+import { labelPoint } from "../map/map-geometry";
 import { findDong } from "./photo-validation";
 
 // 흐리게 덮을 바깥 영역 (map-data.ts MASK_FRAME_POINTS, 동 상세 지도와 같은 값)

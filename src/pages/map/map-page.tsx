@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
 import { peekReturnFrom, prepareDongTransition } from "../../utils/view-transition";
@@ -22,6 +22,7 @@ import {
 } from "./map-ui";
 import { MapLoading } from "./map-loading";
 import { SvgMap } from "./svg-map";
+import { useUserStore } from "../../stores/user-store";
 
 // 시간대 탭 순서 (지도 아래 바 왼쪽부터)
 const BAND_ORDER: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
@@ -90,25 +91,31 @@ export function MapPage() {
   const currentColors = currentCode ? colorsOf(currentCode) : undefined;
   const topDongs = currentColors?.topDongs ?? [];
 
-  // 화면 이동이 멈추면 가운데 지역을 다시 정하고, 바뀌었으면 URL에도 남김
-  function handleViewChange(next: View) {
-    setView(next);
-    const code = regionAt(regions, unproject([next.x + next.size / 2, next.y + next.size / 2]));
-    if (code && code !== currentCode) {
-      setCenterCode(code);
-      navigate({ to: "/map", search: { timeBand, mode, region: Number(code) }, replace: true });
-    }
-  }
+  // 화면 이동이 멈추면 가운데 지역을 다시 정하고, 바뀌었으면 URL에도 남김.
+  // useCallback으로 고정: 렌더마다 새 함수면 지도가 0.2초 타이머를 다시 걸어 마우스만 올려도 다시 불림.
+  // 새 지역 경계(regions)가 오면 함수가 바뀌어 한 번 더 불리므로, 늦게 온 가운데 지역도 반영된다
+  const handleViewChange = useCallback(
+    (next: View) => {
+      setView(next);
+      const code = regionAt(regions, unproject([next.x + next.size / 2, next.y + next.size / 2]));
+      if (code && code !== currentCode) {
+        setCenterCode(code);
+        navigate({ to: "/map", search: { timeBand, mode, region: Number(code) }, replace: true });
+      }
+    },
+    [regions, currentCode, timeBand, mode, navigate],
+  );
   const myMap = useMyMap(mine, timeBand, visibleCodes);
   // 지도에 칠할 색: 공유 지도는 보이는 지역 전부, 나의 지도는 내 칸
   const shownDongs = mine ? myMap.dongs : dongs;
   const shownLoading = mine ? myMap.loading : loading;
   const shownError = mine ? myMap.error : colorError;
-  // 나의 지도인데 어느 시간대에도 칠한 칸이 없으면 안내 카드·패널을 보여 줌
-  const myMapEmpty = mine && myMap.empty;
+  // 어느 지역에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음. 내 정보(헤더가 불러옴)의 칸 수는 전체 지역 합계
+  const filledTotal = useUserStore((state) => state.me?.filledCellCount);
+  const myMapEmpty = mine && filledTotal === 0;
 
   const seasonInfo = seasonOf(season);
-  // 제목의 칸 수·사진 수는 한 지역 기준 (지금은 기본 지역, 5단계에서 화면 가운데 지역으로)
+  // 제목의 칸 수·사진 수는 한 지역 기준 (화면 가운데 지역)
   const titleDongs = mine
     ? myMap.dongsOf(currentCode)
     : (currentColors?.dongs ?? new Map<string, DongColor>());
@@ -213,14 +220,16 @@ export function MapPage() {
             {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
             <div className={`absolute top-[23px] left-[23px] ${leaveFade}`}>
               {/* 공유·나의 지도는 옆 토글이 알려 주므로 제목은 같게 */}
-              <MapTitlePanel title={`${currentRegion?.name ?? ""}의 ${bandLabel(timeBand)}`}>
-                {mine ? "칠한 동 " : "칠해진 동 "}
-                <b className="text-ink">
-                  {filledCount}/{currentRegion?.dongCount ?? titleDongs.size}
-                </b>
-                {mine ? " · 내 사진 " : " · 사진 "}
-                <b className="text-ink">{totalPhotos.toLocaleString()}</b>장
-              </MapTitlePanel>
+              {currentRegion && (
+                <MapTitlePanel title={`${currentRegion.name}의 ${bandLabel(timeBand)}`}>
+                  {mine ? "칠한 동 " : "칠해진 동 "}
+                  <b className="text-ink">
+                    {filledCount}/{currentRegion.dongCount}
+                  </b>
+                  {mine ? " · 내 사진 " : " · 사진 "}
+                  <b className="text-ink">{totalPhotos.toLocaleString()}</b>장
+                </MapTitlePanel>
+              )}
               <div className="mt-2 flex">
                 <MapModeToggle mine={mine} onChange={changeMode} />
               </div>
