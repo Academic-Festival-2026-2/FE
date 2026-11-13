@@ -1,4 +1,3 @@
-// MVP 임시 알고리즘입니다. 팀 최종 합의 후 이 모듈에서 교체합니다.
 // 순서는 BE ColorBins.HEX와 동일하며 API 저장 인덱스이므로 변경하면 안 됩니다.
 export const COLOR_HEX = ["#D4E6F5", "#9CC8EC", "#5A8FD0", "#A9B6CC", "#B2A6D6", "#F2AEB8",
   "#F39A52", "#F7BD6E", "#5B5592", "#1E2850", "#3C8FB5", "#4FA7A3", "#2A5E78", "#5C9A55", "#36603D",

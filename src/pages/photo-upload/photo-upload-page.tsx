@@ -256,7 +256,7 @@ export function PhotoUploadPage() {
           <p className="mt-2 text-base font-bold">{label}</p>
           <p className="mt-1 text-sm text-ink-sub">{description}</p>
         </li>)}</ol>
-      </> : finished ? <UploadComplete photos={results.flatMap((p) => p.result ? [{ id: p.id, filename: p.file.name, color: p.colors?.palette[0] ?? "#E6E6E6", result: p.result }] : [])} boundaries={boundaries} onAdd={() => input.current?.click()} /> : <>
+      </> : finished ? <UploadComplete photos={results.flatMap((p) => p.result ? [{ id: p.id, filename: p.file.name, color: p.colors?.palette[0] ?? "#F0F2F4", result: p.result }] : [])} boundaries={boundaries} onAdd={() => input.current?.click()} /> : <>
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pt-2 pb-4">
           <div><p className="font-mono text-[13px] tracking-[1.04px] text-brand-strong">PHOTO {index + 1} / {photos.length}</p><h1 className="mt-2 text-[26px] font-extrabold tracking-[-0.78px]">사진 한 장, 픽셀 하나</h1></div>
           <div className="flex items-center gap-2"><span aria-live="polite" className="mr-2 text-sm text-ink-muted">{results.length}장 완료</span><button type="button" className={navButton} disabled={index === 0 || uploading} onClick={() => setIndex(index - 1)}>← 이전</button><button type="button" className={navButton} disabled={index === photos.length - 1 || uploading} onClick={() => setIndex(index + 1)}>다음 →</button></div>
