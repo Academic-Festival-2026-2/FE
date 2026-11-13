@@ -1,4 +1,4 @@
-import type { BoundaryFeature, Boundaries } from "../../api/map";
+import type { BoundaryFeature, Boundaries, Region } from "../../api/map";
 
 // 경기도 전체를 한 좌표계로 그린다. 지역마다 따로 맞추지 않아서 이웃 지역 경계가 그대로 이어진다.
 // 원점(왼쪽 위)은 경기도를 넉넉히 덮는 [경도 125.8, 위도 38.6], 오른쪽 아래는 [128.2, 36.5]
@@ -46,6 +46,23 @@ export function fitView([minLng, minLat, maxLng, maxLat]: number[], padding = 0.
   const [x2, y2] = project([maxLng, minLat]);
   const size = Math.max(x2 - x1, y2 - y1) / (1 - padding * 2);
   return { x: (x1 + x2) / 2 - size / 2, y: (y1 + y2) / 2 - size / 2, size };
+}
+
+// 화면(view)과 겹치는 지역 코드. 지도 카드는 가로가 더 넓어서 정사각형 view 바깥도 보이고,
+// 드래그하면 바로 보이도록 view 한 변의 margin배만큼 바깥까지 미리 고른다
+export function regionsInView(regions: Region[], view: View, margin = 0.5): string[] {
+  const pad = view.size * margin;
+  const left = view.x - pad;
+  const top = view.y - pad;
+  const right = view.x + view.size + pad;
+  const bottom = view.y + view.size + pad;
+  return regions
+  .filter(({ bbox: [minLng, minLat, maxLng, maxLat] }) => {
+    const [x1, y1] = project([minLng, maxLat]);
+    const [x2, y2] = project([maxLng, minLat]);
+    return x1 < right && x2 > left && y1 < bottom && y2 > top;
+  })
+  .map((region) => region.regionCode);
 }
 
 function extent(values: number[]): [number, number] {

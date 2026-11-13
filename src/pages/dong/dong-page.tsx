@@ -8,6 +8,7 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { useAuthStore } from "../../stores/auth-store";
 import {
   bandLabel,
+  DEFAULT_REGION_CODE,
   EMPTY_FILL,
   KAKAO_ERROR,
   KAKAO_UNAVAILABLE,
@@ -33,6 +34,8 @@ const DONG_TINT_OPACITY = 0.14;
 // 지도 화면(svg-map)의 확대·축소 버튼과 같은 모양
 const ZOOM_BUTTON =
   "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
+// 7단계 전까지 동 상세는 기본 지역(부천)만
+const DONG_PAGE_REGIONS = [DEFAULT_REGION_CODE];
 
 function signedArea(path: kakao.maps.LatLng[]) {
   let area = 0;
@@ -118,7 +121,7 @@ export function DongPage() {
   const { boundaries, error: boundaryError } = useBoundaries();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
-  const { dongs, season, error: colorError } = useDongColors(timeBand);
+  const { dongs, season, error: colorError } = useDongColors(timeBand, DONG_PAGE_REGIONS);
   const seasonName = seasonOf(season)?.name;
   const myMap = useMyMap(mine, timeBand);
   const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);

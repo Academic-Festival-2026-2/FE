@@ -2,13 +2,13 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
 import { peekReturnFrom, prepareDongTransition } from "../../utils/view-transition";
-import type { TimeBand } from "../../api/map";
+import type { DongColor, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { UploadButton } from "../../components/layout/upload-button";
-import { REGION_NAME, bandLabel, seasonOf, useBoundaries, useDongColors, useMyMap } from "./map-data";
+import { REGION_NAME, bandLabel, seasonOf, useDongColors, useMyMap, useRegionBoundaries, useRegionList } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
-import { bboxOf, fitView } from "./map-geometry.ts";
+import { fitView, regionsInView, type View } from "./map-geometry";
 import { LoginPromptDialog } from "./login-prompt-dialog";
 import {
   ErrorBanner,
@@ -49,6 +49,7 @@ export function MapPage() {
   // 동 상세에서 돌아왔으면 그 동 (지도가 그 동에서 줄어들며 시작)
   const [returnFrom] = useState(peekReturnFrom);
   const [leaving, setLeaving] = useState(returnFrom !== null);
+
   // 지도를 못 그리는 경우(경계 불러오기 실패 등)에도 패널이 숨겨진 채 남지 않게
   useEffect(() => {
     if (!returnFrom) return;
@@ -59,11 +60,28 @@ export function MapPage() {
   const stageRef = useRef<HTMLElement>(null);
   // 숨길 때는 바로 숨김(유리 패널의 backdrop-filter가 움직이는 지도 위에서 무거움), 다시 보일 때만 서서히
   const leaveFade = leaving ? "invisible opacity-0" : "opacity-100 transition-opacity duration-300";
-  const { boundaries, error: boundaryError } = useBoundaries();
-  const homeView = useMemo(() => (boundaries ? fitView(bboxOf(boundaries)) : null), [boundaries]);
-  const regions = useMemo(() => (boundaries ? [boundaries] : []), [boundaries]);
-  const { dongs, topDongs, season, error: colorError, loading } = useDongColors(timeBand);
+  const { regionList, error: regionError } = useRegionList();
+  // 첫 화면: 기본 지역(부천)이 꽉 차게
+  const homeView = useMemo(() => {
+    const home = regionList?.regions.find((r) => r.regionCode === regionList.defaultRegionCode);
+    return home ? fitView(home.bbox) : null;
+  }, [regionList]);
+  // 지도가 알려 준 지금 화면 (움직이기 전에는 첫 화면)
+  const [view, setView] = useState<View | null>(null);
+  const shownView = view ?? homeView;
+  // 화면에 보이는 지역 (기본 지역을 맨 앞에: 제목·Top 3는 아직 기본 지역 기준, 5단계에서 가운데 지역으로)
+  const visibleCodes = useMemo(() => {
+    if (!regionList || !shownView) return [];
+    const codes = regionsInView(regionList.regions, shownView);
+    const home = regionList.defaultRegionCode;
+    return codes.includes(home) ? [home, ...codes.filter((c) => c !== home)] : codes;
+  }, [regionList, shownView]);
+  const { regions, error: boundaryError } = useRegionBoundaries(visibleCodes);
+  const { dongs, colorsOf, season, error: colorError, loading } = useDongColors(timeBand, visibleCodes);
+  const homeColors = regionList ? colorsOf(regionList.defaultRegionCode) : undefined;
+  const topDongs = homeColors?.topDongs ?? [];
   const myMap = useMyMap(mine, timeBand);
+  // 지도에 칠할 색: 공유 지도는 보이는 지역 전부, 나의 지도는 내 칸
   const shownDongs = mine ? myMap.dongs : dongs;
   const shownLoading = mine ? myMap.loading : loading;
   const shownError = mine ? myMap.error : colorError;
@@ -71,14 +89,16 @@ export function MapPage() {
   const myMapEmpty = mine && myMap.empty;
 
   const seasonInfo = seasonOf(season);
-  const totalPhotos = [...shownDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
+  // 제목의 칸 수·사진 수는 한 지역 기준 (지금은 기본 지역, 5단계에서 화면 가운데 지역으로)
+  const titleDongs = mine ? myMap.dongs : (homeColors?.dongs ?? new Map<string, DongColor>());
+  const totalPhotos = [...titleDongs.values()].reduce((sum, dong) => sum + dong.photoCount, 0);
   const filledCount = mine
     ? myMap.filledCount
-    : [...shownDongs.values()].filter((dong) => dong.dominantColor).length;
+    : [...titleDongs.values()].filter((dong) => dong.dominantColor).length;
   const hoveredDong = hoveredCode ? shownDongs.get(hoveredCode) : undefined;
-  const hoveredGu = boundaries?.features.find(
-    (feature) => feature.properties.dongCode === hoveredCode,
-  )?.properties.guName;
+  const hoveredGu = regions
+  .flatMap((b) => b.features)
+  .find((feature) => feature.properties.dongCode === hoveredCode)?.properties.guName;
 
   function changeTimeBand(value: TimeBand) {
     navigate({ to: "/map", search: (prev) => ({ ...prev, timeBand: value }), replace: true });
@@ -126,13 +146,14 @@ export function MapPage() {
             <div
               className={`absolute -top-[22px] right-0 -bottom-[48px] left-0 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
             >
-              {boundaries && homeView && (
+              {homeView && regions.length > 0 && (
                 <SvgMap
                   regions={regions}
                   homeView={homeView}
                   dongs={shownDongs}
                   hoveredCode={hoveredCode}
                   onHover={setHoveredCode}
+                  onViewChange={setView}
                   stageRef={stageRef}
                   fillWave={wave.direction}
                   returnFrom={returnFrom}
@@ -165,7 +186,7 @@ export function MapPage() {
 
             {/* 경계·색을 받는 중 (오류면 오류 배너만) */}
             <MapLoading
-              show={!leaving && ((!boundaries && !boundaryError) || (shownLoading && !shownError))}
+              show={!leaving && ((regions.length === 0 && !boundaryError) || (shownLoading && !shownError))}
             />
 
             {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
@@ -183,7 +204,7 @@ export function MapPage() {
                 <MapModeToggle mine={mine} onChange={changeMode} />
               </div>
               <div className="mt-2 max-w-[360px]">
-                <ErrorBanner message={boundaryError ?? shownError} />
+                <ErrorBanner message={regionError ?? boundaryError ?? shownError} />
               </div>
             </div>
 
@@ -204,7 +225,7 @@ export function MapPage() {
             className={`flex flex-col gap-4 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
           >
             {myMapEmpty ? (
-              <MyMapGuidePanel regionName={REGION_NAME} dongCount={boundaries?.features.length ?? shownDongs.size} />
+              <MyMapGuidePanel regionName={REGION_NAME} dongCount={homeColors?.dongs.size ?? shownDongs.size} />
             ) : mine ? (
               <MyMapPanel
                 timeBand={timeBand}

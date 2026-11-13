@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { project, unproject, fitView, WORLD_WIDTH, WORLD_HEIGHT } from '../src/pages/map/map-geometry.ts';
+import { project, unproject, fitView, regionsInView, WORLD_WIDTH, WORLD_HEIGHT } from '../src/pages/map/map-geometry.ts';
 
 const close = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} ≠ ${b}`);
 
@@ -29,4 +29,14 @@ test('fitView는 bbox를 다 담는 정사각형이고 가운데가 bbox 가운�
   assert.ok(view.x <= x1 && view.y <= y1 && view.x + view.size >= x2 && view.y + view.size >= y2);
   close(view.x + view.size / 2, (x1 + x2) / 2, 1e-6);
   close(view.y + view.size / 2, (y1 + y2) / 2, 1e-6);
+});
+
+test('화면과 겹치는 지역만 고르고, 먼 지역은 뺀다', () => {
+  const regions = [
+    { regionCode: '3105', bbox: [126.74, 37.46, 126.84, 37.55] }, // 부천
+    { regionCode: '3115', bbox: [126.69, 37.30, 126.90, 37.46] }, // 시흥 (부천 바로 아래)
+    { regionCode: '3155', bbox: [126.79, 37.93, 127.19, 38.28] }, // 연천 (멀리 북쪽)
+  ];
+  const view = fitView(regions[0].bbox);
+  assert.deepEqual(regionsInView(regions, view), ['3105', '3115']);
 });
