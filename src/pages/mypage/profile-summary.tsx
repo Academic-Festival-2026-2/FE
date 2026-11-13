@@ -7,12 +7,13 @@ import { NicknameDialog } from "./nickname-dialog";
 import { ProfileImageDialog } from "./profile-image-dialog";
 
 // 연필 아이콘 (프로필 사진·닉네임 변경 버튼)
+// 그림 둘레 빈칸을 잘라낸 viewBox → 아이콘 아래 끝이 그림 아래 끝이라 글자 기준선에 맞출 수 있음
 function PencilIcon({ size }: { size: number }) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="2 2 20 20"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
@@ -88,15 +89,16 @@ export function ProfileSummary({ info, filledDongs, earnedBadges, onUpdated }: P
           </span>
         </button>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5">
+          {/* items-baseline: 연필 아이콘 아래 끝을 닉네임 글자 아래 기준선에 맞춤 (가운데 정렬이면 떠 보임) */}
+          <p className="flex items-baseline gap-1">
             <span className="truncate text-lg leading-7 font-bold text-ink">{info.nickname}</span>
             <button
               type="button"
               aria-label="닉네임 변경"
               onClick={() => setIsEditingNickname(true)}
-              className="grid size-7 shrink-0 place-items-center rounded-lg text-ink-muted transition-colors hover:bg-field hover:text-ink"
+              className="inline-flex shrink-0 rounded-md p-1 text-ink-muted transition-colors hover:bg-field hover:text-ink"
             >
-              <PencilIcon size={15} />
+              <PencilIcon size={13} />
             </button>
           </p>
           <p className="truncate text-[13px] leading-5 text-ink-sub">{info.email}</p>
