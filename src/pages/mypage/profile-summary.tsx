@@ -6,9 +6,6 @@ import { formatDate } from "../../utils/date";
 import { currentTimeBand } from "../../utils/time-band";
 import { ProfileImageDialog } from "./profile-image-dialog";
 
-// 부천 37개 동 × 시간대 4개
-const TOTAL_CELLS = 148;
-
 function Stat({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
     <div className="w-[140px] rounded-[10px] bg-field px-3.5 py-2.5">
@@ -82,7 +79,7 @@ export function ProfileSummary({ info, onUpdated }: ProfileSummaryProps) {
       >
         <Stat label="내 사진" value={(info.photoCount ?? 0).toLocaleString()} unit="장" />
       </Link>
-      <Stat label="채운 칸" value={`${info.filledCellCount ?? 0} / ${TOTAL_CELLS}`} />
+      <Stat label="채운 칸" value={`${info.filledCellCount ?? 0}`} />
       <Link
         to="/map"
         search={{ timeBand: currentTimeBand(), mode: "mine" }}

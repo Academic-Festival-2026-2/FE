@@ -8,14 +8,13 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { useAuthStore } from "../../stores/auth-store";
 import {
   bandLabel,
-  DEFAULT_REGION_CODE,
   EMPTY_FILL,
   KAKAO_ERROR,
   KAKAO_UNAVAILABLE,
   MASK_FRAME_POINTS,
   PAGE_BG,
-  REGION_NAME,
   seasonOf,
+  useRegionList,
   STATUS_LABEL,
   toKakaoPath,
   useBoundaries,
@@ -28,14 +27,13 @@ import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
 import { MapLoading } from "../map/map-loading";
 import { canUseDongTransition, markReturnFrom, prepareDongTransition } from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
+import { labelPoint } from "../map/map-geometry";
 
 const SELECTED_STROKE = "#1a1a1a";
 const DONG_TINT_OPACITY = 0.14;
 // 지도 화면(svg-map)의 확대·축소 버튼과 같은 모양
 const ZOOM_BUTTON =
   "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
-// 7단계 전까지 동 상세는 기본 지역(부천)만
-const DONG_PAGE_REGIONS = [DEFAULT_REGION_CODE];
 
 function signedArea(path: kakao.maps.LatLng[]) {
   let area = 0;
@@ -116,14 +114,19 @@ function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean) {
 export function DongPage() {
   const { dongCode } = useParams({ from: "/dong/$dongCode" });
   const { timeBand, mode } = useSearch({ from: "/dong/$dongCode" });
+  // 지역 코드 = 동 코드 앞 4자리 (부천 3105)
+  const regionCode = dongCode.slice(0, 4);
+  const regionCodes = useMemo(() => [regionCode], [regionCode]);
+  const { regionList } = useRegionList();
+  const regionName = regionList?.regions.find((r) => r.regionCode === regionCode)?.name ?? "";
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
-  const { boundaries, error: boundaryError } = useBoundaries();
+  const { boundaries, error: boundaryError } = useBoundaries(regionCode);
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
-  const { dongs, season, error: colorError } = useDongColors(timeBand, DONG_PAGE_REGIONS);
+  const { dongs, season, error: colorError } = useDongColors(timeBand, regionCodes);
   const seasonName = seasonOf(season)?.name;
-  const myMap = useMyMap(mine, timeBand, DONG_PAGE_REGIONS);
+  const myMap = useMyMap(mine, timeBand, regionCodes);
   const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
   // 카카오맵 타일이 처음 다 그려진 동 (그 전까지 로딩 안내 표시)
@@ -169,8 +172,9 @@ export function DongPage() {
     kakao.maps.load(() => {
       if (cancelled || !containerRef.current) return;
 
+      const [centerLng, centerLat] = labelPoint(feature);
       const map = new kakao.maps.Map(containerRef.current, {
-        center: new kakao.maps.LatLng(37.5035, 126.766),
+        center: new kakao.maps.LatLng(centerLat, centerLng),
         level: 5,
       });
 
@@ -383,13 +387,13 @@ export function DongPage() {
           <p className="text-xs leading-[18px] text-ink-muted">
             <Link
               to="/map"
-              search={{ timeBand, mode }}
+              search={{ timeBand, mode, region: Number(regionCode) }}
               // 지도가 이 동에서 줄어들며 시작 (뒤로 가기도 같음: 아래 markReturnFrom)
               viewTransition={canUseDongTransition()}
               onClick={() => prepareDongTransition()}
               className="hover:text-ink"
             >
-              ← {REGION_NAME}
+              ← {regionName}
             </Link>
             {feature?.properties.guName && <span> / {feature.properties.guName}</span>}
           </p>
