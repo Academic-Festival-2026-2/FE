@@ -15,9 +15,9 @@ import {
   EmptyMyMapCard,
   MapTitlePanel,
   MyMapGuidePanel,
-  RankPanel,
   TimeBandBar,
-  MyMapPanel,
+  TopDongsPanel,
+  type TopDongItem,
 } from "./map-ui";
 import { MapLoading } from "./map-loading";
 import { SvgMap } from "./svg-map";
@@ -76,6 +76,23 @@ export function MapPage() {
   const hoveredGu = boundaries?.features.find(
     (feature) => feature.properties.dongCode === hoveredCode,
   )?.properties.guName;
+
+  // 왼쪽 위 제목과 오른쪽 패널이 같이 쓰는 지역 이름.
+  // 화면 위치 기준 지역(부천시 / 인천시 / 파주시 …)으로 바뀌면 이 값만 바꾸면 오른쪽도 같이 바뀜
+  const regionName = REGION_NAME;
+
+  // 나의 지도 오른쪽 패널: 이 시간대에 칠한 동 중 내 사진이 많은 순 상위 3개 (같으면 동 코드 순)
+  const myTopDongs: TopDongItem[] = mine
+    ? [...shownDongs.values()]
+        .filter((dong) => dong.dominantColor && dong.photoCount > 0)
+        .sort((a, b) => b.photoCount - a.photoCount || a.dongCode.localeCompare(b.dongCode))
+        .slice(0, 3)
+        .map((dong) => ({
+          ...dong,
+          guName: boundaries?.features.find((feature) => feature.properties.dongCode === dong.dongCode)
+            ?.properties.guName,
+        }))
+    : [];
 
   function changeTimeBand(value: TimeBand) {
     navigate({ to: "/map", search: (prev) => ({ ...prev, timeBand: value }), replace: true });
@@ -167,7 +184,7 @@ export function MapPage() {
             {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
             <div className={`absolute top-[23px] left-[23px] ${leaveFade}`}>
               {/* 공유·나의 지도는 옆 토글이 알려 주므로 제목은 같게 */}
-              <MapTitlePanel title={`${REGION_NAME}의 ${bandLabel(timeBand)}`}>
+              <MapTitlePanel title={`${regionName}의 ${bandLabel(timeBand)}`}>
                 {mine ? "칠한 동 " : "칠해진 동 "}
                 <b className="text-ink">
                   {filledCount}/{shownDongs.size}
@@ -200,18 +217,13 @@ export function MapPage() {
             className={`flex flex-col gap-4 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
           >
             {myMapEmpty ? (
-              <MyMapGuidePanel regionName={REGION_NAME} dongCount={boundaries?.features.length ?? shownDongs.size} />
-            ) : mine ? (
-              <MyMapPanel
-                timeBand={timeBand}
-                dongs={[...shownDongs.values()]}
-                onHover={setHoveredCode}
-              />
+              <MyMapGuidePanel regionName={regionName} dongCount={boundaries?.features.length ?? shownDongs.size} />
             ) : (
-              <RankPanel
-                timeBand={timeBand}
+              <TopDongsPanel
+                title={mine ? `내가 칠한 ${regionName}` : `칠해진 ${regionName}`}
                 season={seasonInfo}
-                topDongs={topDongs}
+                dongs={mine ? myTopDongs : topDongs}
+                emptyText={`아직 ${bandLabel(timeBand)} 사진으로 ${mine ? "칠한" : "칠해진"} 동이 없어요.`}
                 onHover={setHoveredCode}
               />
             )}
