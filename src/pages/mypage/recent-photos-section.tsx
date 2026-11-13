@@ -84,7 +84,15 @@ export function RecentPhotosSection() {
         ) : null
       }
     >
-      {error && <p className="mt-4 text-sm text-danger">사진을 불러오지 못했어요.</p>}
+      {/* 목록을 못 받아도 업로드는 할 수 있게 (마이페이지 헤더엔 업로드 버튼이 없음) */}
+      {error && (
+        <div className="mt-4 flex items-center gap-4">
+          <div className="w-24 shrink-0">
+            <UploadTile label="사진 업로드" />
+          </div>
+          <p className="text-sm text-danger">사진을 불러오지 못했어요.</p>
+        </div>
+      )}
       {!photos && !error && <p className="mt-4 text-sm text-ink-muted">불러오는 중...</p>}
       {isEmpty && (
         <div className="mt-4 flex items-center gap-4">

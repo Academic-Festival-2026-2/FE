@@ -41,8 +41,8 @@ export function BadgeSection({ data, error }: { data: MyBadges | null; error: bo
                   {/* 아이콘(잠금 표시)은 화면 낭독기에서 숨기므로 받은 여부를 글로 알림 */}
                   <span className="sr-only">{badge.earned ? " (받은 배지)" : " (아직 받지 않은 배지)"}</span>
                 </p>
-                {/* 설명은 2줄까지만 (넘치면 …), 마우스를 올리면 전체 */}
-                <p title={description} className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink-muted">
+                {/* 터치 화면은 마우스를 올릴 수 없어서 조건을 끝까지 보여 줌 (줄 높이는 auto-rows-fr로 맞춤) */}
+                <p className="mt-0.5 text-xs leading-snug text-ink-muted">
                   {description}
                 </p>
                 {badge.earned && badge.earnedAt && (

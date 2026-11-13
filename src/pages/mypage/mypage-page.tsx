@@ -4,6 +4,7 @@ import { getMyBadges, type MyBadges } from "../../api/badge";
 import { getMyMap, type MyMap } from "../../api/mymap";
 import { getMyInfo, type MyInfoResponse } from "../../api/user";
 import { AuthHeader } from "../../components/layout/auth-header";
+import { isKnownBadge } from "../../constants/badges";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useUserStore } from "../../stores/user-store";
 import { BadgeSection } from "./badge-section";
@@ -82,7 +83,10 @@ export function MyPage() {
   // 지금 고른 지역·계절의 응답만 사용 (바꾸는 중에는 불러오는 중으로)
   const currentMyMap = myMap?.key === myMapKey ? myMap.data : null;
   const stats = useMemo(() => (currentMyMap ? summarizeMyMap(currentMyMap) : null), [currentMyMap]);
-  const earnedBadges = badges ? badges.badges.filter((badge) => badge.earned).length : null;
+  // 배지 영역과 같게 모르는 배지는 빼고 셈
+  const earnedBadges = badges
+    ? badges.badges.filter((badge) => badge.earned && isKnownBadge(badge.type)).length
+    : null;
 
   // 수정 API는 결과를 돌려주지 않아서 보낸 값으로 화면을 갱신
   function handleUpdated(changes: Partial<MyInfoResponse>) {
