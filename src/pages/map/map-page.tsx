@@ -220,7 +220,7 @@ export function MapPage() {
               <MyMapGuidePanel regionName={regionName} dongCount={boundaries?.features.length ?? shownDongs.size} />
             ) : (
               <TopDongsPanel
-                title={mine ? `내가 칠한 ${regionName}` : `칠해진 ${regionName}`}
+                title={mine ? `내가 칠한 ${regionName}` : `함께 칠한 ${regionName}`}
                 season={seasonInfo}
                 dongs={mine ? myTopDongs : topDongs}
                 emptyText={`아직 ${bandLabel(timeBand)} 사진으로 ${mine ? "칠한" : "칠해진"} 동이 없어요.`}
