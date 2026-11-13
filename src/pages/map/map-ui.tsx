@@ -355,7 +355,7 @@ export function EmptyMyMapCard() {
         to="/upload"
         className="mt-4 flex h-12 items-center rounded-xl bg-brand px-[22px] text-[15px] font-extrabold text-white transition-colors hover:bg-brand-hover"
       >
-        첫 사진 올리기
+        첫 사진 업로드
       </Link>
     </div>
   );
