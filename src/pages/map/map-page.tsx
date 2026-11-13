@@ -272,7 +272,10 @@ export function MapPage() {
             className={`flex flex-col gap-4 transition-opacity ${shownLoading ? "opacity-50" : ""}`}
           >
             {myMapEmpty ? (
-              <MyMapGuidePanel regionName={regionName} dongCount={currentRegion?.dongCount ?? shownDongs.size} />
+              <MyMapGuidePanel
+                regionName={regionName || "동네"}
+                dongCount={currentRegion?.dongCount ?? shownDongs.size}
+              />
             ) : (
               <TopDongsPanel
                 title={mine ? `내가 칠한 ${regionName || "동"}` : `함께 칠한 ${regionName || "동"}`}
