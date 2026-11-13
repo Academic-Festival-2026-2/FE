@@ -3,7 +3,7 @@ import type { Boundaries } from "../../api/map";
 import type { PhotoUploadResult } from "../../api/photo";
 import { BadgeIcon } from "../../components/badge-icon";
 import { BADGES, badgeEarnedText, isKnownBadge, sortByBadgeOrder } from "../../constants/badges";
-import { labelPoint } from "../map/map-data";
+import { labelPoint } from "../map/map-geometry";
 
 type CompletedPhoto = { id: string; filename: string; color: string; result: PhotoUploadResult };
 const labels = { DAWN: "새벽", DAY: "낮", SUNSET: "노을", NIGHT: "밤" };

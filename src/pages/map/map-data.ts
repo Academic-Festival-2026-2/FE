@@ -6,25 +6,24 @@ import { currentTimeBand } from "../../utils/time-band";
 import {
   getBoundaries,
   getMapDongs,
-  type BoundaryFeature,
+  getRegions,
   type Boundaries,
+  type RegionList,
   type DongColor,
   type TimeBand,
   type TopDong,
 } from "../../api/map";
 
-// 지도 제목·동 상세 경로에 들어가는 지역 이름 ("시"까지 포함, BE regions.name과 같은 형식)
-// 경기도 전체로 확장하면 고른 지역 값(API)으로 바꿀 자리. 화면에서 "시"를 따로 붙이지 않음
-export const REGION_NAME = "부천시";
+// 지역 목록을 받기 전·동 상세의 기본 지역 (BE Region.DEFAULT_CODE와 같음)
+export const DEFAULT_REGION_CODE = "3105";
 
-// 동 상세·업로드 위치 선택 지도에서 고른 동 바깥을 덮는 큰 사각형 [위도, 경도]
-// ⚠️ 지금 값은 부천 주변만 넉넉히 덮음. 경기도 동쪽·북쪽(가평·양평·여주·이천·안성·연천)은 못 덮으니
-//    지역을 늘리면 이 값만 넓히면 됨 (두 화면이 같이 씀)
+// 동 상세·업로드 위치 선택 지도에서 고른 동 바깥을 덮는 큰 사각형 [위도, 경도].
+// 경기도 전체를 덮는 범위 (map-geometry.ts의 원점·끝과 같음)
 export const MASK_FRAME_POINTS: [number, number][] = [
-  [36.8, 126.0],
-  [36.8, 127.5],
-  [38.2, 127.5],
-  [38.2, 126.0],
+  [36.5, 125.8],
+  [36.5, 128.2],
+  [38.6, 128.2],
+  [38.6, 125.8],
 ];
 
 // 동 상세 지도에서 고른 동 바깥을 덮는 색 (지도 화면 빈 동 기본색 EMPTY_FILL과 같은 쿨톤 회색)
@@ -48,78 +47,103 @@ export function parseTimeBand(value: unknown): TimeBand {
   return TIME_BAND_VALUES.includes(value as TimeBand) ? (value as TimeBand) : currentTimeBand();
 }
 
-// 동 경계(약 380KB)는 화면을 옮겨도 바뀌지 않으므로 한 번 받으면 탭이 열려 있는 동안 다시 쓴다.
-// (지도 ↔ 동 상세를 오갈 때마다 다시 받지 않아서 두 번째부터는 바로 그려짐)
-// TODO(경기도 확장): 지금은 지역이 하나라 값 하나만 저장. 지역 파라미터가 생기면 지역 코드별로 나눠 저장
-let boundariesCache: Boundaries | null = null;
-let boundariesRequest: Promise<Boundaries> | null = null;
+// 지역 목록(약 3.5KB)은 탭이 열려 있는 동안 한 번만 받는다
+let regionListCache: RegionList | null = null;
+let regionListRequest: Promise<RegionList> | null = null;
 
-function loadBoundaries() {
-  if (!boundariesRequest) {
-    boundariesRequest = getBoundaries().then(
-      (result) => {
-        boundariesCache = result;
-        return result;
-      },
-      (error: unknown) => {
-        // 실패하면 다음 화면에서 다시 시도할 수 있게 비움
-        boundariesRequest = null;
-        throw error;
-      },
-    );
-  }
-  return boundariesRequest;
-}
-
-export function useBoundaries() {
-  const [boundaries, setBoundaries] = useState<Boundaries | null>(boundariesCache);
+export function useRegionList() {
+  const [regionList, setRegionList] = useState<RegionList | null>(regionListCache);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (boundariesCache) return;
+    if (regionListCache) return;
     let cancelled = false;
-    loadBoundaries()
-      .then((result) => {
-        if (!cancelled) setBoundaries(result);
-      })
-      .catch(() => {
-        if (!cancelled) setError("동 경계를 불러오지 못했어요.");
-      });
+    regionListRequest ??= getRegions().then(
+      (result) => (regionListCache = result),
+      (err: unknown) => {
+        regionListRequest = null;
+        throw err;
+      },
+    );
+    regionListRequest
+      .then((result) => !cancelled && setRegionList(result))
+      .catch(() => !cancelled && setError("지역 목록을 불러오지 못했어요."));
     return () => {
       cancelled = true;
     };
   }, []);
 
-  return { boundaries, error };
+  return { regionList, error };
 }
 
-type MapDongsState = {
-  timeBand: TimeBand | null;
-  dongs: Map<string, DongColor>;
-  topDongs: TopDong[];
-  season: string | null;
-};
+// 동 경계는 화면을 옮겨도 바뀌지 않으므로 지역마다 한 번 받으면 탭이 열려 있는 동안 다시 쓴다
+const boundariesCache = new Map<string, Boundaries>();
+const boundariesRequests = new Map<string, Promise<Boundaries>>();
 
-const EMPTY_MAP_DONGS: MapDongsState = {
-  timeBand: null,
-  dongs: new Map(),
-  topDongs: [],
-  season: null,
-};
+function loadBoundaries(regionCode: string) {
+  let request = boundariesRequests.get(regionCode);
+  if (!request) {
+    request = getBoundaries(regionCode).then(
+      (result) => {
+        boundariesCache.set(regionCode, result);
+        return result;
+      },
+      (error: unknown) => {
+        // 실패하면 다음에 다시 시도할 수 있게 비움
+        boundariesRequests.delete(regionCode);
+        throw error;
+      },
+    );
+    boundariesRequests.set(regionCode, request);
+  }
+  return request;
+}
 
-// 시간대별 동 색을 화면이 열려 있는 동안 저장해 둠.
-// 지금 시간대를 먼저 받고 나머지 3개 시간대도 바로 미리 받아 두어서, 탭을 바꾸면 기다리지 않고 바로 바뀜.
-// 저장은 화면(컴포넌트) 단위라 업로드 후 지도로 돌아오면 다시 새로 받음
-// 마지막으로 받은 시간대별 동 색. 화면을 다시 열면 이 값을 먼저 보여 주고(지도로 돌아올 때 회색으로 비지 않게)
-// 바로 새로 받아서 바꿈 (업로드 후 돌아와도 새 색으로 갱신됨)
-// TODO(경기도 확장): 지역이 생기면 지역 코드별로 나눠 저장 (지금은 지역 하나라 시간대만 키로 씀)
-const lastDongColors: Partial<Record<TimeBand, MapDongsState>> = {};
+// 여러 지역의 경계. 받은 지역부터 바로 돌려주고, 아직 안 온 지역은 빠져 있다
+export function useRegionBoundaries(regionCodes: string[]) {
+  const key = regionCodes.join(",");
+  const [, setVersion] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
-export function useDongColors(timeBand: TimeBand) {
-  const [cache, setCache] = useState<Partial<Record<TimeBand, MapDongsState>>>(() => ({ ...lastDongColors }));
-  const [errors, setErrors] = useState<Partial<Record<TimeBand, string>>>({});
-  // 이미 요청했거나 받은 시간대 (effect 안에서만 사용)
-  const requestedRef = useRef(new Set<TimeBand>());
+  useEffect(() => {
+    let cancelled = false;
+    for (const code of key ? key.split(",") : []) {
+      if (boundariesCache.has(code)) continue;
+      loadBoundaries(code)
+        .then(() => !cancelled && setVersion((v) => v + 1))
+        .catch(() => !cancelled && setError("동 경계를 불러오지 못했어요."));
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+
+  // 받은 지역만 골라 키로 만들고, 키가 같으면 같은 배열을 돌려줘서 지도가 모양을 다시 계산하지 않게
+  const loadedKey = (key ? key.split(",") : []).filter((code) => boundariesCache.has(code)).join(",");
+  const regions = useMemo(
+    () => (loadedKey ? loadedKey.split(",").map((code) => boundariesCache.get(code) as Boundaries) : []),
+    [loadedKey],
+  );
+  return { regions, error };
+}
+
+// 지역 하나 (동 상세·업로드 화면용)
+export function useBoundaries(regionCode: string = DEFAULT_REGION_CODE) {
+  const { regions, error } = useRegionBoundaries(useMemo(() => [regionCode], [regionCode]));
+  return { boundaries: regions[0] ?? null, error };
+}
+type RegionColors = { dongs: Map<string, DongColor>; topDongs: TopDong[]; season: string | null };
+
+// 마지막으로 받은 지역·시간대별 동 색. 화면을 다시 열면 이 값을 먼저 보여 주고 바로 새로 받아 바꿈
+const lastDongColors = new Map<string, RegionColors>();
+const colorKey = (regionCode: string, band: TimeBand) => `${regionCode}:${band}`;
+
+// 보이는 지역들의 동 색. 첫 지역(화면 가운데)은 나머지 시간대도 미리 받아 탭을 바꾸면 바로 바뀜
+export function useDongColors(timeBand: TimeBand, regionCodes: string[]) {
+  const key = regionCodes.join(",");
+  const [cache, setCache] = useState(() => new Map(lastDongColors));
+  const [errors, setErrors] = useState(() => new Map<string, string>());
+  const requestedRef = useRef(new Set<string>());
   const aliveRef = useRef(false);
 
   useEffect(() => {
@@ -127,45 +151,69 @@ export function useDongColors(timeBand: TimeBand) {
     aliveRef.current = true;
     return () => {
       aliveRef.current = false;
-      // 화면을 떠나면 다음에 다시 열 때 새로 받도록 비움 (개발 모드 StrictMode 재실행도 대비)
+      // 화면을 떠나면 다음에 다시 열 때 새로 받도록 비움
       requested.clear();
     };
   }, []);
 
   useEffect(() => {
     const requested = requestedRef.current;
-    const order = [timeBand, ...TIME_BAND_VALUES.filter((band) => band !== timeBand)];
-    for (const band of order) {
-      if (requested.has(band)) continue;
-      requested.add(band);
-      getMapDongs(band)
+    const codes = key ? key.split(",") : [];
+    const jobs: [string, TimeBand][] = codes.map((code) => [code, timeBand]);
+    if (codes[0]) {
+      for (const band of TIME_BAND_VALUES) if (band !== timeBand) jobs.push([codes[0], band]);
+    }
+    for (const [code, band] of jobs) {
+      const k = colorKey(code, band);
+      if (requested.has(k)) continue;
+      requested.add(k);
+      getMapDongs(band, code)
         .then(({ dongs, topDongs, season }) => {
-          const state: MapDongsState = {
-            timeBand: band,
+          const state: RegionColors = {
             dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
             topDongs,
             season,
           };
-          lastDongColors[band] = state;
+          lastDongColors.set(k, state);
           if (!aliveRef.current) return;
-          setCache((prev) => ({ ...prev, [band]: state }));
-          setErrors((prev) => ({ ...prev, [band]: undefined }));
+          setCache((prev) => new Map(prev).set(k, state));
+          setErrors((prev) => {
+            if (!prev.has(k)) return prev;
+            const next = new Map(prev);
+            next.delete(k);
+            return next;
+          });
         })
         .catch(() => {
-          // 실패한 시간대는 다음에 그 탭을 누를 때 다시 요청
-          requested.delete(band);
+          // 실패한 것은 다음에 다시 요청
+          requested.delete(k);
           if (!aliveRef.current) return;
-          setErrors((prev) => ({ ...prev, [band]: "동 색을 불러오지 못했어요." }));
+          setErrors((prev) => new Map(prev).set(k, "동 색을 불러오지 못했어요."));
         });
     }
-  }, [timeBand]);
+  }, [timeBand, key]);
 
-  const data = cache[timeBand];
-  const error = errors[timeBand] ?? null;
+  // 보이는 지역 동 색을 하나로 합침 (지도 칠하기용)
+  const dongs = useMemo(() => {
+    const merged = new Map<string, DongColor>();
+    for (const code of key ? key.split(",") : []) {
+      for (const [dongCode, dong] of cache.get(colorKey(code, timeBand))?.dongs ?? []) {
+        merged.set(dongCode, dong);
+      }
+    }
+    return merged;
+  }, [cache, key, timeBand]);
+
+  const first = key.split(",")[0];
+  const firstColors = first ? cache.get(colorKey(first, timeBand)) : undefined;
+  const error = first ? (errors.get(colorKey(first, timeBand)) ?? null) : null;
   return {
-    ...(data ?? { ...EMPTY_MAP_DONGS, timeBand }),
+    dongs,
+    // 지역 하나의 동 색 (제목의 칠해진 동 수, Top 3)
+    colorsOf: (regionCode: string) => cache.get(colorKey(regionCode, timeBand)),
+    season: firstColors?.season ?? null,
     error,
-    loading: !data && !error,
+    loading: Boolean(first) && !firstColors && !error,
   };
 }
 
@@ -173,36 +221,57 @@ export function toKakaoPath(rings: number[][][]) {
   return rings.map((ring) => ring.map(([lng, lat]) => new kakao.maps.LatLng(lat, lng)));
 }
 
-export function useMyMap(enabled: boolean, timeBand: TimeBand) {
+// 나의 지도: 보이는 지역마다 내 칸을 받음 (지역 하나에 4개 시간대가 한 번에 옴).
+// 로그인한 사람(토큰)이 바뀌면 받은 것을 버리고 새로 받음
+export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: string[]) {
   const accessToken = useAuthStore((state) => state.tokens?.accessToken);
   const expireSession = useExpireSession();
-  const [loaded, setLoaded] = useState<{ token: string; cells: MyMapCell[] } | null>(null);
+  const key = regionCodes.join(",");
+  const [loaded, setLoaded] = useState<{ token: string; cells: Map<string, MyMapCell[]> } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // 이미 요청한 "토큰:지역" (받는 중에 같은 지역을 또 요청하지 않게)
+  const requestedRef = useRef(new Set<string>());
+
+  // 화면을 떠났는지. 보이는 지역이 바뀌어도 받는 중인 응답은 버리지 않고 저장한다
+  // (버리면 requestedRef에 "요청함"만 남아 그 지역을 다시 받지 않음). 저장할 때 토큰을 확인하므로 안전
+  const aliveRef = useRef(false);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!enabled || !accessToken) return;
-    let cancelled = false;
-    getMyMap()
-      .then((data) => {
-        if (cancelled) return;
-        setLoaded({ token: accessToken, cells: data.cells });
-        setError(null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        if (isSessionExpired(err)) expireSession();
-        else setError("나의 지도를 불러오지 못했어요.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, accessToken, expireSession]);
+    for (const code of key ? key.split(",") : []) {
+      const k = `${accessToken}:${code}`;
+      if (requestedRef.current.has(k)) continue;
+      requestedRef.current.add(k);
+      getMyMap({ regionCode: code })
+        .then((data) => {
+          if (!aliveRef.current) return;
+          setLoaded((prev) => {
+            const base = prev && prev.token === accessToken ? prev.cells : new Map<string, MyMapCell[]>();
+            return { token: accessToken, cells: new Map(base).set(code, data.cells) };
+          });
+          setError(null);
+        })
+        .catch((err) => {
+          requestedRef.current.delete(k);
+          if (!aliveRef.current) return;
+          if (isSessionExpired(err)) expireSession();
+          else setError("나의 지도를 불러오지 못했어요.");
+        });
+    }
+  }, [enabled, accessToken, key, expireSession]);
 
-  const cells = loaded && loaded.token === accessToken ? loaded.cells : null;
+  const cellsByRegion = loaded && loaded.token === accessToken ? loaded.cells : null;
 
-  const dongs = useMemo(() => {
+  // 지역 하나의 내 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
+  function dongsOf(regionCode: string | null) {
     const result = new Map<string, DongColor>();
-    for (const cell of cells ?? []) {
+    for (const cell of (regionCode && cellsByRegion?.get(regionCode)) || []) {
       if (cell.timeBand !== timeBand) continue;
       result.set(cell.dongCode, {
         dongCode: cell.dongCode,
@@ -214,48 +283,22 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand) {
       });
     }
     return result;
-  }, [cells, timeBand]);
-
-  const filledCount = (cells ?? []).filter(
-    (cell) => cell.timeBand === timeBand && cell.filled,
-  ).length;
-
-  // 새벽·낮·노을·밤 어디에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음 (나의 지도 비어 있음 안내용)
-  const empty = cells !== null && !cells.some((cell) => cell.filled);
-
-  return { dongs, filledCount, empty, loading: enabled && cells === null && !error, error };
-}
-
-export function labelPoint(feature: BoundaryFeature): [number, number] {
-  let best = feature.geometry.coordinates[0][0];
-  let bestArea = 0;
-  let bestCx = 0;
-  let bestCy = 0;
-
-  for (const polygon of feature.geometry.coordinates) {
-    const ring = polygon[0];
-    let area = 0;
-    let cx = 0;
-    let cy = 0;
-    for (let i = 0; i < ring.length - 1; i++) {
-      const [x1, y1] = ring[i];
-      const [x2, y2] = ring[i + 1];
-      const cross = x1 * y2 - x2 * y1;
-      area += cross;
-      cx += (x1 + x2) * cross;
-      cy += (y1 + y2) * cross;
-    }
-    if (Math.abs(area) > Math.abs(bestArea)) {
-      best = ring;
-      bestArea = area;
-      bestCx = cx;
-      bestCy = cy;
-    }
   }
 
-  if (bestArea === 0) return [best[0][0], best[0][1]];
-  return [bestCx / (3 * bestArea), bestCy / (3 * bestArea)];
+  const codes = key ? key.split(",") : [];
+  // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
+  const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
+  const first = codes[0];
+
+  return {
+    dongs,
+    dongsOf,
+    loading: enabled && Boolean(first) && !cellsByRegion?.has(first) && !error,
+    error,
+  };
 }
+
+
 
 export const TIME_BANDS: { value: TimeBand; label: string; swatch: string[] }[] = [
   { value: "DAWN", label: "새벽", swatch: ["#8a86c8", "#a9a3d6", "#6f7fbf", "#c3b3dc"] },

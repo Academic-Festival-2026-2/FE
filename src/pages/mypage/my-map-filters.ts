@@ -1,4 +1,4 @@
-import { REGION_NAME, SEASON_OPTIONS } from "../map/map-data";
+import { SEASON_OPTIONS } from "../map/map-data";
 
 export type FilterOption = {
   value: string;
@@ -11,7 +11,7 @@ export type FilterOption = {
 // TODO: 경기도 확장 때 BE 지역 목록 API로 바꾸기 (BE #119 regions)
 export const DEFAULT_REGION = "3105";
 export const REGION_OPTIONS: FilterOption[] = [
-  { value: DEFAULT_REGION, label: REGION_NAME },
+  { value: DEFAULT_REGION, label: "부천시" },
   // 확장 예정 안내용 (고를 수 없음)
   { value: "upcoming", label: "경기도 다른 시", disabled: true },
 ];

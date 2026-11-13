@@ -20,7 +20,9 @@ export type DongPoint = {
 export type DongDetail = {
   dongCode: string;
   name: string;
-  guName: string;
+  guName: string | null;
+  regionCode: string;
+  regionName: string;
   season: string;
   timeBands: DongTimeBand[];
   points: DongPoint[];

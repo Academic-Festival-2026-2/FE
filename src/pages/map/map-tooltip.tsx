@@ -3,7 +3,7 @@ import { ColorBar } from "./map-ui";
 
 type Props = {
   dong: DongColor;
-  guName: string;
+  guName: string | null;
   bandLabel: string;
   hint: string;
 };

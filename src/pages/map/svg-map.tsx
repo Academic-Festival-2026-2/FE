@@ -11,7 +11,10 @@ import {
 import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
-import { VIEW_SIZE, toShapes, type DongShape } from "./map-geometry";
+import {
+  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel,
+  type DongShape, type View, MAX_VIEW_SCALE
+} from "./map-geometry";
 
 const EDGE_WIDTH = 6;
 const EDGE_BLUR = 5;
@@ -25,9 +28,6 @@ const FILL_WAVE_MS = 220;
 const ZOOM_BUTTON =
   "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
 
-type View = { x: number; y: number; size: number };
-
-const FULL_VIEW: View = { x: 0, y: 0, size: VIEW_SIZE };
 // 동을 눌렀을 때 지도가 화면 전체로 커지며 그 동으로 확대되는 시간 (끝나면 바로 동 상세).
 // 동 상세에서 돌아올 때 화면 전체에서 카드로 줄어드는 시간도 같음
 const STAGE_MS = 650;
@@ -70,7 +70,12 @@ function shapesOf(boundaries: Boundaries) {
 }
 
 type Props = {
-  boundaries: Boundaries;
+  // 지금 받아 둔 지역들의 경계 (화면에 보이는 지역만 부모가 넘김)
+  regions: Boundaries[];
+  // 처음 보여 줄 화면 (첫 지역이 꽉 차게). "전체" 버튼과 동 상세에서 돌아올 때도 이 화면으로
+  homeView: View;
+  // 화면 이동이 멈추면 (마지막 움직임 0.2초 뒤) 지금 화면을 알려 줌. 보이는 지역을 받는 데 씀
+  onViewChange?: (view: View) => void;
   dongs: Map<string, DongColor>;
   hoveredCode: string | null;
   onHover: (dongCode: string | null) => void;
@@ -91,13 +96,20 @@ type Props = {
   fillWave?: "ltr" | "rtl";
 };
 
-function clampView({ x, y, size }: View): View {
-  const clamped = Math.min(VIEW_SIZE, Math.max(MIN_VIEW, size));
+function clampView({ x, y, size }: View, maxSize: number): View {
+  const clamped = Math.min(maxSize, Math.max(MIN_VIEW, size));
+  // 화면 가운데가 경기도 범위 밖으로 나가지 않게
   return {
-    x: Math.min(VIEW_SIZE - clamped * 0.2, Math.max(-clamped * 0.8, x)),
-    y: Math.min(VIEW_SIZE - clamped * 0.2, Math.max(-clamped * 0.8, y)),
+    x: Math.min(WORLD_WIDTH - clamped / 2, Math.max(-clamped / 2, x)),
+    y: Math.min(WORLD_HEIGHT - clamped / 2, Math.max(-clamped / 2, y)),
     size: clamped,
   };
+}
+
+function zoomAround(view: View, x: number, y: number, factor: number, maxSize: number): View {
+  const size = Math.min(maxSize, Math.max(MIN_VIEW, view.size * factor));
+  const ratio = size / view.size;
+  return clampView({ x: x - (x - view.x) * ratio, y: y - (y - view.y) * ratio, size }, maxSize);
 }
 
 function toSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
@@ -106,14 +118,10 @@ function toSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
   return new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
 }
 
-function zoomAround(view: View, x: number, y: number, factor: number): View {
-  const size = Math.min(VIEW_SIZE, Math.max(MIN_VIEW, view.size * factor));
-  const ratio = size / view.size;
-  return clampView({ x: x - (x - view.x) * ratio, y: y - (y - view.y) * ratio, size });
-}
-
 export function SvgMap({
-  boundaries,
+  regions,
+  homeView,
+  onViewChange,
   dongs,
   hoveredCode,
   onHover,
@@ -126,7 +134,13 @@ export function SvgMap({
   controlsClassName = "top-2 right-2",
   fillWave = "ltr",
 }: Props) {
-  const shapes = useMemo(() => shapesOf(boundaries), [boundaries]);
+  const maxSize = homeView.size * MAX_VIEW_SCALE;
+  const shapes = useMemo(() => regions.flatMap(shapesOf), [regions]);
+  // 지역 이름과 띄울 자리
+  const regionLabels = useMemo(
+    () => regions.map((b) => ({ code: b.regionCode, name: b.regionName, at: regionLabel(shapesOf(b)) })),
+    [regions],
+  );
   // 동마다 색 전환 시작을 늦추는 시간 (동 가운데의 가로 위치 기준)
   // ltr: 왼쪽 동 0ms → 오른쪽 동 FILL_WAVE_MS / rtl: 반대
   const fillDelays = useMemo(() => {
@@ -147,8 +161,14 @@ export function SvgMap({
   const edgeGroupRef = useRef<SVGGElement>(null);
   const clipGroupRef = useRef<SVGGElement>(null);
   const focusOverlayRef = useRef<SVGPathElement>(null);
-  const [view, setView] = useState<View>(FULL_VIEW);
-  const viewRef = useRef<View>(FULL_VIEW);
+  const [view, setView] = useState<View>(homeView);
+  const viewRef = useRef<View>(homeView);
+  // 화면 이동이 0.2초 멈추면 한 번만 알림 (드래그 중 매 프레임 알리지 않게)
+  useEffect(() => {
+    if (!onViewChange) return;
+    const timer = window.setTimeout(() => onViewChange(view), 200);
+    return () => window.clearTimeout(timer);
+  }, [view, onViewChange]);
   const frameRef = useRef(0);
   const dragRef = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null);
   const movedRef = useRef(false);
@@ -196,7 +216,7 @@ export function SvgMap({
 
   function animateTo(target: View) {
     cancelAnimationFrame(frameRef.current);
-    const to = clampView(target);
+    const to = clampView(target, maxSize);
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       applyView(to);
       return;
@@ -220,7 +240,7 @@ export function SvgMap({
   function zoomBy(factor: number) {
     const current = viewRef.current;
     const center = current.size / 2;
-    animateTo(zoomAround(current, current.x + center, current.y + center, factor));
+    animateTo(zoomAround(current, current.x + center, current.y + center, factor, maxSize));
   }
 
   // 지도 상자(root)를 화면에 고정해 두고, 상자 위치·크기와 동의 화면상 위치·크기를 함께 옮기는 애니메이션.
@@ -304,8 +324,8 @@ export function SvgMap({
     }
     edgeGroupRef.current?.style.removeProperty("display");
     clipGroupRef.current?.setAttribute("clip-path", `url(#${clipId})`);
-    viewRef.current = FULL_VIEW;
-    svgRef.current?.setAttribute("viewBox", `${FULL_VIEW.x} ${FULL_VIEW.y} ${FULL_VIEW.size} ${FULL_VIEW.size}`);
+    viewRef.current = homeView;
+    svgRef.current?.setAttribute("viewBox", `${homeView.x} ${homeView.y} ${homeView.size} ${homeView.size}`);
   }
 
   // 화면 전체(동 상세와 같은 모습): 동이 화면 한가운데에 동 상세와 같은 크기 (kakao-fit.ts)
@@ -385,7 +405,7 @@ export function SvgMap({
       return;
     }
     const rootRect = root.getBoundingClientRect();
-    const to = cardFrame(shape, rootRect, FULL_VIEW, 0);
+    const to = cardFrame(shape, rootRect, homeView, 0);
     let finished = false;
     const finish = () => {
       if (finished) return;
@@ -409,7 +429,7 @@ export function SvgMap({
   }, []);
 
   function reset() {
-    animateTo(FULL_VIEW);
+    animateTo(homeView);
   }
 
   useEffect(() => {
@@ -424,13 +444,14 @@ export function SvgMap({
         point.x,
         point.y,
         event.deltaY > 0 ? 1.15 : 1 / 1.15,
+        maxSize
       );
       viewRef.current = next;
       setView(next);
     };
     svg.addEventListener("wheel", handleWheel, { passive: false });
     return () => svg.removeEventListener("wheel", handleWheel);
-  }, []);
+  }, [maxSize]);
 
   const fills = shapes.map((shape) => (
     <path
@@ -455,7 +476,7 @@ export function SvgMap({
         viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
         className={`h-full w-full select-none ${selecting ? "pointer-events-none" : ""}`}
         role="group"
-        aria-label="부천 동별 대표색 지도"
+        aria-label="동별 대표색 지도"
         onPointerDown={(event) => {
           movedRef.current = false;
           if (event.pointerType === "touch") return;
@@ -482,7 +503,8 @@ export function SvgMap({
           const rect = svg.getBoundingClientRect();
           const ratio = drag.view.size / Math.min(rect.width, rect.height);
           applyView(
-            clampView({ ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio }),
+            clampView(
+              { ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio,}, maxSize),
           );
         }}
         onPointerUp={() => {
@@ -509,8 +531,8 @@ export function SvgMap({
             maskUnits="userSpaceOnUse"
             x={-100}
             y={-100}
-            width={VIEW_SIZE + 200}
-            height={VIEW_SIZE + 200}
+            width={WORLD_WIDTH + 200}
+            height={WORLD_HEIGHT + 200}
           >
             <g
               fill="none"
@@ -571,10 +593,33 @@ export function SvgMap({
           ))}
         </g>
 
+        {/* 지역 이름. 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로 보이게 */}
+        <g pointerEvents="none" aria-hidden="true">
+          {regionLabels.map(({ code, name, at: [x, y] }) => (
+            <text
+              key={code}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={view.size * 0.04}
+              fontWeight={800}
+              fill="#2b3245"
+              fillOpacity={0.6}
+              stroke="#ffffff"
+              strokeOpacity={0.8}
+              strokeWidth={view.size * 0.008}
+              paintOrder="stroke"
+            >
+              {name}
+            </text>
+          ))}
+        </g>
+
         {hovered && (
           <path
             ref={focusOverlayRef}
-            d={`M-1000,-1000H1600V1600H-1000Z${hovered.path}`}
+            d={`M-1000,-1000H${WORLD_WIDTH + 1000}V${WORLD_HEIGHT + 1000}H-1000Z${hovered.path}`}
             // 동을 누르거나 돌아오는 중에는 동 상세처럼 바깥을 회색으로 덮고, 진하기는 애니메이션이 매 프레임 바꿈
             fill={selecting ? PAGE_BG : "#ffffff"}
             fillOpacity={selecting ? (returning ? FOCUS_DIM : HOVER_DIM) : HOVER_DIM}
