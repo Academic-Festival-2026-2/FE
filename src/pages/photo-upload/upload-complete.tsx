@@ -8,14 +8,14 @@ import { labelPoint } from "../map/map-geometry";
 type CompletedPhoto = { id: string; filename: string; color: string; result: PhotoUploadResult };
 const labels = { DAWN: "새벽", DAY: "낮", SUNSET: "노을", NIGHT: "밤" };
 
-export function UploadComplete({ photos, boundaries, onAdd }: {
-  photos: CompletedPhoto[]; boundaries: Boundaries | null; onAdd: () => void;
+export function UploadComplete({ photos, regions, onAdd }: {
+  photos: CompletedPhoto[]; regions: Boundaries[]; onAdd: () => void;
 }) {
   const shared = photos.filter((photo) =>photo.result.exifVerified &&(photo.result.aiVerdict ?? "PUBLIC") === "PUBLIC").length;
   // 여러 장을 올린 경우 배지별로 처음 받은 사진의 동을 보여줌. 모르는 배지는 빼고 마이페이지와 같은 순서로
   const newBadges = sortByBadgeOrder(photos.flatMap((photo) => (photo.result.newBadges ?? []).map((type) => ({ type, dongName: photo.result.name })))
     .filter((badge, i, all) => isKnownBadge(badge.type) && all.findIndex((other) => other.type === badge.type) === i));
-  const features = boundaries?.features ?? [];
+  const features = regions.flatMap((region) => region.features);
   const points = features.flatMap((feature) => feature.geometry.coordinates.flat(2));
   const extent = points.reduce((bounds, [x, y]) => ({
     minX: Math.min(bounds.minX, x), maxX: Math.max(bounds.maxX, x),
@@ -67,7 +67,7 @@ export function UploadComplete({ photos, boundaries, onAdd }: {
           <span className="w-4 font-mono text-xs text-ink-muted">{i + 1}</span><span className="size-9 shrink-0 rounded-md" style={{ background: photo.color }} />
           <div className="min-w-0"><p className="text-sm font-bold">{photo.result.name} · {labels[photo.result.timeBand]}</p><p className="truncate font-mono text-xs text-ink-muted">{photo.filename}</p><p className="mt-1 text-xs text-ink-sub">{photo.result.exifVerified ? "사진 정보 확인됨" : "직접 입력 포함"} ·{" "}{photo.result.isPublic ? "공개" : "비공개"}</p>{photo.result.aiVerdict === "PERSONAL_ONLY" && (<p className="mt-1 text-xs text-warn">나의 지도에만 반영 ·{" "}{photo.result.aiReason === "PRIVACY"? "얼굴·번호판 포함": photo.result.aiReason === "NOT_SCENERY"? "풍경 사진 아님": "검수 결과에 따라 공개 제외"}</p>)}{photo.result.aiVerdict === "UNCHECKED" && (<p className="mt-1 text-xs text-warn">검수 미완료 · 나의 지도에만 반영</p>)}</div>
         </li>)}</ul>
-        <div className="mt-5 grid grid-cols-[1.5fr_1fr] gap-2.5 text-center"><Link to="/map" search={{ timeBand: photos[0]?.result.timeBand ?? "SUNSET" }} className="flex h-[52px] items-center justify-center rounded-xl bg-brand px-3 text-base font-extrabold text-white transition-colors hover:bg-brand-hover">지도에서 보기</Link><button type="button" onClick={onAdd} className="h-[52px] rounded-xl border border-ink px-3 text-base font-bold text-ink hover:bg-field">사진 더 올리기</button></div>
+        <div className="mt-5 grid grid-cols-[1.5fr_1fr] gap-2.5 text-center"><Link to="/map" search={{ timeBand: photos[0]?.result.timeBand ?? "SUNSET", region: Number(photos[0]?.result.dongCode.slice(0, 4)) || undefined }} className="flex h-[52px] items-center justify-center rounded-xl bg-brand px-3 text-base font-extrabold text-white transition-colors hover:bg-brand-hover">지도에서 보기</Link><button type="button" onClick={onAdd} className="h-[52px] rounded-xl border border-ink px-3 text-base font-bold text-ink hover:bg-field">사진 더 올리기</button></div>
       </section>
     </div>
   </div>;
