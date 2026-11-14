@@ -17,6 +17,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as DongDongCodeRouteImport } from './routes/dong.$dongCode'
 import { Route as MypagePhotosRouteImport } from './routes/mypage_.photos'
+import { Route as SharedShareKeyRouteImport } from './routes/shared.$shareKey'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const MypagePhotosRoute = MypagePhotosRouteImport.update({
   path: '/mypage/photos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SharedShareKeyRoute = SharedShareKeyRouteImport.update({
+  id: '/shared/$shareKey',
+  path: '/shared/$shareKey',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
   '/mypage/photos': typeof MypagePhotosRoute
+  '/shared/$shareKey': typeof SharedShareKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
   '/mypage/photos': typeof MypagePhotosRoute
+  '/shared/$shareKey': typeof SharedShareKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
   '/mypage_/photos': typeof MypagePhotosRoute
+  '/shared/$shareKey': typeof SharedShareKeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/dong/$dongCode'
     | '/mypage/photos'
+    | '/shared/$shareKey'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/dong/$dongCode'
     | '/mypage/photos'
+    | '/shared/$shareKey'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/upload'
     | '/dong/$dongCode'
     | '/mypage_/photos'
+    | '/shared/$shareKey'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   UploadRoute: typeof UploadRoute
   DongDongCodeRoute: typeof DongDongCodeRoute
   MypagePhotosRoute: typeof MypagePhotosRoute
+  SharedShareKeyRoute: typeof SharedShareKeyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MypagePhotosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shared/$shareKey': {
+      id: '/shared/$shareKey'
+      path: '/shared/$shareKey'
+      fullPath: '/shared/$shareKey'
+      preLoaderRoute: typeof SharedShareKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   UploadRoute: UploadRoute,
   DongDongCodeRoute: DongDongCodeRoute,
   MypagePhotosRoute: MypagePhotosRoute,
+  SharedShareKeyRoute: SharedShareKeyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

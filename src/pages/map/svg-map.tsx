@@ -80,7 +80,7 @@ type Props = {
   hoveredCode: string | null;
   onHover: (dongCode: string | null) => void;
   // 동을 누르면 그 동으로 확대한 뒤 호출됨 (동 상세로 이동)
-  onSelect: (dongCode: string) => void;
+  onSelect?: (dongCode: string) => void;
   // 확대를 시작할 때 호출됨 (지도 위 패널을 숨기는 용도)
   onSelectStart?: (dongCode: string) => void;
   // 지금 지도가 보이는 영역(카드). 확대를 시작할 때 이 크기에서 화면 전체로 커짐 (없으면 지도 상자)
@@ -367,6 +367,8 @@ export function SvgMap({
   // 동을 누르면: 지도가 화면 전체로 커지면서, 누른 동을 화면 한가운데로 끌어와 확대.
   // 끝나는 순간 동의 크기·위치가 동 상세(화면 전체 카카오맵)에서 그려질 동과 같아서 바로 넘어가도 이어져 보임.
   function select(shape: DongShape) {
+    // 공유 지도처럼 onSelect가 없으면 동을 눌러도 아무 일도 안 함 (보기만)
+    if (!onSelect || movedRef.current || selectingRef.current) return;
     if (movedRef.current || selectingRef.current) return;
     selectingRef.current = true;
     setSelecting(shape);
