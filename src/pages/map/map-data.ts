@@ -104,6 +104,8 @@ export function useRegionBoundaries(regionCodes: string[]) {
   const key = regionCodes.join(",");
   const [, setVersion] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  // 받지 못한 지역 코드 (업로드 화면이 필요한 지역의 실패인지 구분하는 데 씀)
+  const [failed, setFailed] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,7 +113,11 @@ export function useRegionBoundaries(regionCodes: string[]) {
       if (boundariesCache.has(code)) continue;
       loadBoundaries(code)
         .then(() => !cancelled && setVersion((v) => v + 1))
-        .catch(() => !cancelled && setError("동 경계를 불러오지 못했어요."));
+        .catch(() => {
+          if (cancelled) return;
+          setError("동 경계를 불러오지 못했어요.");
+          setFailed((codes) => (codes.includes(code) ? codes : [...codes, code]));
+        });
     }
     return () => {
       cancelled = true;
@@ -124,7 +130,7 @@ export function useRegionBoundaries(regionCodes: string[]) {
     () => (loadedKey ? loadedKey.split(",").map((code) => boundariesCache.get(code) as Boundaries) : []),
     [loadedKey],
   );
-  return { regions, error };
+  return { regions, error, failed };
 }
 
 // 지역 하나 (동 상세·업로드 화면용)

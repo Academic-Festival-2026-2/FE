@@ -10,7 +10,7 @@ import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { useUserStore } from "../../stores/user-store";
-import { useBoundaries } from "../map/map-data";
+import { DEFAULT_REGION_CODE, useRegionBoundaries, useRegionList } from "../map/map-data";
 import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
 import { UploadPixels } from "./upload-pixels";
@@ -22,6 +22,8 @@ import { analyzePhoto, type ColorAnalysis as Colors } from "./color-analysis";
 type Photo = {
   id: string; file: File; url: string; metadata: PhotoMetadata;
   takenAt: string; dongCode: string; latitude?: number; longitude?: number;
+  // 직접 고른 시(지역 코드)·구. undefined면 아직 손대지 않은 것 → GPS로 찾은 동을 그대로 씀
+  regionCode?: string; guName?: string;
   isPublic: boolean; status: "reading" | "ready" | "invalid" | "uploading" | "success" | "error";
   error?: string; needsLogin?: boolean; colors?: Colors; result?: PhotoUploadResult;
 };
@@ -31,6 +33,8 @@ const badgeNeed = "rounded-md border border-brand bg-white px-2 py-[3px] text-xs
 const primary = "h-12 w-full rounded-xl bg-brand px-5 text-base font-extrabold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-text";
 const bands = [ ["DAWN", "새벽", "05–08"], ["DAY", "낮", "08–16"], ["SUNSET", "노을", "16–19"], ["NIGHT", "밤", "19–05"] ];
 const PREVIEW_MAX_HEIGHT = 560;
+// 시·구·동 목록 가나다순 (숫자는 크기 순: 중1동 < 중2동 < 중10동)
+const byName = (a: string, b: string) => a.localeCompare(b, "ko", { numeric: true });
 const MIN_BAR_SHARE = 0.04;
 
 // 대표색 바 표시용: ratios는 사진 전체 대비 비율이라 5색 합이 100%보다 작음 → 5색 합 100%로 다시 계산
@@ -59,6 +63,19 @@ function uploadErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "업로드하지 못했어요. 다시 시도해 주세요.";
 }
 
+// 촬영 위치 시·구·동 선택 칸 하나. options: [값, 보이는 이름]
+// 안내 문구(빈 값)는 다시 고를 수 없게 막음 → 시를 비우면 구·동 목록을 만들 수 없어요
+function Select({ label, value, placeholder, options, disabled, onChange }: {
+  label: string; value: string; placeholder: string; options: string[][]; disabled: boolean; onChange: (value: string) => void;
+}) {
+  return <label className="block min-w-0">
+    <span className="mb-1.5 block text-xs font-bold text-ink-sub">{label}</span>
+    <span className="relative block"><select aria-label={`촬영 위치 ${label}`} disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)} className={`${field} appearance-none truncate border-select-line pr-9 disabled:bg-field disabled:text-ink-faint`}>
+      <option value="" disabled>{placeholder}</option>{options.map(([optionValue, name]) => <option key={optionValue} value={optionValue}>{name}</option>)}
+    </select><img src={chevronDown} alt="" width={16} height={16} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2" /></span>
+  </label>;
+}
+
 export function PhotoUploadPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [index, setIndex] = useState(0);
@@ -84,7 +101,6 @@ export function PhotoUploadPage() {
   const locationAgreed = consent === true;
   const loadMe = useUserStore((state) => state.loadMe);
   const setMe = useUserStore((state) => state.setMe);
-  const { boundaries, error: boundaryError } = useBoundaries();
   const photo = photos[index];
   // 업로드 실패나 읽을 수 없는 사진으로 이동했을 때만 안내로 이동합니다.
   // 날짜 직접 입력 중 발생하는 시즌 오류는 입력 포커스를 유지합니다.
@@ -102,6 +118,18 @@ export function PhotoUploadPage() {
   const uploading = photos.some((p) => p.status === "uploading");
   const pending = photos.some((p) => p.status !== "success");
   const results = photos.filter((p) => p.result);
+
+  // 시 목록(지역 목록 API)과, 고른 시 + GPS 좌표가 들어갈 수 있는 시(bbox로 먼저 거름)의 동 경계
+  const { regionList, error: regionListError } = useRegionList();
+  const defaultRegion = regionList?.defaultRegionCode ?? DEFAULT_REGION_CODE;
+  const hasGps = latitude !== undefined && longitude !== undefined;
+  const gpsRegions = hasGps && regionList ? regionList.regions.filter(({ bbox: [minX, minY, maxX, maxY] }) =>
+    longitude >= minX && longitude <= maxX && latitude >= minY && latitude <= maxY).map((r) => r.regionCode) : [];
+  const pickedRegion = photo?.regionCode || photo?.dongCode.slice(0, 4) || "";
+  const regionCodes = [...new Set([pickedRegion || defaultRegion, ...gpsRegions])].sort();
+  const { regions: loadedRegions, error: boundaryLoadError, failed: failedRegions } = useRegionBoundaries(regionCodes);
+  // 완료 화면 개략도: 이번에 올린 사진들의 시 경계
+  const { regions: resultRegions } = useRegionBoundaries([...new Set(results.flatMap((p) => p.result ? [p.result.dongCode.slice(0, 4)] : []))].sort());
   useBlocker({ shouldBlockFn: () => (pending || uploading) && !window.confirm("페이지를 나가면 아직 올리지 않은 사진 정보가 사라져요. 나갈까요?"), enableBeforeUnload: pending || uploading });
 
   useEffect(() => {
@@ -147,17 +175,46 @@ export function PhotoUploadPage() {
     }
   }
 
-  const features = boundaries?.features ?? [];
-  const located = latitude !== undefined && longitude !== undefined ? findDong(features, latitude, longitude) : undefined;
-  const selectedFeature = features.find((f) => f.properties.dongCode === photo?.dongCode) ?? located;
-  const outside = Boolean(boundaries && latitude !== undefined && longitude !== undefined && !located);
+  const regionOf = (code: string) => loadedRegions.find((r) => r.regionCode === code);
+  const gpsFeatures = gpsRegions.flatMap((code) => regionOf(code)?.features ?? []);
+  const located = hasGps ? findDong(gpsFeatures, latitude, longitude) : undefined;
+  // 동을 직접 골랐으면 그 동, 시·구만 바꾸고 동을 아직 안 골랐으면 없음, 손대지 않았으면 GPS로 찾은 동
+  const selectedFeature = photo?.dongCode
+    ? loadedRegions.flatMap((r) => r.features).find((f) => f.properties.dongCode === photo.dongCode)
+    : photo?.regionCode === undefined ? located : undefined;
+  // 좌표가 들어갈 수 있는 시의 경계를 다 받았는데도 어느 동에도 없으면 지도 밖
+  const outside = Boolean(regionList && hasGps && !located && gpsRegions.every((code) => regionOf(code)));
+  // GPS로 동을 찾는 데 필요한 시 중 아직 받는 중인 것 / 받지 못한 것
+  const gpsPending = hasGps && !located && (!regionList || gpsRegions.some((code) => !regionOf(code) && !failedRegions.includes(code)));
+  const gpsFailed = hasGps && !located && gpsRegions.some((code) => failedRegions.includes(code));
+  // 시·구·동을 손대지 않은 GPS 사진인데 동을 찾는 중 → 기본 시(부천)가 잠깐 보였다 바뀌지 않게 칸을 비우고 막아 둠
+  const locating = Boolean(photo && photo.regionCode === undefined && !photo.dongCode && gpsPending && !regionListError);
+
+  // 시·구·동 단계별 선택에 보여 줄 값과 목록
+  const region = photo?.regionCode ?? selectedFeature?.properties.dongCode.slice(0, 4) ?? defaultRegion;
+  const regionFeatures = regionOf(region)?.features;
+  // 구가 없는 시(광명, 시흥 등)는 구를 건너뛰고 바로 동을 고름
+  const hasGu = Boolean(regionFeatures?.some((f) => f.properties.guName));
+  const guNames = [...new Set((regionFeatures ?? []).flatMap((f) => f.properties.guName ? [f.properties.guName] : []))].sort(byName);
+  const gu = photo?.guName ?? selectedFeature?.properties.guName ?? "";
+  const dongOptions = (regionFeatures ?? []).filter((f) => !hasGu || (gu !== "" && f.properties.guName === gu))
+    .sort((a, b) => byName(a.properties.name, b.properties.name));
+  const cityOptions = (regionList?.regions ?? []).map((r) => [r.regionCode, r.name]).sort((a, b) => byName(a[1], b[1]));
+  // 경계 오류는 지금 화면에 필요한 경계(고른 시, GPS로 동을 찾는 데 필요한 시)를 못 받았을 때만 보여 줌.
+  // GPS 근처라 같이 받아 본 다른 시 하나가 실패했다고 이미 찾은 동까지 오류로 막지 않게
+  const boundaryMissing = (!regionFeatures && failedRegions.includes(region)) || (gpsFailed && !gpsPending);
+  const boundaryError = regionListError ?? (boundaryMissing ? boundaryLoadError : null);
+  // 경계를 받는 중·실패·동 찾는 중일 때 구·동 칸 안내
+  const waitingLabel = locating ? "위치 확인 중…" : boundaryError ? "불러오지 못했어요" : "불러오는 중…";
 
   // 서버의 exifVerified 조건을 FE에서 미리 확인: 사진에 촬영 시각·GPS가 있고 둘 다 바꾸지 않았을 때만 true
   // (PhotoService: EXIF 시각과 같고 좌표가 거의 같아야 함). 업로드 팝업의 공개 잠금 안내에만 사용
   const exifIntact = Boolean(photo?.metadata.takenAt && photo.metadata.latitude !== undefined && photo.metadata.longitude !== undefined
     && photo.takenAt === photo.metadata.takenAt && photo.latitude === photo.metadata.latitude && photo.longitude === photo.metadata.longitude);
 
-  const locationMismatch = Boolean(located && selectedFeature && located.properties.dongCode !== selectedFeature.properties.dongCode);
+  // 좌표가 고른 동 안에 있는지 고른 동 경계로 직접 확인. GPS 쪽 시 경계를 아직 못 받아 located가 없을 때도
+  // 다른 시의 동을 고르면 막아야 서버 DONG_GPS_MISMATCH를 피함 (지도 밖 좌표는 outside 안내가 대신함)
+  const locationMismatch = Boolean(hasGps && selectedFeature && !outside && !findDong([selectedFeature], latitude, longitude));
   // 촬영 위치(좌표)가 정해졌고 고른 동 안에 있을 때 → 지도 버튼을 "선택된 위치 수정"으로 표시
   const locationPicked = latitude !== undefined && longitude !== undefined && !locationMismatch && !outside;
 
@@ -254,7 +311,7 @@ export function PhotoUploadPage() {
           <p className="mt-2 text-base font-bold">{label}</p>
           <p className="mt-1 text-sm text-ink-sub">{description}</p>
         </li>)}</ol>
-      </> : finished ? <UploadComplete photos={results.flatMap((p) => p.result ? [{ id: p.id, filename: p.file.name, color: p.colors?.palette[0] ?? "#F0F2F4", result: p.result }] : [])} boundaries={boundaries} onAdd={() => input.current?.click()} /> : <>
+      </> : finished ? <UploadComplete photos={results.flatMap((p) => p.result ? [{ id: p.id, filename: p.file.name, color: p.colors?.palette[0] ?? "#F0F2F4", result: p.result }] : [])} regions={resultRegions} onAdd={() => input.current?.click()} /> : <>
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line pt-2 pb-4">
           <div><p className="font-mono text-[13px] tracking-[1.04px] text-brand-strong">PHOTO {index + 1} / {photos.length}</p><h1 className="mt-2 text-[26px] font-extrabold tracking-[-0.78px]">사진 한 장, 픽셀 하나</h1></div>
           <div className="flex items-center gap-2"><span aria-live="polite" className="mr-2 text-sm text-ink-muted">{results.length}장 완료</span><button type="button" className={navButton} disabled={index === 0 || uploading} onClick={() => setIndex(index - 1)}>← 이전</button><button type="button" className={navButton} disabled={index === photos.length - 1 || uploading} onClick={() => setIndex(index + 1)}>다음 →</button></div>
@@ -286,8 +343,15 @@ export function PhotoUploadPage() {
                 {locationAgreed && photo.status !== "reading" && photo.status !== "invalid" && photo.metadata.latitude === undefined && <p className="mb-3 rounded-xl bg-brand-soft p-3 text-xs leading-5 text-brand-strong">사진의 GPS 정보를 확인하지 못했어요. 휴대폰에서 사진을 선택하거나 촬영하는 과정에서 위치정보가 빠질 수 있어요. 위치를 직접 선택하면 나의 지도에만 반영돼요.</p>}
                 {boundaryError && <p role="alert" className="mb-3 text-sm text-danger">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
                 {locationMismatch && <p role="alert" className="mb-3 text-sm text-brand-strong">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
-                {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">부천 경계 밖의 위치예요. 부천에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
-                <span className="relative block"><select aria-label="행정동" disabled={!boundaries} value={selectedFeature?.properties.dongCode ?? ""} onChange={(e) => update(photo.id, { dongCode: e.target.value, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })} className={`${field} appearance-none border-select-line pr-10 disabled:bg-field disabled:text-ink-faint`}><option value="">{boundaries ? "구 · 동을 골라 주세요" : "행정동 불러오는 중…"}</option>{features.map((f) => <option key={f.properties.dongCode} value={f.properties.dongCode}>{f.properties.guName} · {f.properties.name}</option>)}</select><img src={chevronDown} alt="" width={16} height={16} className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2" /></span>
+                {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">지도에 있는 지역 밖의 위치예요. 시 목록에 있는 지역에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                  <Select label="시" value={locating ? "" : region} disabled={!regionList || locating} onChange={(code) => update(photo.id, { regionCode: code, guName: "", dongCode: "", latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}
+                    placeholder={regionList && !locating ? "시 선택" : locating ? waitingLabel : regionListError ? "불러오지 못했어요" : "불러오는 중…"} options={cityOptions} />
+                  <Select label="구" value={locating ? "" : gu} disabled={!regionFeatures || !hasGu || locating} onChange={(name) => update(photo.id, { regionCode: region, guName: name, dongCode: "", latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}
+                    placeholder={!regionFeatures || locating ? waitingLabel : hasGu ? "구 선택" : "구 없음"} options={guNames.map((name) => [name, name])} />
+                  <Select label="동" value={selectedFeature?.properties.dongCode ?? ""} disabled={!regionFeatures || (hasGu && !gu) || locating} onChange={(code) => update(photo.id, { regionCode: region, guName: gu, dongCode: code, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}
+                    placeholder={!regionFeatures || locating ? waitingLabel : "동 선택"} options={dongOptions.map((f) => [f.properties.dongCode, f.properties.name])} />
+                </div>
                 {locationAgreed && <>
                 <button type="button" disabled={!selectedFeature} onClick={() => setMapOpen(true)} className="mt-2.5 flex h-11 w-full items-center gap-2 rounded-[10px] bg-field px-3.5 text-left text-sm text-ink transition-colors hover:bg-[#e9edf4] disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-field">{locationPicked
                   // 위치를 고른 뒤: 아이콘을 지도에 더하기 버튼과 같은 파란색으로
@@ -305,7 +369,7 @@ export function PhotoUploadPage() {
             <div className="flex flex-wrap justify-between gap-3 px-6 pt-3 pb-6 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-ink-sub underline underline-offset-4 disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="font-bold text-brand-strong underline underline-offset-4 disabled:opacity-40">사진 추가</button></div>
           </section>
         </div>
-        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact && locationAgreed} phase={uploadPhase} errorMessage={photo.error} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => void submit(isPublic)} onRetry={() => setUploadPhase("choose")} />}
+        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[[regionOf(selectedFeature.properties.dongCode.slice(0, 4))?.regionName, selectedFeature.properties.guName, selectedFeature.properties.name].filter(Boolean).join(" "), bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact && locationAgreed} phase={uploadPhase} errorMessage={photo.error} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => void submit(isPublic)} onRetry={() => setUploadPhase("choose")} />}
         {mapOpen && locationAgreed && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} initialPoint={latitude !== undefined && longitude !== undefined ? { lat: latitude, lng: longitude } : undefined} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
       </>}
     </main>
