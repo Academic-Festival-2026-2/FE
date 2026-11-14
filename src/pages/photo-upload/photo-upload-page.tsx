@@ -176,6 +176,8 @@ export function PhotoUploadPage() {
   // 후보 지역 경계를 다 받았는데도 어느 동에도 안 들어가면 경기도 밖
   const boundariesReady = loadedRegions.length === candidateCodes.length;
   const outside = Boolean(regionList && boundariesReady && latitude !== undefined && longitude !== undefined && !located);
+  // 동 선택은 지금 지역 경계만 받았으면 열림 (다른 GPS 후보 지역 요청이 실패해도 잠기지 않게)
+  const regionLoaded = loadedRegions.some((region) => region.regionCode === regionCode);
 
   // 서버의 exifVerified 조건을 FE에서 미리 확인: 사진에 촬영 시각·GPS가 있고 둘 다 바꾸지 않았을 때만 true
   // (PhotoService: EXIF 시각과 같고 좌표가 거의 같아야 함). 업로드 팝업의 공개 잠금 안내에만 사용
@@ -331,12 +333,12 @@ export function PhotoUploadPage() {
                   <span className="relative block">
                     <select
                       aria-label="행정동"
-                      disabled={!regionCode || !boundariesReady}
+                      disabled={!regionCode || !regionLoaded}
                       value={selectedFeature?.properties.dongCode ?? ""}
                       onChange={(e) => update(photo.id, { regionCode, dongCode: e.target.value, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}
                       className={`${field} appearance-none border-select-line pr-10 disabled:bg-field disabled:text-ink-faint`}
                     >
-                      <option value="">{!regionList || (regionCode && !boundariesReady) ? "행정동 불러오는 중…" : !regionCode ? "지역을 먼저 골라 주세요" : "동을 골라 주세요"}</option>
+                      <option value="">{!regionList || (regionCode && !regionLoaded) ? "행정동 불러오는 중…" : !regionCode ? "지역을 먼저 골라 주세요" : "동을 골라 주세요"}</option>
                       {/* 구가 없는 시·군은 동 이름만 */}
                       {regionFeatures.map((f) => <option key={f.properties.dongCode} value={f.properties.dongCode}>{f.properties.guName ? `${f.properties.guName} · ${f.properties.name}` : f.properties.name}</option>)}
                     </select>
