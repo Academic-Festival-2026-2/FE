@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMyMap, type MyMapCell } from "../../api/mymap";
+import { getMyMap, getSharedMap, type MyMapCell } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
+import { ApiError } from "../../api/client";
 import { currentTimeBand } from "../../utils/time-band";
 import {
   getBoundaries,
@@ -266,6 +267,8 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
     }
   }, [enabled, accessToken, key, expireSession]);
 
+
+
   const cellsByRegion = loaded && loaded.token === accessToken ? loaded.cells : null;
 
   // 지역 하나의 내 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
@@ -295,6 +298,79 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
     dongsOf,
     loading: enabled && Boolean(first) && !cellsByRegion?.has(first) && !error,
     error,
+  };
+}
+
+// 공유받은 지도 (로그인 없음). useMyMap과 같은 방식으로 보이는 지역마다 받고, 응답을 지역별로 모음
+// 공유가 꺼졌거나 없는 키(404)면 notFound
+export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: string[]) {
+  const key = regionCodes.join(",");
+  const [cells, setCells] = useState<Map<string, MyMapCell[]>>(new Map());
+  const [owner, setOwner] = useState<{ nickname: string; profileImage: string } | null>(null);
+  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [season, setSeason] = useState<string | null>(null);
+  // 이미 요청한 지역 (받는 중에 같은 지역을 또 요청하지 않게)
+  const requestedRef = useRef(new Set<string>());
+
+  const aliveRef = useRef(false);
+  useEffect(() => {
+    aliveRef.current = true;
+    return () => {
+      aliveRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    for (const code of key ? key.split(",") : []) {
+      if (requestedRef.current.has(code)) continue;
+      requestedRef.current.add(code);
+      getSharedMap(shareKey, code)
+        .then((data) => {
+          if (!aliveRef.current) return;
+          setOwner({ nickname: data.nickname, profileImage: data.profileImage });
+          setSeason(data.map.season);
+          setCells((prev) => new Map(prev).set(code, data.map.cells));
+          setError(null);
+        })
+        .catch((err) => {
+          requestedRef.current.delete(code);
+          if (!aliveRef.current) return;
+          if (err instanceof ApiError && err.code === "MYMAP404_1") setNotFound(true);
+          else setError("공유 지도를 불러오지 못했어요.");
+        });
+    }
+  }, [shareKey, key]);
+
+  // 지역 하나의 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
+  function dongsOf(regionCode: string | null) {
+    const result = new Map<string, DongColor>();
+    for (const cell of (regionCode && cells.get(regionCode)) || []) {
+      if (cell.timeBand !== timeBand) continue;
+      result.set(cell.dongCode, {
+        dongCode: cell.dongCode,
+        name: cell.name,
+        dominantColor: cell.filled ? cell.myColor : null,
+        photoCount: cell.myPhotoCount,
+        status: cell.filled ? "OK" : "EMPTY",
+        colorRatio: cell.myColor ? [{ hex: cell.myColor, ratio: 1 }] : [],
+      });
+    }
+    return result;
+  }
+  const codes = key ? key.split(",") : [];
+  // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
+  const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
+  const first = codes[0];
+
+  return {
+    owner,
+    season,
+    dongs,
+    dongsOf,
+    notFound,
+    error,
+    loading: Boolean(first) && !cells.has(first) && !error && !notFound,
   };
 }
 
