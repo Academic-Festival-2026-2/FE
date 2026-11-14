@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { Boundaries } from "../../api/map";
+import type { BoundaryFeature } from "../../api/map";
 import type { PhotoUploadResult } from "../../api/photo";
 import { BadgeIcon } from "../../components/badge-icon";
 import { BADGES, badgeEarnedText, isKnownBadge, sortByBadgeOrder } from "../../constants/badges";
@@ -8,14 +8,13 @@ import { labelPoint } from "../map/map-geometry";
 type CompletedPhoto = { id: string; filename: string; color: string; result: PhotoUploadResult };
 const labels = { DAWN: "새벽", DAY: "낮", SUNSET: "노을", NIGHT: "밤" };
 
-export function UploadComplete({ photos, boundaries, onAdd }: {
-  photos: CompletedPhoto[]; boundaries: Boundaries | null; onAdd: () => void;
+export function UploadComplete({ photos, features, onAdd }: {
+  photos: CompletedPhoto[]; features: BoundaryFeature[]; onAdd: () => void;
 }) {
   const shared = photos.filter((photo) =>photo.result.exifVerified &&(photo.result.aiVerdict ?? "PUBLIC") === "PUBLIC").length;
   // 여러 장을 올린 경우 배지별로 처음 받은 사진의 동을 보여줌. 모르는 배지는 빼고 마이페이지와 같은 순서로
   const newBadges = sortByBadgeOrder(photos.flatMap((photo) => (photo.result.newBadges ?? []).map((type) => ({ type, dongName: photo.result.name })))
     .filter((badge, i, all) => isKnownBadge(badge.type) && all.findIndex((other) => other.type === badge.type) === i));
-  const features = boundaries?.features ?? [];
   const points = features.flatMap((feature) => feature.geometry.coordinates.flat(2));
   const extent = points.reduce((bounds, [x, y]) => ({
     minX: Math.min(bounds.minX, x), maxX: Math.max(bounds.maxX, x),
