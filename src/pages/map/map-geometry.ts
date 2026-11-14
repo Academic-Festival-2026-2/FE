@@ -173,6 +173,43 @@ export function regionAt(regions: Boundaries[], [lng, lat]: number[]): string | 
   return null;
 }
 
+// 지역(시·군) 테두리 path. 같은 지역 안에서 한 번만 나오는 선분이 테두리
+// (동끼리 맞닿은 선분은 두 동에 한 번씩 총 두 번 나옴. 이웃 시와 맞닿은 선분은 이 지역 안에서는 한 번)
+// 이웃 시끼리 경계 좌표가 똑같이 겹쳐서 합치는 계산 없이 개수만 세면 됨
+export function regionOutline(boundaries: Boundaries): string {
+  const rings = boundaries.features.flatMap((feature) => feature.geometry.coordinates.flat());
+  // 방향과 상관없이 같은 선분이면 같은 키 (A→B, B→A)
+  const keyOf = (a: number[], b: number[]) => {
+    const p = `${a[0]},${a[1]}`;
+    const q = `${b[0]},${b[1]}`;
+    return p < q ? `${p}|${q}` : `${q}|${p}`;
+  };
+
+  const counts = new Map<string, number>();
+  for (const ring of rings) {
+    for (let i = 1; i < ring.length; i++) {
+      const key = keyOf(ring[i - 1], ring[i]);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+
+  // 링을 따라가며 테두리 선분이 이어지면 L로 잇고, 끊기면 M으로 새로 시작
+  const point = (p: number[]) => project(p).map((v) => v.toFixed(1)).join(",");
+  let path = "";
+  for (const ring of rings) {
+    let drawing = false;
+    for (let i = 1; i < ring.length; i++) {
+      if (counts.get(keyOf(ring[i - 1], ring[i])) !== 1) {
+        drawing = false;
+        continue;
+      }
+      path += drawing ? `L${point(ring[i])}` : `M${point(ring[i - 1])}L${point(ring[i])}`;
+      drawing = true;
+    }
+  }
+  return path;
+}
+
 // 지역 이름을 띄울 자리 (화면 좌표): 동 이름 자리들을 동 넓이로 가중 평균
 export function regionLabel(shapes: DongShape[]): [number, number] {
   let area = 0;
