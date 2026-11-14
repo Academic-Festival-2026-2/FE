@@ -12,13 +12,19 @@ import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
 import {
-  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel,
+  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel, regionOutline,
   type DongShape, type View, MAX_VIEW_SCALE
 } from "./map-geometry";
 
 const EDGE_WIDTH = 6;
 const EDGE_BLUR = 5;
 const MIN_VIEW = 90;
+// 동 이름은 화면(view) 넓이의 이 비율보다 크게 보이는 동에만 띄움
+// (시 하나가 화면에 꽉 차면 대부분 동에 뜨고, 축소하면 사라져서 시 이름만 남음)
+const DONG_LABEL_MIN_SHARE = 0.005;
+// 가운데 지역이 화면(view) 한 변의 이 비율 이상으로 크게 보이면 "그 지역에 들어왔다"고 봄
+// (부천 첫 화면 0.92, 한 번 축소 0.61, 두 번 축소 0.41 → 두 번 축소하면 시 이름으로 돌아감)
+const REGION_ARRIVE_SHARE = 0.5;
 // 확대·축소 버튼 (지도 화면의 유리 패널과 같은 톤)
 // 시간대·계절·지도 종류를 바꿀 때 동 색이 서서히 바뀌게 (fill을 CSS로 줘야 전환됨, 동작 줄이기면 즉시)
 const FILL_TRANSITION = "transition-[fill] duration-500 ease-out motion-reduce:transition-none";
@@ -69,6 +75,17 @@ function shapesOf(boundaries: Boundaries) {
   return shapes;
 }
 
+// 지역 테두리도 경계 객체마다 한 번만 계산 (안산처럼 섬이 많은 곳은 수십 ms 걸림)
+const outlineCache = new WeakMap<Boundaries, string>();
+function outlineOf(boundaries: Boundaries) {
+  let outline = outlineCache.get(boundaries);
+  if (outline === undefined) {
+    outline = regionOutline(boundaries);
+    outlineCache.set(boundaries, outline);
+  }
+  return outline;
+}
+
 type Props = {
   // 지금 받아 둔 지역들의 경계 (화면에 보이는 지역만 부모가 넘김)
   regions: Boundaries[];
@@ -94,6 +111,8 @@ type Props = {
   controlsClassName?: string;
   // 색이 바뀔 때 번져 나가는 방향 (탭 표시가 움직인 방향과 같게). 기본은 왼쪽 → 오른쪽
   fillWave?: "ltr" | "rtl";
+  // 화면 가운데 지역 (제목의 시). 이 지역에 확대해 들어오면 동 이름을 띄움
+  focusRegion?: string | null;
 };
 
 function clampView({ x, y, size }: View, maxSize: number): View {
@@ -120,6 +139,7 @@ function toSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
 
 export function SvgMap({
   regions,
+  focusRegion,
   homeView,
   onViewChange,
   dongs,
@@ -141,6 +161,23 @@ export function SvgMap({
     () => regions.map((b) => ({ code: b.regionCode, name: b.regionName, at: regionLabel(shapesOf(b)) })),
     [regions],
   );
+  // 지역(시·군) 테두리
+  const outlines = useMemo(
+    () => regions.map((b) => ({ code: b.regionCode, path: outlineOf(b) })),
+    [regions],
+  );
+  // 가운데 지역 크기 (화면 좌표, 가로·세로 중 긴 쪽)
+  const focusSize = useMemo(() => {
+    const region = regions.find((b) => b.regionCode === focusRegion);
+    if (!region) return 0;
+    const bounds = shapesOf(region).map((shape) => shape.bounds);
+    return Math.max(
+      Math.max(...bounds.map((b) => b[2])) - Math.min(...bounds.map((b) => b[0])),
+      Math.max(...bounds.map((b) => b[3])) - Math.min(...bounds.map((b) => b[1])),
+    );
+  }, [regions, focusRegion]);
+
+
   // 동마다 색 전환 시작을 늦추는 시간 (동 가운데의 가로 위치 기준)
   // ltr: 왼쪽 동 0ms → 오른쪽 동 FILL_WAVE_MS / rtl: 반대
   const fillDelays = useMemo(() => {
@@ -162,6 +199,13 @@ export function SvgMap({
   const clipGroupRef = useRef<SVGGElement>(null);
   const focusOverlayRef = useRef<SVGPathElement>(null);
   const [view, setView] = useState<View>(homeView);
+  // 가운데 지역이 화면에 충분히 크게 보일 때(그 지역에 들어왔을 때)만 그 지역 동 이름 표시.
+  // 그중에서도 화면에서 너무 작은 동은 글자가 겹쳐서 뺌
+  const arrived = Boolean(focusRegion) && focusSize / view.size > REGION_ARRIVE_SHARE;
+  const dongLabels = arrived
+    ? shapes.filter((shape) => shape.dongCode.startsWith(focusRegion!)
+      && shape.area / (view.size * view.size) > DONG_LABEL_MIN_SHARE)
+    : [];
   const viewRef = useRef<View>(homeView);
   // 화면 이동이 0.2초 멈추면 한 번만 알림 (드래그 중 매 프레임 알리지 않게)
   useEffect(() => {
@@ -599,9 +643,55 @@ export function SvgMap({
           ))}
         </g>
 
+        {/* 시·군 경계: 동 경계보다 진한 선. 이웃 시와 맞닿은 선은 두 지역에서 한 번씩 그려져 겹치므로
+            반투명으로 하면 겹친 곳만 더 진해짐 → 불투명 색으로 */}
+        <g pointerEvents="none">
+          {outlines.map(({ code, path }) => (
+            <path
+              key={code}
+              d={path}
+              fill="none"
+              stroke="#8a93a5"
+              strokeWidth={1.6}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </g>
+
+        {/* 동 이름 (확대했을 때만). 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로.
+            동을 눌러 확대하는 애니메이션 중에는 viewBox만 바뀌어서 글자가 커져 보이므로 숨김 */}
+        {!selecting && (
+          <g pointerEvents="none" aria-hidden="true">
+            {dongLabels.map((shape) => (
+              <text
+                key={shape.dongCode}
+                x={shape.label[0]}
+                y={shape.label[1]}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={view.size * 0.022}
+                fontWeight={700}
+                fill="#2b3245"
+                fillOpacity={0.75}
+                stroke="#ffffff"
+                strokeOpacity={0.85}
+                strokeWidth={view.size * 0.005}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              >
+                {shape.name}
+              </text>
+            ))}
+          </g>
+        )}
+
         {/* 지역 이름. 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로 보이게 */}
         <g pointerEvents="none" aria-hidden="true">
-          {regionLabels.map(({ code, name, at: [x, y] }) => (
+          {regionLabels
+          .filter(({ code }) => !(arrived && code === focusRegion))
+          .map(({ code, name, at: [x, y] }) => (
             <text
               key={code}
               x={x}
