@@ -42,29 +42,49 @@ function PhotoThumbnail({ photo }: { photo: LikedPhotoItem }) {
 }
 
 // 지금 페이지 사진들을 크게 보기로 넘겨 봄. 넘길 때마다 상세(원본 사진·대표색 비율)를 받음
-function usePhotoDetail(photoId: number | null) {
-  const [detail, setDetail] = useState<PhotoDetail | null>(null);
-  const [failedId, setFailedId] = useState<number | null>(null);
+// 성공·실패를 마지막으로 받은 사진 하나에만 기록 → 실패한 사진도 넘겼다 돌아오면 다시 받는 동안 로딩으로 보임
+// 닫으면 이 컴포넌트가 사라져 기록도 지워짐 → 다시 열면 처음부터 받음
+function LikedPhotoLightbox({
+  photos,
+  index,
+  onIndexChange,
+  onClose,
+}: {
+  photos: LikedPhotoItem[];
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+}) {
+  const photoId = photos[index].photoId;
+  const [result, setResult] = useState<{ photoId: number; detail: PhotoDetail | null } | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (photoId === null) return;
     let cancelled = false;
     getPhotoDetail(photoId)
-      .then((data) => {
-        if (!cancelled) setDetail(data);
+      .then((detail) => {
+        if (!cancelled) setResult({ photoId, detail });
       })
       .catch(() => {
-        if (!cancelled) setFailedId(photoId);
+        if (!cancelled) setResult({ photoId, detail: null });
       });
     return () => {
       cancelled = true;
     };
   }, [photoId]);
 
-  return {
-    detail: detail?.photoId === photoId ? detail : null,
-    failed: photoId !== null && failedId === photoId,
-  };
+  const current = result?.photoId === photoId ? result : null;
+  return (
+    <PhotoLightbox
+      photo={current?.detail ?? null}
+      failed={current !== null && current.detail === null}
+      index={index}
+      total={photos.length}
+      onIndexChange={onIndexChange}
+      onClose={onClose}
+    />
+  );
 }
 
 export function LikedPhotosPage() {
@@ -103,8 +123,6 @@ export function LikedPhotosPage() {
   }, [page, refreshKey, expireSession]);
 
   const photos = data?.photos ?? [];
-  const openPhoto = openIndex !== null ? photos[openIndex] : undefined;
-  const { detail, failed } = usePhotoDetail(openPhoto?.photoId ?? null);
 
   const closeLightbox = useCallback(() => setOpenIndex(null), []);
 
@@ -155,14 +173,14 @@ export function LikedPhotosPage() {
               />
             </svg>
           </Link>
-          <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">좋아요한 사진</h1>
+          <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">좋아요 표시한 사진</h1>
         </div>
         <p className="mt-2 text-base text-ink-sub">
           지도에서 하트를 누른 사진을 모아 봐요. 사진을 누르면 크게 볼 수 있어요.
         </p>
         <div className="mt-6 mb-3 flex items-center justify-between gap-4">
           <h2 className="flex items-baseline gap-2 text-[17px] leading-[25px] font-bold text-ink">
-            좋아요 표시한 사진
+            사진
             {data && (
               <span className="text-sm font-normal text-ink-muted">
                 <b className="font-bold text-ink">{data.totalElements.toLocaleString()}</b>장
@@ -263,12 +281,10 @@ export function LikedPhotosPage() {
           </>
         )}
       </main>
-      {openIndex !== null && openPhoto && (
-        <PhotoLightbox
-          photo={detail}
-          failed={failed}
+      {openIndex !== null && photos[openIndex] && (
+        <LikedPhotoLightbox
+          photos={photos}
           index={openIndex}
-          total={photos.length}
           onIndexChange={setOpenIndex}
           onClose={closeLightbox}
         />

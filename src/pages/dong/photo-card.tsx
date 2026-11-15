@@ -34,46 +34,50 @@ const PHOTO_BUTTON =
 type LikeState = { liked: boolean; likeCount: number };
 
 // 사진 카드의 좋아요. 누르면 바로 바꿔 보여 주고, 실패하면 원래대로 되돌림
-// 바꾼 값은 그 사진 상세(source)에만 씀 → 넘겼다가 돌아와 상세를 다시 받으면 서버 값이 기준
+// 이 카드에서 누른 결과는 사진 id별로 기억해 상세보다 우선함
+// → 응답 전에 다른 사진으로 넘겼다 돌아와 상세를 다시 받아도(누르기 전 값일 수 있음) 누른 결과가 보임
 function usePhotoLike(photo: PhotoDetail | null, enabled: boolean) {
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const expireSession = useExpireSession();
-  const [override, setOverride] = useState<{ source: PhotoDetail; state: LikeState } | null>(
-    null,
-  );
+  const [overrides, setOverrides] = useState<Record<number, LikeState>>({});
   const [promptOpen, setPromptOpen] = useState(false);
-  // 응답을 기다리는 동안 다시 누르면 무시 (빠르게 두 번 눌러 요청 순서가 꼬이지 않게)
-  const pendingRef = useRef(false);
+  // 같은 사진은 응답을 기다리는 동안 다시 누르면 무시 (빠르게 두 번 눌러 요청 순서가 꼬이지 않게)
+  const pendingRef = useRef(new Set<number>());
 
   // 좋아요 기능 전 BE(likeCount 없음)면 하트를 숨김
   const like: LikeState | null =
     enabled && photo && photo.likeCount !== undefined
-      ? override?.source === photo
-        ? override.state
-        : { liked: photo.liked ?? false, likeCount: photo.likeCount }
+      ? (overrides[photo.photoId] ?? { liked: photo.liked ?? false, likeCount: photo.likeCount })
       : null;
 
   async function toggle() {
-    if (!photo || !like || pendingRef.current) return;
+    if (!photo || !like || pendingRef.current.has(photo.photoId)) return;
     if (!loggedIn) {
       setPromptOpen(true);
       return;
     }
-    const source = photo;
+    const photoId = photo.photoId;
     const before = like;
-    pendingRef.current = true;
-    setOverride({
-      source,
-      state: { liked: !before.liked, likeCount: before.likeCount + (before.liked ? -1 : 1) },
-    });
+    const previous = overrides[photoId];
+    // state가 없으면 기억한 값을 지워 상세 값으로 돌아감
+    const remember = (state: LikeState | undefined) =>
+      setOverrides((current) => {
+        const next = { ...current };
+        if (state) next[photoId] = state;
+        else delete next[photoId];
+        return next;
+      });
+
+    pendingRef.current.add(photoId);
+    remember({ liked: !before.liked, likeCount: before.likeCount + (before.liked ? -1 : 1) });
     try {
-      const result = await (before.liked ? unlikePhoto : likePhoto)(source.photoId);
-      setOverride({ source, state: { liked: result.liked, likeCount: result.likeCount } });
+      const result = await (before.liked ? unlikePhoto : likePhoto)(photoId);
+      remember({ liked: result.liked, likeCount: result.likeCount });
     } catch (error) {
       if (isSessionExpired(error)) expireSession();
-      else setOverride({ source, state: before });
+      else remember(previous);
     } finally {
-      pendingRef.current = false;
+      pendingRef.current.delete(photoId);
     }
   }
 
@@ -160,6 +164,8 @@ export function PhotoCard({
       .then((data) => {
         if (cancelled) return;
         setPhoto(data);
+        // 예전에 실패한 사진을 넘겼다 돌아와 다시 받았으면 실패 표시를 지움
+        setFailedId(null);
       })
       .catch(() => {
         if (cancelled) return;
