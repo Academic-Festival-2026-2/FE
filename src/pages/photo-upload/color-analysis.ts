@@ -40,8 +40,8 @@ const CONFUSABLE_PAIR: Partial<Record<number, number>> = {
   6: 18, // 주황 노을 → 단풍 주황
   17: 28, // 은행 노랑 → 창문 불빛
   0: 38, // 연한 하늘 → 안개
-  1: 37, // 하늘 → 회색 건물
-  2: 36, // 짙은 하늘 → 아스팔트
+  1: 3, // 하늘 → 새벽 회청 하늘 (흐린 새벽 하늘은 색으로 구분이 안 됨)
+  2: 10, // 짙은 하늘 → 바다 (사진 속 하늘과 바다는 색으로 구분이 안 됨)
   3: 37, // 새벽 회청 하늘 → 회색 건물
   4: 37, // 보랏빛 새벽 → 회색 건물
 };
@@ -115,6 +115,8 @@ export function classifyColor(L: number, a: number, b: number, darkPhoto: boolea
     return L >= 75 ? 27 : L >= 45 ? 11 : 12;
   }
   // 파랑: 밝기로 연한 하늘 → 하늘 → 짙은 하늘 → 밤하늘, 밤의 선명한 파랑은 파란 조명
+  // 새벽 회청 하늘·바다는 사진 속 하늘과 색으로 구분이 안 돼서(자동 분류하면 하늘 표가 갈림)
+  // 자동 분류하지 않고 하늘·짙은 하늘의 짝 후보로 둠 (CONFUSABLE_PAIR)
   if (h < 285) {
     if (C < 12) return grayByLightness(L);
     if (darkPhoto && L >= 40 && C >= 40) return 30;

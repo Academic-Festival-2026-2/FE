@@ -46,6 +46,31 @@ test('색상 규칙표: 사진처럼 흐린 색도 대상 색으로 분류한다
   assert.equal(nameOf(image(4, 4, () => [110, 160, 220]).palette[0]), '하늘');
   assert.equal(nameOf(image(4, 4, () => [128, 128, 128]).palette[0]), '아스팔트');
 });
+test('색으로 하늘과 구분이 안 되는 새벽 회청 하늘·바다는 하늘의 짝 후보로 고를 수 있다', () => {
+  const sky = image(4, 4, () => [156, 200, 236]); // #9CC8EC 하늘
+  assert.equal(nameOf(sky.palette[0]), '하늘');
+  assert.ok(sky.candidates.map(nameOf).includes('새벽 회청 하늘'));
+  const deepSky = image(4, 4, () => [90, 143, 208]); // #5A8FD0 짙은 하늘
+  assert.equal(nameOf(deepSky.palette[0]), '짙은 하늘');
+  assert.ok(deepSky.candidates.map(nameOf).includes('바다'));
+  for (const [analysis, name] of [[sky, '새벽 회청 하늘'], [deepSky, '바다']]) {
+    const chosen = chooseRepresentative(analysis, COLOR_HEX[COLOR_NAMES.indexOf(name)]);
+    assert.equal(nameOf(chosen.palette[0]), name);
+    assert.ok(validateColors(chosen.palette, chosen.bins));
+  }
+});
+test('40색 모두 자동 분류나 후보로 나올 수 있다', () => {
+  // 규칙표가 직접 돌려주는 색 + 짝 후보로만 나오는 색을 합치면 40색 전부
+  // 밤 조명색은 어두운 사진 속 밝은 픽셀일 때만 나와서, 검은 픽셀 9개 + 그 색 1개짜리 사진도 같이 확인
+  const reachable = new Set();
+  const black = [12, 12, 15, 255];
+  for (let r = 0; r < 256; r += 10) for (let g = 0; g < 256; g += 10) for (let b = 0; b < 256; b += 10) {
+    analyzePixels(new Uint8ClampedArray([r, g, b, 255])).candidates.forEach((hex) => reachable.add(hex));
+    if (r % 20 || g % 20 || b % 20) continue;
+    analyzePixels(new Uint8ClampedArray([...Array(9).fill(black).flat(), r, g, b, 255])).candidates.forEach((hex) => reachable.add(hex));
+  }
+  assert.deepEqual(COLOR_HEX.filter((hex) => !reachable.has(hex)).map(nameOf), []);
+});
 test('어두운 사진의 밝은 따뜻한 색은 창문 불빛으로 본다', () => {
   const night = image(10, 10, (x, y) => x >= 4 && x < 7 && y >= 4 && y < 7 ? [240, 200, 120] : [15, 15, 20]);
   assert.equal(nameOf(night.palette[0]), '창문 불빛');
