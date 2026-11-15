@@ -111,17 +111,29 @@ function reissueOnce() {
 
 // 로그인이 필요한 API: access token이 만료(401)되면 재발급 후 한 번만 다시 보냄
 // 로그인 API는 실패도 401(USER401_1)이라 request를 그대로 사용
+// 기다리는 사이 로그아웃·다른 계정 로그인을 했으면 다시 보내지 않음
+// (이전 계정 토큰으로 좋아요 등을 보내거나, 새 계정이 누르지 않은 요청을 새 계정으로 보내지 않게)
+// 이때 오류 코드는 SESSION_CHANGED → 세션 만료로 보지 않음 (새로 로그인한 계정을 로그아웃시키지 않게)
+export const SESSION_CHANGED = "SESSION_CHANGED";
 export async function authRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const accessToken = useAuthStore.getState().tokens?.accessToken;
+  const { tokens, session } = useAuthStore.getState();
+  const accessToken = tokens?.accessToken;
   if (!accessToken) throw new ApiError(401, "COMMON401", "로그인이 필요해요.");
+  const assertSameSession = () => {
+    if (useAuthStore.getState().session !== session) {
+      throw new ApiError(401, SESSION_CHANGED, "로그인 상태가 바뀌어 요청을 보내지 않았어요.");
+    }
+  };
 
   try {
     return await request<T>(path, withAuth(init, accessToken));
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    assertSameSession();
     // 그사이 다른 요청이 이미 재발급했으면 그 토큰으로 바로 재시도
     const latest = useAuthStore.getState().tokens?.accessToken;
     const newToken = latest && latest !== accessToken ? latest : await reissueOnce();
+    assertSameSession();
     return request<T>(path, withAuth(init, newToken));
   }
 }

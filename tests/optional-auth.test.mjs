@@ -12,9 +12,10 @@ const jwt = exp => ['{"alg":"HS256"}', JSON.stringify({ sub: '1', exp })]
   .map(part => Buffer.from(part).toString('base64url')).join('.') + '.sig';
 const now = () => Math.floor(Date.now() / 1000);
 
-// 매번 새 모듈(재발급 상태 공유 안 함) + 가짜 저장소·fetch로 optionalAuthRequest를 부름
+// 매번 새 모듈(재발급 상태 공유 안 함) + 가짜 저장소·fetch로 optionalAuthRequest(기본) 또는 call(api)을 부름
 // reissue(store)는 재발급 응답 전에 로그아웃·다른 계정 로그인을 흉내 낼 수 있음 (logout, login)
-async function run(tokens, reissue) {
+// respond(n)은 n번째 API 응답 (undefined면 성공)
+async function run(tokens, reissue, { call = api => api.optionalAuthRequest('/api/photos/7'), respond } = {}) {
   const store = { tokens, session: 0 };
   store.logout = () => { store.tokens = null; store.session += 1; };
   store.login = next => { store.tokens = next; store.session += 1; };
@@ -31,22 +32,27 @@ async function run(tokens, reissue) {
   const source = (await readFile(new URL('../src/api/client.ts', import.meta.url), 'utf8'))
     .replace('"../stores/auth-store"', JSON.stringify(mockStore))
     .replace('import.meta.env.VITE_API_BASE_URL', 'undefined');
-  const { optionalAuthRequest } = await import(moduleUrl(source + `\n// ${Math.random()}`));
+  const api = await import(moduleUrl(source + `\n// ${Math.random()}`));
 
   const calls = [];
+  let apiCalls = 0;
+  let error;
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     calls.push([url, new Headers(init.headers).get('Authorization')]);
     if (url === '/api/auth/reissue') return reissue(store);
-    return Response.json({ isSuccess: true, code: 'OK', message: '', result: { liked: true } });
+    apiCalls += 1;
+    return respond?.(apiCalls) ?? Response.json({ isSuccess: true, code: 'OK', message: '', result: { liked: true } });
   };
   try {
-    await optionalAuthRequest('/api/photos/7');
+    await call(api);
+  } catch (e) {
+    error = e;
   } finally {
     globalThis.fetch = realFetch;
     delete globalThis.__authStore;
   }
-  return { calls, tokens: store.tokens };
+  return { calls, tokens: store.tokens, error };
 }
 
 const ok = tokens => Response.json({ isSuccess: true, code: 'OK', message: '', result: tokens });
@@ -119,4 +125,44 @@ test('이전 세션의 재발급이 거절돼도 그사이 로그인한 새 세�
 test('만료 시각을 읽을 수 없는 토큰은 그대로 보냄 (401이면 기존처럼 재발급)', async () => {
   const { calls } = await run({ accessToken: 'not-a-jwt', refreshToken: 'r' }, () => assert.fail('재발급하면 안 됨'));
   assert.deepEqual(calls, [['/api/photos/7', 'Bearer not-a-jwt']]);
+});
+
+// 로그인이 필요한 API(좋아요 등): 401 → 재발급 → 한 번 더 보냄
+const likePhoto = api => api.authRequest('/api/photos/7/likes', { method: 'POST' });
+const unauthorizedFirst = n => n === 1
+  ? Response.json({ isSuccess: false, code: 'COMMON401', message: '' }, { status: 401 })
+  : undefined;
+
+test('401이면 재발급한 새 토큰으로 한 번 더 보냄', async () => {
+  const valid = jwt(now() + 600);
+  const fresh = jwt(now() + 1800);
+  const { calls, error } = await run(
+    { accessToken: valid, refreshToken: 'r' },
+    () => ok({ accessToken: fresh, refreshToken: 'r2' }),
+    { call: likePhoto, respond: unauthorizedFirst },
+  );
+  assert.equal(error, undefined);
+  assert.deepEqual(calls, [
+    ['/api/photos/7/likes', `Bearer ${valid}`],
+    ['/api/auth/reissue', null],
+    ['/api/photos/7/likes', `Bearer ${fresh}`],
+  ]);
+});
+
+test('401 뒤 재발급을 기다리는 사이 로그아웃·다른 계정 로그인을 하면 다시 보내지 않음', async () => {
+  const changes = [store => store.logout(), store => store.login({ accessToken: jwt(now() + 1700), refreshToken: 'n' })];
+  for (const change of changes) {
+    const valid = jwt(now() + 600);
+    const { calls, error } = await run(
+      { accessToken: valid, refreshToken: 'r' },
+      store => {
+        change(store);
+        return ok({ accessToken: jwt(now() + 1800), refreshToken: 'r2' });
+      },
+      { call: likePhoto, respond: unauthorizedFirst },
+    );
+    // 세션 만료(401)로 처리하면 새로 로그인한 계정까지 로그아웃되므로 따로 구별되는 코드
+    assert.equal(error?.code, 'SESSION_CHANGED');
+    assert.deepEqual(calls, [['/api/photos/7/likes', `Bearer ${valid}`], ['/api/auth/reissue', null]]);
+  }
 });
