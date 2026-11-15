@@ -4,6 +4,8 @@ import { ApiError } from "../../api/client";
 import {
   getLikedPhotos,
   getPhotoDetail,
+  likePhoto,
+  unlikePhoto,
   type LikedPhotoItem,
   type LikedPhotosResponse,
   type PhotoDetail,
@@ -13,7 +15,9 @@ import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { formatDate } from "../../utils/date";
 import { currentTimeBand } from "../../utils/time-band";
+import { cn } from "../../utils/cn";
 import { bandLabel } from "../map/map-data";
+import { HeartIcon } from "../dong/photo-icons";
 import { PhotoLightbox } from "../dong/photo-lightbox";
 
 const PAGE_SIZE = 12;
@@ -39,6 +43,44 @@ function PhotoThumbnail({ photo }: { photo: LikedPhotoItem }) {
       )}
     </div>
   );
+}
+
+// 카드의 하트로 좋아요 취소·다시 좋아요. 누르면 바로 바꿔 보여 주고, 실패하면 원래대로 되돌림
+// 취소한 카드는 실수로 눌렀을 때 되돌릴 수 있게 페이지를 다시 받을 때까지 그대로 둠
+function useLikeToggle() {
+  const expireSession = useExpireSession();
+  // 이 화면에서 좋아요를 취소한 사진 (목록은 모두 좋아요한 사진이라 여기 없으면 좋아요 상태)
+  const [unliked, setUnliked] = useState<ReadonlySet<number>>(new Set());
+  // 같은 사진은 응답을 기다리는 동안 다시 누르면 무시 (요청 순서가 꼬이지 않게)
+  const pendingRef = useRef(new Set<number>());
+
+  const mark = useCallback((photoId: number, isUnliked: boolean) => {
+    setUnliked((current) => {
+      const next = new Set(current);
+      if (isUnliked) next.add(photoId);
+      else next.delete(photoId);
+      return next;
+    });
+  }, []);
+
+  async function toggle(photoId: number) {
+    if (pendingRef.current.has(photoId)) return;
+    const wasLiked = !unliked.has(photoId);
+    pendingRef.current.add(photoId);
+    mark(photoId, wasLiked);
+    try {
+      const result = await (wasLiked ? unlikePhoto : likePhoto)(photoId);
+      mark(photoId, !result.liked);
+    } catch (error) {
+      if (isSessionExpired(error)) expireSession();
+      else mark(photoId, !wasLiked);
+    } finally {
+      pendingRef.current.delete(photoId);
+    }
+  }
+
+  const reset = useCallback(() => setUnliked(new Set()), []);
+  return { isLiked: (photoId: number) => !unliked.has(photoId), toggle, reset };
 }
 
 // 지금 페이지 사진들을 크게 보기로 넘겨 봄. 넘길 때마다 상세(원본 사진·대표색 비율)를 받음
@@ -97,6 +139,7 @@ export function LikedPhotosPage() {
   // 크게 보기로 연 사진의 위치 (지금 페이지 안)
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const likes = useLikeToggle();
 
   useEffect(() => {
     let ignore = false;
@@ -148,6 +191,7 @@ export function LikedPhotosPage() {
     setLoading(true);
     setError(null);
     setOpenIndex(null);
+    likes.reset();
     setPage(nextPage);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -183,7 +227,7 @@ export function LikedPhotosPage() {
           <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">좋아요 표시한 사진</h1>
         </div>
         <p className="mt-2 text-base text-ink-sub">
-          지도에서 하트를 누른 사진을 모아 봐요. 사진을 누르면 크게 볼 수 있어요.
+          지도에서 하트를 누른 사진을 모아 봐요. 사진을 누르면 크게 볼 수 있고, 하트를 누르면 좋아요를 취소해요.
         </p>
         <div className="mt-6 mb-3 flex items-center justify-between gap-4">
           <h2 className="flex items-baseline gap-2 text-[17px] leading-[25px] font-bold text-ink">
@@ -230,34 +274,55 @@ export function LikedPhotosPage() {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-              {photos.map((photo, index) => (
-                <button
-                  key={photo.photoId}
-                  ref={(element) => {
-                    cardRefs.current[index] = element;
-                  }}
-                  type="button"
-                  onClick={() => setOpenIndex(index)}
-                  aria-label={`${photo.nickname}님이 ${photo.name}에서 ${formatDate(photo.takenAt)}에 찍은 사진 크게 보기`}
-                  className="overflow-hidden rounded-2xl border border-card-line bg-white text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(26,36,64,0.10)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  <PhotoThumbnail photo={photo} />
-                  <div className="flex items-start justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-ink sm:text-base">{photo.name}</p>
-                      <p className="mt-1 truncate text-xs text-ink-sub">{photo.nickname}</p>
-                      <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">
-                        {formatDate(photo.takenAt)} · {bandLabel(photo.timeBand)}
-                      </p>
-                    </div>
-                    <span
-                      className="mt-1 size-3 shrink-0 rounded-[3px]"
-                      style={{ backgroundColor: photo.color }}
-                      aria-hidden="true"
-                    />
+              {photos.map((photo, index) => {
+                const liked = likes.isLiked(photo.photoId);
+                return (
+                  // 하트는 카드 버튼 안에 넣을 수 없어(버튼 중첩) 카드 위에 겹쳐 둠. 떠오르는 효과는 둘을 감싼 칸에 줌
+                  <div
+                    key={photo.photoId}
+                    className="group relative transition hover:-translate-y-0.5"
+                  >
+                    <button
+                      ref={(element) => {
+                        cardRefs.current[index] = element;
+                      }}
+                      type="button"
+                      onClick={() => setOpenIndex(index)}
+                      aria-label={`${photo.nickname}님이 ${photo.name}에서 ${formatDate(photo.takenAt)}에 찍은 사진 크게 보기`}
+                      className="block w-full overflow-hidden rounded-2xl border border-card-line bg-white text-left transition group-hover:shadow-[0_8px_24px_rgba(26,36,64,0.10)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    >
+                      <PhotoThumbnail photo={photo} />
+                      <div className="flex items-start justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-ink sm:text-base">{photo.name}</p>
+                          <p className="mt-1 truncate text-xs text-ink-sub">{photo.nickname}</p>
+                          <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">
+                            {formatDate(photo.takenAt)} · {bandLabel(photo.timeBand)}
+                          </p>
+                        </div>
+                        <span
+                          className="mt-1 size-3 shrink-0 rounded-[3px]"
+                          style={{ backgroundColor: photo.color }}
+                          aria-hidden="true"
+                        />
+                      </div>
+                    </button>
+                    {/* 왼쪽 위 하트: 누르면 좋아요 취소, 다시 누르면 다시 좋아요 (사진 팝업 하트와 같은 모양) */}
+                    <button
+                      type="button"
+                      aria-label={`${photo.name} 사진 좋아요`}
+                      aria-pressed={liked}
+                      onClick={() => likes.toggle(photo.photoId)}
+                      className={cn(
+                        "absolute top-2 left-2 flex size-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                        liked && "text-[#ff5c7c]",
+                      )}
+                    >
+                      <HeartIcon filled={liked} />
+                    </button>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-[13px] text-ink-muted">
               <p>
