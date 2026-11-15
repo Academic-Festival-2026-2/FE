@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { photoUploadTimeFields } from '../src/pages/photo-upload/photo-upload-time.ts';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
@@ -152,4 +153,29 @@ test('실제 EXIF 파서로 위치·시각 네 가지 조합을 추출한다', a
       assert.equal(result.longitude,gps ? 126.8 : undefined);
     }
   } finally { globalThis.createImageBitmap = original; }
+});
+
+test('EXIF 촬영 시각이 있으면 날짜만 전송한다', () => {
+  assert.deepEqual(
+    photoUploadTimeFields(
+      '2026-10-20T15:30:00',
+      '2026-10-20T15:30:00',
+      'SPRING',
+      'NIGHT',
+    ),
+    { takenAt: '2026-10-20T15:30:00' },
+  );
+});
+
+test('EXIF 촬영 시각이 없으면 계절과 시간대만 전송한다', () => {
+  assert.deepEqual(
+    photoUploadTimeFields(undefined, undefined, 'AUTUMN', 'SUNSET'),
+    { season: 'AUTUMN', timeBand: 'SUNSET' },
+  );
+});
+
+test('필수 촬영 정보가 누락되면 업로드 요청을 생성하지 않는다', () => {
+  assert.equal(photoUploadTimeFields(undefined, undefined, '', 'DAY'), null);
+  assert.equal(photoUploadTimeFields(undefined, undefined, 'AUTUMN', ''), null);
+  assert.equal(photoUploadTimeFields('invalid', undefined, '', ''), null);
 });

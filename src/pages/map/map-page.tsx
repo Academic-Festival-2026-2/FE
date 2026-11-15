@@ -194,6 +194,7 @@ export function MapPage() {
               {homeView && regions.length > 0 && (
                 <SvgMap
                   regions={regions}
+                  focusRegion={currentCode}
                   homeView={homeView}
                   dongs={shownDongs}
                   hoveredCode={hoveredCode}

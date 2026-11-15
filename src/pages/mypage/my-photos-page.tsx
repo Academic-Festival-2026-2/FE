@@ -16,6 +16,7 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { getPhotoColorRatios } from "../dong/photo-color-ratios";
 import { useUserStore } from "../../stores/user-store";
 import { formatDate } from "../../utils/date";
+import { seasonOf } from "../map/map-data";
 
 const PAGE_SIZE = 12;
 const timeBandLabel = {
@@ -25,14 +26,11 @@ const timeBandLabel = {
   NIGHT: "밤",
 } as const;
 
-const seasonLabel: Record<SeasonType, string> = {
-  SPRING: "봄", SUMMER: "여름", AUTUMN: "가을", WINTER: "겨울",
-};
 function formatPhotoDate(value: string | null, season: SeasonType) {
-  return value ? formatDate(value) : seasonLabel[season];
+  return value ? formatDate(value) : (seasonOf(season)?.name ?? "촬영 시기 미상");
 }
 function formatDateTime(value: string | null, season: SeasonType) {
-  return value ? `${formatDate(value)} ${value.slice(11, 16)}` : seasonLabel[season];
+  return value ? `${formatDate(value)} ${value.slice(11, 16)}` : (seasonOf(season)?.name ?? "촬영 시기 미상");
 }
 
 function PhotoThumbnail({ photo }: { photo: MyPhotoItem }) {

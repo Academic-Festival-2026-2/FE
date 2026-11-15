@@ -8,6 +8,7 @@ import { isKnownBadge } from "../../constants/badges";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useUserStore } from "../../stores/user-store";
 import { BadgeSection } from "./badge-section";
+import { LikedPhotosSection } from "./liked-photos-section";
 import { DEFAULT_REGION, DEFAULT_SEASON } from "./my-map-filters";
 import { summarizeMyMap } from "./my-map-stats";
 import { MyMapProgressSection } from "./my-map-progress-section";
@@ -118,6 +119,7 @@ export function MyPage() {
               onUpdated={handleUpdated}
             />
             <RecentPhotosSection />
+            <LikedPhotosSection />
             {/* PC(1024px 이상)에서는 두 칸, 그보다 좁으면 한 줄. 같은 줄 카드는 높이를 맞춤 */}
             <div className="grid gap-4 lg:grid-cols-2">
               <MyMapProgressSection

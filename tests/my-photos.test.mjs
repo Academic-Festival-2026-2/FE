@@ -8,7 +8,7 @@ const moduleUrl = source => 'data:text/javascript;base64,' + Buffer.from(
 ).toString('base64');
 
 test('내 사진 목록/상세/삭제는 인증 API 및 올바른 경로를 사용한다', async () => {
-  const mockClient = moduleUrl('export const authRequest = (...args) => globalThis.__myPhotosAuthRequest(...args); export const request = () => { throw new Error("인증 없는 API 사용 금지") };');
+  const mockClient = moduleUrl('export const authRequest = (...args) => globalThis.__myPhotosAuthRequest(...args); export const request = () => { throw new Error("인증 없는 API 사용 금지") }; export const optionalAuthRequest = () => { throw new Error("인증 없는 API 사용 금지") };');
   const source = (await readFile(new URL('../src/api/photo.ts', import.meta.url), 'utf8'))
     .replace('"./client"', JSON.stringify(mockClient));
   const { getMyPhotos, getPhotoDetail, deletePhoto } = await import(moduleUrl(source));
