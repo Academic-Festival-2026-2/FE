@@ -105,7 +105,11 @@ export function toShapes(boundaries: Boundaries): DongShape[] {
       bounds: [minX, minY, maxX, maxY],
       latSpan: dongMaxLat - dongMinLat,
       lngSpan: dongMaxLng - dongMinLng,
-      area: rings.reduce((sum, ring) => sum + ringArea(ring), 0),
+      area: feature.geometry.coordinates.reduce(
+        (sum, [outer, ...holes]) =>
+          sum + ringArea(outer.map(project)) - holes.reduce((h, hole) => h + ringArea(hole.map(project)), 0),
+        0,
+      ),
     };
   });
 }
@@ -176,6 +180,7 @@ export function regionAt(regions: Boundaries[], [lng, lat]: number[]): string | 
 // 지역(시·군) 테두리 path. 같은 지역 안에서 한 번만 나오는 선분이 테두리
 // (동끼리 맞닿은 선분은 두 동에 한 번씩 총 두 번 나옴. 이웃 시와 맞닿은 선분은 이 지역 안에서는 한 번)
 // 이웃 시끼리 경계 좌표가 똑같이 겹쳐서 합치는 계산 없이 개수만 세면 됨
+// 전제: 이웃 동·이웃 시끼리 꼭짓점 좌표가 정확히 같음 (지금 SGIS 경계 데이터 기준). 경계 데이터를 바꾸면 안쪽 선이 그려질 수 있음
 export function regionOutline(boundaries: Boundaries): string {
   const rings = boundaries.features.flatMap((feature) => feature.geometry.coordinates.flat());
   // 방향과 상관없이 같은 선분이면 같은 키 (A→B, B→A)

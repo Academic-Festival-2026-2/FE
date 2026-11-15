@@ -177,7 +177,6 @@ export function SvgMap({
     );
   }, [regions, focusRegion]);
 
-
   // 동마다 색 전환 시작을 늦추는 시간 (동 가운데의 가로 위치 기준)
   // ltr: 왼쪽 동 0ms → 오른쪽 동 FILL_WAVE_MS / rtl: 반대
   const fillDelays = useMemo(() => {
@@ -660,38 +659,12 @@ export function SvgMap({
           ))}
         </g>
 
-        {/* 동 이름 (확대했을 때만). 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로.
-            동을 눌러 확대하는 애니메이션 중에는 viewBox만 바뀌어서 글자가 커져 보이므로 숨김 */}
-        {!selecting && (
-          <g pointerEvents="none" aria-hidden="true">
-            {dongLabels.map((shape) => (
-              <text
-                key={shape.dongCode}
-                x={shape.label[0]}
-                y={shape.label[1]}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={view.size * 0.022}
-                fontWeight={700}
-                fill="#2b3245"
-                fillOpacity={0.75}
-                stroke="#ffffff"
-                strokeOpacity={0.85}
-                strokeWidth={view.size * 0.005}
-                strokeLinejoin="round"
-                paintOrder="stroke"
-              >
-                {shape.name}
-              </text>
-            ))}
-          </g>
-        )}
-
         {/* 지역 이름. 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로 보이게 */}
         <g pointerEvents="none" aria-hidden="true">
           {regionLabels
-          .filter(({ code }) => !(arrived && code === focusRegion))
-          .map(({ code, name, at: [x, y] }) => (
+            // 들어간 시라도 동 이름이 하나도 안 뜨면(동이 다 작음) 시 이름은 남김
+            .filter(({ code }) => !(arrived && dongLabels.length > 0 && code === focusRegion))
+            .map(({ code, name, at: [x, y] }) => (
             <text
               key={code}
               x={x}
@@ -735,6 +708,33 @@ export function SvgMap({
             vectorEffect="non-scaling-stroke"
             pointerEvents="none"
           />
+        )}
+
+        {/* 동 이름 (확대했을 때만). 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로.
+            동을 눌러 확대하는 애니메이션 중에는 viewBox만 바뀌어서 글자가 커져 보이므로 숨김 */}
+        {!selecting && (
+          <g pointerEvents="none" aria-hidden="true">
+            {dongLabels.map((shape) => (
+              <text
+                key={shape.dongCode}
+                x={shape.label[0]}
+                y={shape.label[1]}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={view.size * 0.022}
+                fontWeight={700}
+                fill="#2b3245"
+                fillOpacity={0.75}
+                stroke="#ffffff"
+                strokeOpacity={0.85}
+                strokeWidth={view.size * 0.005}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              >
+                {shape.name}
+              </text>
+            ))}
+          </g>
         )}
 
       </svg>
