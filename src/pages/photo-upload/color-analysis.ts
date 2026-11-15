@@ -115,11 +115,13 @@ export function classifyColor(L: number, a: number, b: number, darkPhoto: boolea
     return L >= 75 ? 27 : L >= 45 ? 11 : 12;
   }
   // 파랑: 밝기로 연한 하늘 → 하늘 → 짙은 하늘 → 밤하늘, 밤의 선명한 파랑은 파란 조명
-  // 새벽 회청 하늘·바다는 사진 속 하늘과 색으로 구분이 안 돼서(자동 분류하면 하늘 표가 갈림)
-  // 자동 분류하지 않고 하늘·짙은 하늘의 짝 후보로 둠 (CONFUSABLE_PAIR)
+  // 새벽 회청 하늘·바다는 사진 속 하늘과 색이 겹쳐서, 범위를 넓히면 하늘 표가 갈려 맑은 하늘 사진이 망가짐.
+  // 그래서 팔레트 색 근처의 좁은 범위만 자동 분류하고, 나머지는 하늘·짙은 하늘의 짝 후보로 고르게 함 (CONFUSABLE_PAIR)
   if (h < 285) {
     if (C < 12) return grayByLightness(L);
     if (darkPhoto && L >= 40 && C >= 40) return 30;
+    if (C < 16 && L >= 60 && L < 80 && h >= 266) return 3; // 보랏빛이 도는 회청색 (#A9B6CC: L 74, C 13, h 270)
+    if (h < 248 && L >= 40 && L < 62 && C >= 22) return 10; // 청록 쪽 중간 밝기 파랑 (#3C8FB5: L 56, C 30, h 245)
     if (L >= 80) return 0;
     if (L >= 62) return 1;
     if (L >= 38) return 2;

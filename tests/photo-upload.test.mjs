@@ -46,7 +46,11 @@ test('색상 규칙표: 사진처럼 흐린 색도 대상 색으로 분류한다
   assert.equal(nameOf(image(4, 4, () => [110, 160, 220]).palette[0]), '하늘');
   assert.equal(nameOf(image(4, 4, () => [128, 128, 128]).palette[0]), '아스팔트');
 });
-test('색으로 하늘과 구분이 안 되는 새벽 회청 하늘·바다는 하늘의 짝 후보로 고를 수 있다', () => {
+test('새벽 회청 하늘·바다는 팔레트 색 근처면 자동으로 분류된다', () => {
+  assert.equal(nameOf(image(4, 4, () => [169, 182, 204]).palette[0]), '새벽 회청 하늘'); // #A9B6CC
+  assert.equal(nameOf(image(4, 4, () => [60, 143, 181]).palette[0]), '바다'); // #3C8FB5
+});
+test('색으로 하늘과 구분이 어려운 새벽 회청 하늘·바다는 하늘의 짝 후보로도 고를 수 있다', () => {
   const sky = image(4, 4, () => [156, 200, 236]); // #9CC8EC 하늘
   assert.equal(nameOf(sky.palette[0]), '하늘');
   assert.ok(sky.candidates.map(nameOf).includes('새벽 회청 하늘'));
