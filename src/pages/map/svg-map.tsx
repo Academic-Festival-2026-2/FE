@@ -474,12 +474,13 @@ export function SvgMap({
       <svg
         ref={svgRef}
         viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
-        className={`h-full w-full select-none ${selecting ? "pointer-events-none" : ""}`}
+        className={`h-full w-full touch-none select-none ${selecting ? "pointer-events-none" : ""}`}
         role="group"
         aria-label="동별 대표색 지도"
         onPointerDown={(event) => {
+          if (!event.isPrimary || event.button !== 0) return;
+
           movedRef.current = false;
-          if (event.pointerType === "touch") return;
           dragRef.current = {
             x: event.clientX,
             y: event.clientY,
@@ -487,7 +488,9 @@ export function SvgMap({
             moved: false,
           };
         }}
+
         onPointerMove={(event) => {
+          if (!event.isPrimary) return;
           const drag = dragRef.current;
           const svg = svgRef.current;
           if (!drag || !svg) return;
@@ -507,11 +510,14 @@ export function SvgMap({
               { ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio,}, maxSize),
           );
         }}
-        onPointerUp={() => {
+        onPointerUp={(event) => {
+          if(!event.isPrimary) return;
           dragRef.current = null;
         }}
-        onPointerCancel={() => {
+        onPointerCancel={(event) => {
+          if(!event.isPrimary) return;
           dragRef.current = null;
+          movedRef.current = true;
         }}
       >
         <defs>
