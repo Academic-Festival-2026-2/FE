@@ -16,6 +16,7 @@ import { Route as MypageRouteImport } from './routes/mypage'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as DongDongCodeRouteImport } from './routes/dong.$dongCode'
+import { Route as MypageLikesRouteImport } from './routes/mypage_.likes'
 import { Route as MypagePhotosRouteImport } from './routes/mypage_.photos'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const DongDongCodeRoute = DongDongCodeRouteImport.update({
   path: '/dong/$dongCode',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MypageLikesRoute = MypageLikesRouteImport.update({
+  id: '/mypage_/likes',
+  path: '/mypage/likes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MypagePhotosRoute = MypagePhotosRouteImport.update({
   id: '/mypage_/photos',
   path: '/mypage/photos',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage/likes': typeof MypageLikesRoute
   '/mypage/photos': typeof MypagePhotosRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage/likes': typeof MypageLikesRoute
   '/mypage/photos': typeof MypagePhotosRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage_/likes': typeof MypageLikesRoute
   '/mypage_/photos': typeof MypagePhotosRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage/likes'
     | '/mypage/photos'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage/likes'
     | '/mypage/photos'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage_/likes'
     | '/mypage_/photos'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   UploadRoute: typeof UploadRoute
   DongDongCodeRoute: typeof DongDongCodeRoute
+  MypageLikesRoute: typeof MypageLikesRoute
   MypagePhotosRoute: typeof MypagePhotosRoute
 }
 
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DongDongCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mypage_/likes': {
+      id: '/mypage_/likes'
+      path: '/mypage/likes'
+      fullPath: '/mypage/likes'
+      preLoaderRoute: typeof MypageLikesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mypage_/photos': {
       id: '/mypage_/photos'
       path: '/mypage/photos'
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   UploadRoute: UploadRoute,
   DongDongCodeRoute: DongDongCodeRoute,
+  MypageLikesRoute: MypageLikesRoute,
   MypagePhotosRoute: MypagePhotosRoute,
 }
 export const routeTree = rootRouteImport

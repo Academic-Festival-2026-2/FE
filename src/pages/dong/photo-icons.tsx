@@ -15,6 +15,21 @@ export function Chevron({ left, size = 14 }: { left?: boolean; size?: number }) 
   );
 }
 
+// 좋아요 하트. filled면 속을 채움
+export function HeartIcon({ filled, size = 16 }: { filled?: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" aria-hidden>
+      <path
+        d="M8 13.6S1.8 9.9 1.8 5.7A3.2 3.2 0 0 1 8 4.4a3.2 3.2 0 0 1 6.2 1.3c0 4.2-6.2 7.9-6.2 7.9Z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function CloseIcon({ size = 11 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 14 14" aria-hidden>
