@@ -166,3 +166,30 @@ test('401 뒤 재발급을 기다리는 사이 로그아웃·다른 계정 로�
     assert.deepEqual(calls, [['/api/photos/7/likes', `Bearer ${valid}`], ['/api/auth/reissue', null]]);
   }
 });
+
+test('401 뒤 이전 세션의 재발급이 거절돼도 새 세션은 유지하고 세션 만료로 보지 않음', async () => {
+  const other = { accessToken: jwt(now() + 1700), refreshToken: 'n' };
+  const valid = jwt(now() + 600);
+  const { calls, tokens, error } = await run(
+    { accessToken: valid, refreshToken: 'r' },
+    store => {
+      store.login(other);
+      return Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 });
+    },
+    { call: likePhoto, respond: unauthorizedFirst },
+  );
+  assert.equal(error?.code, 'SESSION_CHANGED');
+  assert.deepEqual(tokens, other);
+  assert.deepEqual(calls, [['/api/photos/7/likes', `Bearer ${valid}`], ['/api/auth/reissue', null]]);
+});
+
+test('401 뒤 재발급이 거절되면(세션 그대로) 로그아웃하고 세션 만료 오류', async () => {
+  const { tokens, error } = await run(
+    { accessToken: jwt(now() + 600), refreshToken: 'r' },
+    () => Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 }),
+    { call: likePhoto, respond: unauthorizedFirst },
+  );
+  assert.equal(error?.status, 401);
+  assert.equal(error?.code, 'USER401_2');
+  assert.equal(tokens, null);
+});

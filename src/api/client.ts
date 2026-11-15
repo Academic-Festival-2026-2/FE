@@ -69,6 +69,11 @@ function withAuth(init: RequestInit, accessToken: string): RequestInit {
   return { ...init, headers: { ...init.headers, Authorization: `Bearer ${accessToken}` } };
 }
 
+// 요청 중에 로그아웃·다른 계정 로그인을 한 경우의 오류 코드
+// 세션 만료로 보지 않음 (isSessionExpired) → 새로 로그인한 계정을 로그아웃시키지 않게
+export const SESSION_CHANGED = "SESSION_CHANGED";
+const sessionChanged = () => new ApiError(401, SESSION_CHANGED, "로그인 상태가 바뀌어 요청을 보내지 않았어요.");
+
 // 재발급 결과는 재발급을 시작한 세션이 그대로일 때만 저장소에 반영
 // (응답을 기다리는 사이 로그아웃·다른 계정 로그인을 했으면 이전 토큰을 되살리거나 새 세션을 끊지 않음)
 async function reissueAccessToken(): Promise<string> {
@@ -89,8 +94,10 @@ async function reissueAccessToken(): Promise<string> {
   } catch (error) {
     // 서버 연결 실패·5xx는 로그아웃시키지 않고 그대로 던짐
     if (!(error instanceof ApiError) || error.status === 0 || error.status >= 500) throw error;
+    // 그사이 세션이 바뀌었으면 이전 세션의 실패 → 지금 세션은 그대로 두고 세션 만료가 아닌 오류로 던짐
+    if (useAuthStore.getState().session !== session) throw sessionChanged();
     // USER401_2(잘못된·만료된 refresh), USER403_1(비활성 회원) 등 → 세션 만료
-    if (useAuthStore.getState().session === session) useAuthStore.getState().clearTokens();
+    useAuthStore.getState().clearTokens();
     throw new ApiError(401, error.code, "로그인이 만료되었어요. 다시 로그인해 주세요.");
   }
 }
@@ -111,18 +118,14 @@ function reissueOnce() {
 
 // 로그인이 필요한 API: access token이 만료(401)되면 재발급 후 한 번만 다시 보냄
 // 로그인 API는 실패도 401(USER401_1)이라 request를 그대로 사용
-// 기다리는 사이 로그아웃·다른 계정 로그인을 했으면 다시 보내지 않음
+// 기다리는 사이 로그아웃·다른 계정 로그인을 했으면 다시 보내지 않고 SESSION_CHANGED
 // (이전 계정 토큰으로 좋아요 등을 보내거나, 새 계정이 누르지 않은 요청을 새 계정으로 보내지 않게)
-// 이때 오류 코드는 SESSION_CHANGED → 세션 만료로 보지 않음 (새로 로그인한 계정을 로그아웃시키지 않게)
-export const SESSION_CHANGED = "SESSION_CHANGED";
 export async function authRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { tokens, session } = useAuthStore.getState();
   const accessToken = tokens?.accessToken;
   if (!accessToken) throw new ApiError(401, "COMMON401", "로그인이 필요해요.");
   const assertSameSession = () => {
-    if (useAuthStore.getState().session !== session) {
-      throw new ApiError(401, SESSION_CHANGED, "로그인 상태가 바뀌어 요청을 보내지 않았어요.");
-    }
+    if (useAuthStore.getState().session !== session) throw sessionChanged();
   };
 
   try {
