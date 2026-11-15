@@ -37,9 +37,13 @@ export function useLightboxHistory() {
   }, [router]);
 
   // 닫기 버튼·배경·Esc: 쌓아 둔 기록에 있으면 뒤로 가서 지움 (아래 구독이 닫음)
+  // 뒤로 가기가 끝나기 전에 또 닫으면(더블클릭·Esc 연타) 한 번 더 뒤로 가 화면을 벗어나므로 표시를 먼저 지움
+  // → 두 번째 호출은 setOpen(false)만 함. 뒤로 가기가 끝나면 구독도 onEntry() false로 보고 닫음
   const closeLightbox = useCallback(() => {
-    if (onEntry()) router.history.back();
-    else setOpen(false);
+    if (onEntry()) {
+      entryIdRef.current = null;
+      router.history.back();
+    } else setOpen(false);
   }, [router, onEntry]);
 
   // 뒤로 가기 등으로 크게 보기 기록에서 벗어나면 닫음
