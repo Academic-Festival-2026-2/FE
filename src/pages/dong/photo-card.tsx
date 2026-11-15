@@ -5,7 +5,8 @@ import { BAND_PIXEL, bandLabel } from "../map/map-data";
 import { getPhotoColorRatios } from "./photo-color-ratios";
 import { cn } from "../../utils/cn";
 
-function formatTakenAt(value: string) {
+function formatTakenAt(value: string | null, season: PhotoDetail["season"]) {
+  if (!value) return { SPRING: "봄", SUMMER: "여름", AUTUMN: "가을", WINTER: "겨울" }[season];
   return `${value.slice(0, 10).replaceAll("-", ".")} ${value.slice(11, 16)}`;
 }
 
@@ -234,7 +235,7 @@ export function PhotoCard({
                 {bandLabel(current.timeBand)}
               </span>
             </div>
-            <p className="mt-1 font-mono text-xs text-ink-muted">{formatTakenAt(current.takenAt)}</p>
+            <p className="mt-1 font-mono text-xs text-ink-muted">{formatTakenAt(current.takenAt, current.season)}</p>
             {/* 업로드 화면 대표색 바와 같은 한 줄 막대 */}
             <div className="mt-3 flex h-6 overflow-hidden rounded-[8px]">
               {paletteShares(current).map(({ color, share }) => (

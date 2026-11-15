@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
 import { getMyInfo } from "../../api/user";
 import { ApiError } from "../../api/client";
-import { uploadPhoto, type PhotoUploadResult } from "../../api/photo";
+import { uploadPhoto, type PhotoUploadResult, type SeasonType } from "../../api/photo";
+import type { TimeBand } from "../../api/map";
 import chevronDown from "../../assets/icons/chevron-down.svg";
 import mapPin from "../../assets/icons/map-pin.svg";
 import { AuthHeader } from "../../components/layout/auth-header";
@@ -21,7 +22,8 @@ import { findDong, parseLocalTime, photoSeasonError, timeBand, validateColors } 
 import { analyzePhoto, type ColorAnalysis as Colors } from "./color-analysis";
 type Photo = {
   id: string; file: File; url: string; metadata: PhotoMetadata;
-  takenAt: string; dongCode: string; regionCode: string; latitude?: number; longitude?: number;
+  takenAt: string; season: SeasonType | ""; selectedBand: TimeBand | "";
+  dongCode: string; regionCode: string; latitude?: number; longitude?: number;
   isPublic: boolean; status: "reading" | "ready" | "invalid" | "uploading" | "success" | "error";
   error?: string; needsLogin?: boolean; colors?: Colors; result?: PhotoUploadResult;
 };
@@ -29,7 +31,8 @@ const navButton = "h-11 rounded-[10px] border border-brand bg-white px-4 text-sm
 const field = "h-11 w-full rounded-[10px] border border-field-line bg-white px-3.5 text-sm text-ink outline-none transition-colors focus:border-brand";
 const badgeNeed = "rounded-md border border-brand bg-white px-2 py-[3px] text-xs font-bold text-brand-strong";
 const primary = "h-12 w-full rounded-xl bg-brand px-5 text-base font-extrabold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-text";
-const bands = [ ["DAWN", "새벽", "05–08"], ["DAY", "낮", "08–16"], ["SUNSET", "노을", "16–19"], ["NIGHT", "밤", "19–05"] ];
+const bands: [TimeBand, string, string][] = [ ["DAWN", "새벽", "05–08"], ["DAY", "낮", "08–16"], ["SUNSET", "노을", "16–19"], ["NIGHT", "밤", "19–05"] ];
+const seasons: [SeasonType, string][] = [["SPRING", "봄"], ["SUMMER", "여름"], ["AUTUMN", "가을"], ["WINTER", "겨울"]];
 const PREVIEW_MAX_HEIGHT = 560;
 const MIN_BAR_SHARE = 0.04;
 
@@ -45,7 +48,7 @@ function paletteShares({ palette, ratios }: Colors) {
 }
 const steps = [
   ["대표색 뽑기", "사진마다 많이 쓰인 색 5개를 비율과 함께 뽑아요."],
-  ["한 장씩 확인", "시간대와 동이 비어 있으면 직접 골라 주세요."],
+  ["한 장씩 확인", "촬영 시각이 없으면 계절과 시간대를 직접 골라 주세요."],
   ["지도에 더하기", "공유 지도 또는 나의 지도에만 칠해요."],
 ];
 
@@ -143,7 +146,7 @@ export function PhotoUploadPage() {
     const selected = Array.from(files).map((file): Photo => {
       const url = URL.createObjectURL(file);
       urls.current.add(url);
-      return { id: crypto.randomUUID(), file, url, metadata: {}, takenAt: "", dongCode: "", regionCode: "", isPublic: true, status: "reading" };
+      return { id: crypto.randomUUID(), file, url, metadata: {}, takenAt: "", season: "", selectedBand: "", dongCode: "", regionCode: "", isPublic: true, status: "reading" };
     });
     setPhotos((list) => [...list, ...selected]);
     // 한 번에 디코딩하는 사진 수를 제한해 큰 사진 여러 장의 메모리 급증을 피합니다.
@@ -191,10 +194,15 @@ export function PhotoUploadPage() {
   // isPublic: 업로드 팝업에서 고른 값 (동 상세에 사진을 보여 줄지)
   async function submit(isPublic: boolean) {
     if (!photo || sending.current || !photo.colors || !selectedFeature || locationMismatch || outside) return;
-    const takenAt = parseLocalTime(photo.takenAt);
-    const seasonError = photoSeasonError(photo.takenAt);
-    if (!takenAt || seasonError || !validateColors(photo.colors.palette, photo.colors.bins)) {
-      update(photo.id, { error: seasonError ?? "촬영 시각 또는 색상 분석 결과를 확인해 주세요." });
+    const hasExifTime = Boolean(photo.metadata.takenAt);
+    const takenAt = hasExifTime ? parseLocalTime(photo.takenAt) : undefined;
+    const seasonError = hasExifTime ? photoSeasonError(photo.takenAt) : undefined;
+    if ((hasExifTime && (!takenAt || seasonError))
+        || (!hasExifTime && (!photo.season || !photo.selectedBand))
+        || !validateColors(photo.colors.palette, photo.colors.bins)) {
+      update(photo.id, { error: seasonError ?? (!hasExifTime && (!photo.season || !photo.selectedBand)
+        ? "촬영 계절과 시간대를 모두 선택해 주세요."
+        : "촬영 정보 또는 색상 분석 결과를 확인해 주세요.") });
       setConfirmOpen(false);
       return;
     }
@@ -214,7 +222,8 @@ export function PhotoUploadPage() {
       }
       const result = await uploadPhoto(photo.file, {
         dongCode: selectedFeature.properties.dongCode, latitude, longitude,
-        takenAt, isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
+        ...(takenAt ? { takenAt } : { season: photo.season || undefined, timeBand: photo.selectedBand || undefined }),
+        isPublic, palette: photo.colors.palette, bins: photo.colors.bins,
       });
       // 다음 사진으로 넘어가기 전에 팝업부터 닫음
       setConfirmOpen(false);
@@ -303,9 +312,22 @@ export function PhotoUploadPage() {
             {photo.needsLogin && <Link to="/login" className="mx-6 mt-3 inline-block text-sm text-brand-strong underline">다시 로그인하기</Link>}
             <fieldset disabled={uploading || photo.status === "success" || photo.status === "reading" || photo.status === "invalid"}>
               <div className="px-6 pt-6 pb-6">
-                <div className="flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 시간</h2>{!photo.metadata.takenAt && <span className={badgeNeed}>직접 입력 필요</span>}</div>
-                <input type="datetime-local" step="1" aria-label="촬영 날짜·시각 (한국 시간)" readOnly={Boolean(photo.metadata.takenAt)} value={photo.takenAt} onChange={(e) => update(photo.id, { takenAt: e.target.value, error: photoSeasonError(e.target.value), status: photo.status === "error" ? "ready" : photo.status })} className={`${field} mt-4 read-only:bg-field`} />
-                <div className="mt-3 grid grid-cols-4 gap-2.5">{bands.map(([band, label, range]) => <div key={band} className={`flex h-[68px] flex-col justify-center gap-1 rounded-[10px] border px-2.5 ${timeBand(photo.takenAt) === band ? "border-navy bg-navy text-white" : "border-field-line bg-white"}`}><p className="text-[15px] font-bold">{label}</p><p className={`font-mono text-xs ${timeBand(photo.takenAt) === band ? "text-navy-sub" : "text-ink-muted"}`}>{range}</p></div>)}</div>
+                <div className="flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 시간</h2>{!photo.metadata.takenAt && <span className={badgeNeed}>직접 선택 필요</span>}</div>
+                {photo.metadata.takenAt ? <>
+                  <input type="datetime-local" step="1" aria-label="촬영 날짜·시각 (한국 시간)" readOnly value={photo.takenAt} className={`${field} mt-4 bg-field`} />
+                  <div className="mt-3 grid grid-cols-4 gap-2.5">{bands.map(([band, label, range]) => <div key={band} className={`flex h-[68px] flex-col justify-center gap-1 rounded-[10px] border px-2.5 ${timeBand(photo.takenAt) === band ? "border-navy bg-navy text-white" : "border-field-line bg-white"}`}><p className="text-[15px] font-bold">{label}</p><p className={`font-mono text-xs ${timeBand(photo.takenAt) === band ? "text-navy-sub" : "text-ink-muted"}`}>{range}</p></div>)}</div>
+                </> : <>
+                  <p className="mt-3 text-sm leading-5 text-ink-sub">사진에 촬영 시각이 없어요. 날짜 대신 계절과 시간대를 선택해 주세요.</p>
+                  <p className="mt-4 text-sm font-bold">촬영 계절</p>
+                  <div role="group" aria-label="촬영 계절" className="mt-2 grid grid-cols-4 gap-2">
+                    {seasons.map(([value, label]) => <button key={value} type="button" aria-pressed={photo.season === value} onClick={() => update(photo.id, { season: value, error: undefined, status: photo.status === "error" ? "ready" : photo.status })} className={`h-11 rounded-[10px] border text-sm font-bold transition-colors ${photo.season === value ? "border-navy bg-navy text-white" : "border-field-line bg-white text-ink hover:bg-field"}`}>{label}</button>)}
+                  </div>
+                  <p className="mt-4 text-sm font-bold">촬영 시간대</p>
+                  <div role="group" aria-label="촬영 시간대" className="mt-2 grid grid-cols-4 gap-2">
+                    {bands.map(([band, label, range]) => <button key={band} type="button" aria-pressed={photo.selectedBand === band} onClick={() => update(photo.id, { selectedBand: band, error: undefined, status: photo.status === "error" ? "ready" : photo.status })} className={`flex h-[68px] flex-col items-center justify-center rounded-[10px] border text-sm font-bold transition-colors ${photo.selectedBand === band ? "border-navy bg-navy text-white" : "border-field-line bg-white text-ink hover:bg-field"}`}><span>{label}</span><span className={`mt-1 text-xs ${photo.selectedBand === band ? "text-navy-sub" : "text-ink-muted"}`}>{range}</span></button>)}
+                  </div>
+                  <p className="mt-3 text-xs leading-5 text-ink-muted">정확한 촬영 날짜는 기록하지 않으며, 나의 지도에만 반영돼요.</p>
+                </>}
               </div>
               <div className="border-t border-divider px-6 pt-6 pb-6">
                 <div className="mb-4 flex items-center justify-between gap-3"><h2 className="text-base font-bold">촬영 위치</h2>{consent === false ? <span className={badgeNeed}>동만 선택</span> : locationAgreed && photo.metadata.latitude === undefined && <span className={badgeNeed}>직접 입력 필요</span>}</div>
@@ -356,13 +378,13 @@ export function PhotoUploadPage() {
               </div>
               <div className="flex flex-col gap-3 border-t border-divider px-6 pt-6 pb-3">
                 <p className="text-center text-xs text-ink-muted">누르면 사진 공개 여부를 고를 수 있어요</p>
-                <button type="button" onClick={() => { setUploadPhase("choose"); setConfirmOpen(true); }} disabled={!photo.colors || !parseLocalTime(photo.takenAt) || Boolean(photoSeasonError(photo.takenAt)) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
+                <button type="button" onClick={() => { setUploadPhase("choose"); setConfirmOpen(true); }} disabled={!photo.colors || (photo.metadata.takenAt ? (!parseLocalTime(photo.takenAt) || Boolean(photoSeasonError(photo.takenAt))) : (!photo.season || !photo.selectedBand)) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
               </div>
             </fieldset>
             <div className="flex flex-wrap justify-between gap-3 px-6 pt-3 pb-6 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-ink-sub underline underline-offset-4 disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="font-bold text-brand-strong underline underline-offset-4 disabled:opacity-40">사진 추가</button></div>
           </section>
         </div>
-        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, bands.find(([band]) => band === timeBand(photo.takenAt))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact && locationAgreed} phase={uploadPhase} errorMessage={photo.error} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => void submit(isPublic)} onRetry={() => setUploadPhase("choose")} />}
+        {confirmOpen && selectedFeature && <UploadConfirmDialog key={photo.id} summary={[selectedFeature.properties.name, !photo.metadata.takenAt ? seasons.find(([season]) => season === photo.season)?.[1] : undefined, bands.find(([band]) => band === (photo.metadata.takenAt ? timeBand(photo.takenAt) : photo.selectedBand))?.[1]].filter(Boolean).join(" · ")} defaultPublic={photo.isPublic} canBePublic={exifIntact && locationAgreed} phase={uploadPhase} errorMessage={photo.error} onCancel={() => setConfirmOpen(false)} onConfirm={(isPublic) => void submit(isPublic)} onRetry={() => setUploadPhase("choose")} />}
         {mapOpen && locationAgreed && selectedFeature && <LocationDialog key={photo.id + selectedFeature.properties.dongCode} feature={selectedFeature} initialPoint={latitude !== undefined && longitude !== undefined ? { lat: latitude, lng: longitude } : undefined} onClose={() => setMapOpen(false)} onConfirm={(latitude, longitude) => { update(photo.id, { latitude, longitude }); setMapOpen(false); }} />}
       </>}
     </main>

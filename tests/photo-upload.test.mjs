@@ -88,6 +88,25 @@ test('실제 업로드 함수의 image/data 파트·JWT·응답·409 오류', as
   } finally { globalThis.fetch = original; }
 });
 
+test('촬영 시각 없는 사진은 season/timeBand만 보내고 takenAt을 만들지 않는다', async () => {
+  const client = moduleUrl((await readFile(new URL('../src/api/client.ts',import.meta.url),'utf8')).replace('import.meta.env.VITE_API_BASE_URL', '""').replace('import { useAuthStore } from "../stores/auth-store";', 'const useAuthStore = { getState: () => ({ tokens: { accessToken: "test-token" } }) };'));
+  const photoModule = moduleUrl((await readFile(new URL('../src/api/photo.ts',import.meta.url),'utf8')).replace('"./client"',JSON.stringify(client)));
+  const { uploadPhoto } = await import(photoModule);
+  const original = globalThis.fetch;
+  const data = { dongCode:'31050110', season:'AUTUMN', timeBand:'SUNSET', isPublic:false,
+    ...analyzePixels(new Uint8ClampedArray(pixel(COLOR_HEX[0]))) };
+  try {
+    globalThis.fetch = async (_url, init) => {
+      const payload = JSON.parse(await init.body.get('data').text());
+      assert.equal(payload.takenAt, undefined);
+      assert.equal(payload.season, 'AUTUMN');
+      assert.equal(payload.timeBand, 'SUNSET');
+      return Response.json({isSuccess:true,code:'PHOTO201_1',result:{photoId:2}},{status:201});
+    };
+    assert.deepEqual(await uploadPhoto(new File(['fixture'],'test.jpg'),data),{photoId:2});
+  } finally { globalThis.fetch = original; }
+});
+
 // 실제 EXIF 바이너리를 구성합니다. 이미지 디코더는 Node에 없어 이 테스트에서만 대체합니다.
 function exifJpeg(withTime, withGps) {
   const tiff = Buffer.alloc(256);
