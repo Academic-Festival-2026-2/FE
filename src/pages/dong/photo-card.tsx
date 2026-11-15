@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import type { DongPoint } from "../../api/dong";
-import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
+import { getPhotoDetail, likePhoto, unlikePhoto, type PhotoDetail } from "../../api/photo";
+import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { useAuthStore } from "../../stores/auth-store";
 import { cn } from "../../utils/cn";
-import { Chevron, CloseIcon } from "./photo-icons";
+import { LoginPromptDialog } from "../map/login-prompt-dialog";
+import { Chevron, CloseIcon, HeartIcon } from "./photo-icons";
 import { paletteShares } from "./photo-info";
 import { PhotoLightbox } from "./photo-lightbox";
 import { PhotoMeta } from "./photo-meta";
@@ -28,6 +31,55 @@ function bubblePhotoSize(naturalWidth: number, naturalHeight: number) {
 const PHOTO_BUTTON =
   "flex size-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55";
 
+type LikeState = { liked: boolean; likeCount: number };
+
+// 사진 카드의 좋아요. 누르면 바로 바꿔 보여 주고, 실패하면 원래대로 되돌림
+// 바꾼 값은 그 사진 상세(source)에만 씀 → 넘겼다가 돌아와 상세를 다시 받으면 서버 값이 기준
+function usePhotoLike(photo: PhotoDetail | null, enabled: boolean) {
+  const loggedIn = useAuthStore((state) => state.tokens !== null);
+  const expireSession = useExpireSession();
+  const [override, setOverride] = useState<{ source: PhotoDetail; state: LikeState } | null>(
+    null,
+  );
+  const [promptOpen, setPromptOpen] = useState(false);
+  // 응답을 기다리는 동안 다시 누르면 무시 (빠르게 두 번 눌러 요청 순서가 꼬이지 않게)
+  const pendingRef = useRef(false);
+
+  // 좋아요 기능 전 BE(likeCount 없음)면 하트를 숨김
+  const like: LikeState | null =
+    enabled && photo && photo.likeCount !== undefined
+      ? override?.source === photo
+        ? override.state
+        : { liked: photo.liked ?? false, likeCount: photo.likeCount }
+      : null;
+
+  async function toggle() {
+    if (!photo || !like || pendingRef.current) return;
+    if (!loggedIn) {
+      setPromptOpen(true);
+      return;
+    }
+    const source = photo;
+    const before = like;
+    pendingRef.current = true;
+    setOverride({
+      source,
+      state: { liked: !before.liked, likeCount: before.likeCount + (before.liked ? -1 : 1) },
+    });
+    try {
+      const result = await (before.liked ? unlikePhoto : likePhoto)(source.photoId);
+      setOverride({ source, state: { liked: result.liked, likeCount: result.likeCount } });
+    } catch (error) {
+      if (isSessionExpired(error)) expireSession();
+      else setOverride({ source, state: before });
+    } finally {
+      pendingRef.current = false;
+    }
+  }
+
+  return { like, toggle, promptOpen, closePrompt: () => setPromptOpen(false) };
+}
+
 export function PhotoCard({
   points,
   mine,
@@ -50,6 +102,9 @@ export function PhotoCard({
     null,
   );
   const photoId = points[index].photoId;
+  const current = photo?.photoId === photoId ? photo : null;
+  // 좋아요는 모두의 지도에서만 (나의 지도는 내 사진만 나옴)
+  const { like, toggle: toggleLike, promptOpen, closePrompt } = usePhotoLike(current, !mine);
   // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
   const [zoomed, setZoomed] = useState(false);
   const router = useRouter();
@@ -115,9 +170,9 @@ export function PhotoCard({
     };
   }, [photoId, mine]);
 
-  // Esc로 닫기, ←/→로 이전·다음 사진 (크게 보기가 열려 있으면 그쪽이 키를 받음)
+  // Esc로 닫기, ←/→로 이전·다음 사진 (크게 보기·로그인 안내가 열려 있으면 그쪽이 키를 받음)
   useEffect(() => {
-    if (zoomed) return;
+    if (zoomed || promptOpen) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
       else if (event.key === "ArrowLeft" && index > 0) setIndex(index - 1);
@@ -125,9 +180,8 @@ export function PhotoCard({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [zoomed, index, points.length, onClose]);
+  }, [zoomed, promptOpen, index, points.length, onClose]);
 
-  const current = photo?.photoId === photoId ? photo : null;
   const failed = failedId === photoId;
   const showImage = current?.imageUrl && current.imageUrl !== failedUrl;
   const imageLoaded = Boolean(showImage && loaded?.url === current?.imageUrl);
@@ -200,8 +254,36 @@ export function PhotoCard({
           </div>
         )}
 
+        {/* 왼쪽 위: 좋아요 하트, 바로 아래 좋아요 수 */}
+        {like && (
+          <div className="absolute top-2 left-2 flex flex-col items-center gap-1">
+            <button
+              type="button"
+              aria-label={`좋아요 ${like.likeCount}개`}
+              aria-pressed={like.liked}
+              onClick={toggleLike}
+              className={cn(PHOTO_BUTTON, like.liked && "text-[#ff5c7c]")}
+            >
+              <HeartIcon filled={like.liked} />
+            </button>
+            <span
+              aria-hidden
+              className="min-w-6 rounded-full bg-black/35 px-1.5 py-[3px] text-center font-mono text-[11px] leading-none text-white backdrop-blur-md"
+            >
+              {like.likeCount.toLocaleString()}
+            </span>
+          </div>
+        )}
+
+        {/* 몇 번째 사진인지 (하트가 있으면 그 오른쪽) */}
         {points.length > 1 && (
-          <span className="absolute top-2.5 left-2.5 rounded-full bg-black/35 px-2.5 py-1 font-mono text-[11px] leading-none text-white backdrop-blur-md">
+          <span
+            className={cn(
+              "absolute rounded-full bg-black/35 px-2.5 py-1 font-mono text-[11px] leading-none text-white backdrop-blur-md",
+              // 하트가 있으면 하트 오른쪽, 하트 가운데 높이에 맞춤
+              like ? "top-3.5 left-12" : "top-2.5 left-2.5",
+            )}
+          >
             {index + 1} / {points.length}
           </span>
         )}
@@ -270,11 +352,28 @@ export function PhotoCard({
     />
   );
 
+  // 비로그인으로 하트를 누르면 로그인 안내 (다이얼로그는 화면 맨 위 층에 떠서 말풍선 안에 둬도 됨)
+  const loginPrompt = !mine && (
+    <LoginPromptDialog
+      open={promptOpen}
+      onClose={closePrompt}
+      title="마음에 드는 사진에 좋아요를 눌러 보세요"
+      description={
+        <>
+          좋아요한 사진은 마이페이지에서 다시 볼 수 있어요.
+          <br />
+          좋아요를 누르려면 로그인이 필요해요.
+        </>
+      }
+    />
+  );
+
   if (!bubble)
     return (
       <>
         {card}
         {lightbox}
+        {loginPrompt}
       </>
     );
 
@@ -293,6 +392,7 @@ export function PhotoCard({
         <path d="M1 27L14 4L24 14Z" fill="rgb(255 255 255 / 0.95)" strokeLinejoin="round" />
       </svg>
       {lightbox}
+      {loginPrompt}
     </div>
   );
 }

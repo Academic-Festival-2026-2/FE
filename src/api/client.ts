@@ -117,3 +117,15 @@ export async function authRequest<T>(path: string, init: RequestInit = {}): Prom
     return request<T>(path, withAuth(init, newToken));
   }
 }
+
+// 로그인 없이도 되는 API: 로그인했으면 토큰을 붙여 보냄 (사진 상세의 내 좋아요 여부 등)
+// 세션이 끝나 재발급까지 실패하면(401) 토큰 없이 한 번 더 보냄 → 비로그인과 같은 결과
+export async function optionalAuthRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (!useAuthStore.getState().tokens) return request<T>(path, init);
+  try {
+    return await authRequest<T>(path, init);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    return request<T>(path, init);
+  }
+}
