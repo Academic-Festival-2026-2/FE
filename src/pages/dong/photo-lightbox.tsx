@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PhotoDetail } from "../../api/photo";
-import { BAND_PIXEL, bandLabel } from "../map/map-data";
 import { cn } from "../../utils/cn";
 import { Chevron, CloseIcon } from "./photo-icons";
-import { formatTakenAt, paletteShares } from "./photo-info";
+import { paletteShares } from "./photo-info";
+import { PhotoMeta } from "./photo-meta";
 
 // 라이트박스 위 버튼 (닫기·이전·다음). 어두운 배경 위에서 보이게 흰 반투명
 const LIGHTBOX_BUTTON =
@@ -89,7 +89,7 @@ export function PhotoLightbox({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="사진 크게 보기"
+      aria-label={photo ? `${photo.name} 사진 크게 보기` : "사진 크게 보기"}
       {...BACKDROP}
       onClick={(event) => {
         if (event.target instanceof HTMLElement && "lightboxBackdrop" in event.target.dataset)
@@ -97,7 +97,9 @@ export function PhotoLightbox({
       }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="fixed inset-0 z-50 flex animate-[lightbox-in_180ms_ease-out] flex-col bg-black/90 text-white backdrop-blur-sm"
+      // touch-pinch-zoom: 한 손가락으로 끌어도 브라우저가 화면을 움직이지 않게 (안드로이드 당겨서 새로고침 방지)
+      // 두 손가락 확대는 그대로 허용, 옆으로 넘기기는 위 터치 이벤트로 직접 처리
+      className="fixed inset-0 z-50 flex animate-[lightbox-in_180ms_ease-out] touch-pinch-zoom flex-col bg-black/90 text-white backdrop-blur-sm"
     >
       {/* 위: 몇 번째 사진인지 / 닫기 */}
       <div
@@ -182,39 +184,7 @@ export function PhotoLightbox({
         className="mx-auto w-full max-w-[560px] px-4 pt-1 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
         <div className="min-h-[104px] rounded-[18px] bg-white/8 px-4 py-3.5">
-          {photo ? (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <p className="truncate text-[15px] font-bold">{photo.nickname}</p>
-                <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-white/12 px-2.5 py-1 text-[11px] leading-none font-bold text-white/85">
-                  <span
-                    aria-hidden
-                    className="size-2 rounded-[2px]"
-                    style={{ backgroundColor: BAND_PIXEL[photo.timeBand] }}
-                  />
-                  {bandLabel(photo.timeBand)}
-                </span>
-              </div>
-              <p className="mt-1 font-mono text-xs text-white/60">{formatTakenAt(photo.takenAt)}</p>
-              <div className="mt-3 flex h-6 overflow-hidden rounded-[8px]">
-                {paletteShares(photo).map(({ color, share }) => (
-                  <span
-                    key={color}
-                    title={`${color} ${Math.round(share * 100)}%`}
-                    style={{ backgroundColor: color, width: `${share * 100}%` }}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            !failed && (
-              <div className="animate-pulse space-y-2" aria-hidden>
-                <div className="h-4 w-24 rounded bg-white/10" />
-                <div className="h-3 w-32 rounded bg-white/10" />
-                <div className="mt-3 h-6 rounded-[6px] bg-white/10" />
-              </div>
-            )
-          )}
+          <PhotoMeta photo={photo} failed={failed} tone="dark" />
         </div>
       </div>
     </div>,

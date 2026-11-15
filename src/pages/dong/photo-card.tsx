@@ -2,12 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import type { DongPoint } from "../../api/dong";
 import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
-import { BAND_PIXEL, bandLabel } from "../map/map-data";
 import { cn } from "../../utils/cn";
 import { Chevron, CloseIcon } from "./photo-icons";
-import { formatTakenAt, paletteShares } from "./photo-info";
+import { paletteShares } from "./photo-info";
 import { PhotoLightbox } from "./photo-lightbox";
-
+import { PhotoMeta } from "./photo-meta";
 
 // 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜
 // 세로 사진은 조금 더 길게 허용, 너무 좁아지면 아래 닉네임·시간대 줄이 들어갈 최소 폭 유지
@@ -61,7 +60,7 @@ export function PhotoCard({
   function openLightbox() {
     setZoomed(true);
     // 주소는 그대로 두고 기록만 하나 쌓음 → 뒤로 가기가 동 화면을 벗어나지 않음
-    router.history.push(router.history.location.href, { photoLightbox: true });
+    router.history.push(router.history.location.href);
     lightboxEntryKeyRef.current = router.history.location.state.__TSR_key ?? null;
   }
 
@@ -255,40 +254,7 @@ export function PhotoCard({
 
       {/* 정보 영역: 올린 사람 · 시간대 / 찍은 시각 / 대표색 */}
       <div className="px-2 pt-3 pb-1.5">
-        {current ? (
-          <>
-            <div className="flex items-center justify-between gap-3">
-              <p className="truncate text-[15px] font-bold text-ink">{current.nickname}</p>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-field px-2.5 py-1 text-[11px] leading-none font-bold text-ink-sub">
-                <span
-                  aria-hidden
-                  className="size-2 rounded-[2px]"
-                  style={{ backgroundColor: BAND_PIXEL[current.timeBand] }}
-                />
-                {bandLabel(current.timeBand)}
-              </span>
-            </div>
-            <p className="mt-1 font-mono text-xs text-ink-muted">{formatTakenAt(current.takenAt)}</p>
-            {/* 업로드 화면 대표색 바와 같은 한 줄 막대 */}
-            <div className="mt-3 flex h-6 overflow-hidden rounded-[8px]">
-              {paletteShares(current).map(({ color, share }) => (
-                <span
-                  key={color}
-                  title={`${color} ${Math.round(share * 100)}%`}
-                  style={{ backgroundColor: color, width: `${share * 100}%` }}
-                />
-              ))}
-            </div>
-          </>
-        ) : (
-          !failed && (
-            <div className="animate-pulse space-y-2" aria-hidden>
-              <div className="h-4 w-24 rounded bg-field" />
-              <div className="h-3 w-32 rounded bg-field" />
-              <div className="mt-3 h-6 rounded-[6px] bg-field" />
-            </div>
-          )
-        )}
+        <PhotoMeta photo={current} failed={failed} />
       </div>
     </section>
   );
