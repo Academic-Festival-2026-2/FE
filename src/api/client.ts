@@ -127,17 +127,30 @@ export async function authRequest<T>(path: string, init: RequestInit = {}): Prom
   const assertSameSession = () => {
     if (useAuthStore.getState().session !== session) throw sessionChanged();
   };
+  // 응답을 기다리는 사이 세션이 바뀌었으면 인증 오류(401, USER403_1)는 이전 세션의 것
+  // → 그대로 던지면 화면이 세션 만료로 보고 새 계정을 로그아웃시키므로 SESSION_CHANGED로 바꿈
+  // (다른 오류와 세션이 그대로일 때는 받은 오류 그대로)
+  const fromThisSession = (error: unknown) => {
+    if (error instanceof ApiError && (error.status === 401 || error.code === "USER403_1")) {
+      assertSameSession();
+    }
+    return error;
+  };
 
   try {
     return await request<T>(path, withAuth(init, accessToken));
   } catch (error) {
-    if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    if (!(error instanceof ApiError) || error.status !== 401) throw fromThisSession(error);
     assertSameSession();
     // 그사이 다른 요청이 이미 재발급했으면 그 토큰으로 바로 재시도
     const latest = useAuthStore.getState().tokens?.accessToken;
     const newToken = latest && latest !== accessToken ? latest : await reissueOnce();
     assertSameSession();
-    return request<T>(path, withAuth(init, newToken));
+    try {
+      return await request<T>(path, withAuth(init, newToken));
+    } catch (retryError) {
+      throw fromThisSession(retryError);
+    }
   }
 }
 
