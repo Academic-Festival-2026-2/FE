@@ -6,11 +6,28 @@ import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
 const DEFAULT_DETAIL_TTL_MS = 4 * 60 * 1000;
 const EXPIRY_MARGIN_MS = 60 * 1000;
 
+// X-Amz-Date 형식(20261115T091500Z) → 시각(ms). 형식이 다르면 null
+function amzDateMs(value: string | null) {
+  const match = value?.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
+  if (!match) return null;
+  const [, y, mo, d, h, mi, s] = match.map(Number);
+  return Date.UTC(y, mo - 1, d, h, mi, s);
+}
+
+// 받은 때부터 X-Amz-Expires만큼과, 서명한 때(X-Amz-Date)부터 X-Amz-Expires만큼 중 더 짧은 쪽
+// (지금 BE는 요청마다 새로 서명해서 둘이 거의 같음. 서명한 주소를 BE가 재사용해도 만료된 주소를 쓰지 않게 같이 봄)
+// 서명 시각 기준은 이 기기 시계가 틀리면 어긋나므로 받은 때 기준보다 길게는 쓰지 않음
 function detailTtl(detail: PhotoDetail) {
   if (!detail.imageUrl) return DEFAULT_DETAIL_TTL_MS;
   try {
-    const expires = Number(new URL(detail.imageUrl).searchParams.get("X-Amz-Expires"));
-    return expires > 0 ? Math.max(0, expires * 1000 - EXPIRY_MARGIN_MS) : DEFAULT_DETAIL_TTL_MS;
+    const params = new URL(detail.imageUrl).searchParams;
+    const expires = Number(params.get("X-Amz-Expires"));
+    if (!(expires > 0)) return DEFAULT_DETAIL_TTL_MS;
+    const fromReceipt = expires * 1000 - EXPIRY_MARGIN_MS;
+    const signedAt = amzDateMs(params.get("X-Amz-Date"));
+    const fromSigned =
+      signedAt === null ? fromReceipt : signedAt + expires * 1000 - EXPIRY_MARGIN_MS - Date.now();
+    return Math.max(0, Math.min(fromReceipt, fromSigned));
   } catch {
     return DEFAULT_DETAIL_TTL_MS;
   }
@@ -150,6 +167,23 @@ export function usePhotoDetails(
   return { photo: current, failed: failedId === photoId, readyImageUrls };
 }
 
+type PreloadEntry = {
+  image: HTMLImageElement;
+  done: Promise<void>;
+  settle: () => void;
+  loaded: boolean;
+};
+
+// 놓아주는 이미지 정리: 이벤트를 떼고 기다리는 쪽을 끝냄
+// 아직 받는 중이면 src를 비워 받기를 멈춤 (원본이 커서 넘겨 버린 사진까지 끝까지 받지 않게)
+// 다 받은 이미지는 브라우저 캐시에 남도록 src를 그대로 둠
+function disposePreload(entry: PreloadEntry) {
+  entry.image.onload = null;
+  entry.image.onerror = null;
+  if (!entry.loaded) entry.image.src = "";
+  entry.settle();
+}
+
 // 원본 이미지를 화면에 붙이지 않고 미리 받아 둠. 다 받은 주소를 돌려줘 크게 보기가 페이드 없이 바로 보여 줌
 // currentUrl을 다 받은(또는 실패한) 뒤에 neighborUrls를 받음. 지금·옆 사진이 아닌 이미지는 놓아줌
 function usePreloadedImages(
@@ -158,7 +192,7 @@ function usePreloadedImages(
   enabled: boolean,
 ) {
   // 받는 중이거나 받은 이미지 (Image를 잡아 둬야 받는 도중 정리되지 않음) → 다 받으면(실패해도) 끝나는 Promise
-  const imagesRef = useRef(new Map<string, { image: HTMLImageElement; done: Promise<void> }>());
+  const imagesRef = useRef(new Map<string, PreloadEntry>());
   const [readyUrls, setReadyUrls] = useState<ReadonlySet<string>>(() => new Set());
   const [firstNeighbor = null, secondNeighbor = null] = neighborUrls;
 
@@ -167,22 +201,37 @@ function usePreloadedImages(
     const existing = imagesRef.current.get(url);
     if (existing) return existing.done;
     const image = new Image();
+    let settle = () => {};
     const done = new Promise<void>((resolve) => {
-      image.onload = () => {
-        setReadyUrls((current) => (current.has(url) ? current : new Set(current).add(url)));
-        resolve();
-      };
-      image.onerror = () => resolve();
+      settle = resolve;
     });
+    const entry: PreloadEntry = { image, done, settle, loaded: false };
+    image.onload = () => {
+      entry.loaded = true;
+      setReadyUrls((current) => (current.has(url) ? current : new Set(current).add(url)));
+      settle();
+    };
+    image.onerror = () => settle();
     image.src = url;
-    imagesRef.current.set(url, { image, done });
+    imagesRef.current.set(url, entry);
     return done;
+  }, []);
+
+  // 화면이 사라지면 받는 중인 이미지를 모두 멈춤
+  useEffect(() => {
+    const images = imagesRef.current;
+    return () => {
+      for (const entry of images.values()) disposePreload(entry);
+      images.clear();
+    };
   }, []);
 
   useEffect(() => {
     const keep = new Set([currentUrl, firstNeighbor, secondNeighbor]);
-    for (const url of imagesRef.current.keys()) {
-      if (!keep.has(url)) imagesRef.current.delete(url);
+    for (const [url, entry] of imagesRef.current) {
+      if (keep.has(url)) continue;
+      disposePreload(entry);
+      imagesRef.current.delete(url);
     }
     if (!enabled) return;
 
