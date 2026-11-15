@@ -1,22 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DongPoint } from "../../api/dong";
-import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
-import { BAND_PIXEL, bandLabel } from "../map/map-data";
-import { getPhotoColorRatios } from "./photo-color-ratios";
+import { getPhotoDetail, likePhoto, unlikePhoto, type PhotoDetail } from "../../api/photo";
+import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { useAuthStore } from "../../stores/auth-store";
 import { cn } from "../../utils/cn";
-
-function formatTakenAt(value: string) {
-  return `${value.slice(0, 10).replaceAll("-", ".")} ${value.slice(11, 16)}`;
-}
-
-// 대표색 막대: 비율 계산은 getPhotoColorRatios (bins 검증, 없으면 같은 폭)
-// 5색을 채우려고 반복한 같은 색은 한 칸으로 합침
-function paletteShares({ palette, bins }: PhotoDetail) {
-  const ratios = getPhotoColorRatios(palette, bins);
-  const shares = new Map<string, number>();
-  palette.forEach((color, i) => shares.set(color, (shares.get(color) ?? 0) + (ratios[i] ?? 0)));
-  return [...shares].filter(([, share]) => share > 0).map(([color, share]) => ({ color, share }));
-}
+import { LoginPromptDialog } from "../map/login-prompt-dialog";
+import { Chevron, CloseIcon, HeartIcon } from "./photo-icons";
+import { paletteShares } from "./photo-info";
+import { PhotoLightbox } from "./photo-lightbox";
+import { PhotoMeta } from "./photo-meta";
+import { useLightboxHistory } from "./use-lightbox-history";
 
 // 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜
 // 세로 사진은 조금 더 길게 허용, 너무 좁아지면 아래 닉네임·시간대 줄이 들어갈 최소 폭 유지
@@ -38,19 +31,57 @@ function bubblePhotoSize(naturalWidth: number, naturalHeight: number) {
 const PHOTO_BUTTON =
   "flex size-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55";
 
-function Chevron({ left }: { left?: boolean }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-      <path
-        d={left ? "M9 2.5L4.5 7 9 11.5" : "M5 2.5L9.5 7 5 11.5"}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+type LikeState = { liked: boolean; likeCount: number };
+
+// 사진 카드의 좋아요. 누르면 바로 바꿔 보여 주고, 실패하면 원래대로 되돌림
+// 이 카드에서 누른 결과는 사진 id별로 기억해 상세보다 우선함
+// → 응답 전에 다른 사진으로 넘겼다 돌아와 상세를 다시 받아도(누르기 전 값일 수 있음) 누른 결과가 보임
+function usePhotoLike(photo: PhotoDetail | null, enabled: boolean) {
+  const loggedIn = useAuthStore((state) => state.tokens !== null);
+  const expireSession = useExpireSession();
+  const [overrides, setOverrides] = useState<Record<number, LikeState>>({});
+  const [promptOpen, setPromptOpen] = useState(false);
+  // 같은 사진은 응답을 기다리는 동안 다시 누르면 무시 (빠르게 두 번 눌러 요청 순서가 꼬이지 않게)
+  const pendingRef = useRef(new Set<number>());
+
+  // 좋아요 기능 전 BE(likeCount 없음)면 하트를 숨김
+  const like: LikeState | null =
+    enabled && photo && photo.likeCount !== undefined
+      ? (overrides[photo.photoId] ?? { liked: photo.liked ?? false, likeCount: photo.likeCount })
+      : null;
+
+  async function toggle() {
+    if (!photo || !like || pendingRef.current.has(photo.photoId)) return;
+    if (!loggedIn) {
+      setPromptOpen(true);
+      return;
+    }
+    const photoId = photo.photoId;
+    const before = like;
+    const previous = overrides[photoId];
+    // state가 없으면 기억한 값을 지워 상세 값으로 돌아감
+    const remember = (state: LikeState | undefined) =>
+      setOverrides((current) => {
+        const next = { ...current };
+        if (state) next[photoId] = state;
+        else delete next[photoId];
+        return next;
+      });
+
+    pendingRef.current.add(photoId);
+    remember({ liked: !before.liked, likeCount: before.likeCount + (before.liked ? -1 : 1) });
+    try {
+      const result = await (before.liked ? unlikePhoto : likePhoto)(photoId);
+      remember({ liked: result.liked, likeCount: result.likeCount });
+    } catch (error) {
+      if (isSessionExpired(error)) expireSession();
+      else remember(previous);
+    } finally {
+      pendingRef.current.delete(photoId);
+    }
+  }
+
+  return { like, toggle, promptOpen, closePrompt: () => setPromptOpen(false) };
 }
 
 export function PhotoCard({
@@ -75,6 +106,26 @@ export function PhotoCard({
     null,
   );
   const photoId = points[index].photoId;
+  const current = photo?.photoId === photoId ? photo : null;
+  // 좋아요는 공유 지도에서만 (나의 지도는 내 사진만 나옴)
+  const { like, toggle: toggleLike, promptOpen, closePrompt } = usePhotoLike(current, !mine);
+  // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
+  // 뒤로 가기를 누르면 동 화면을 벗어나지 않고 크게 보기만 닫힘
+  const { open: zoomed, openLightbox, closeLightbox } = useLightboxHistory();
+
+  // 크게 보기가 닫히면 카드의 사진(아직 못 받았으면 닫기 버튼)으로 포커스를 돌려줌
+  const photoButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const wasZoomedRef = useRef(false);
+  useEffect(() => {
+    if (wasZoomedRef.current && !zoomed) {
+      const photoButton = photoButtonRef.current;
+      (photoButton && !photoButton.disabled ? photoButton : closeButtonRef.current)?.focus({
+        preventScroll: true,
+      });
+    }
+    wasZoomedRef.current = zoomed;
+  }, [zoomed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +133,8 @@ export function PhotoCard({
       .then((data) => {
         if (cancelled) return;
         setPhoto(data);
+        // 예전에 실패한 사진을 넘겼다 돌아와 다시 받았으면 실패 표시를 지움
+        setFailedId(null);
       })
       .catch(() => {
         if (cancelled) return;
@@ -92,8 +145,9 @@ export function PhotoCard({
     };
   }, [photoId, mine]);
 
-  // Esc로 닫기, ←/→로 이전·다음 사진
+  // Esc로 닫기, ←/→로 이전·다음 사진 (크게 보기·로그인 안내가 열려 있으면 그쪽이 키를 받음)
   useEffect(() => {
+    if (zoomed || promptOpen) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
       else if (event.key === "ArrowLeft" && index > 0) setIndex(index - 1);
@@ -101,9 +155,8 @@ export function PhotoCard({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [index, points.length, onClose]);
+  }, [zoomed, promptOpen, index, points.length, onClose]);
 
-  const current = photo?.photoId === photoId ? photo : null;
   const failed = failedId === photoId;
   const showImage = current?.imageUrl && current.imageUrl !== failedUrl;
   const imageLoaded = Boolean(showImage && loaded?.url === current?.imageUrl);
@@ -137,26 +190,36 @@ export function PhotoCard({
         ) : !current ? (
           <div className="aspect-[4/3] w-full animate-pulse bg-[#e9ecf2]" />
         ) : showImage ? (
-          <img
-            src={current.imageUrl ?? ""}
-            alt={`${current.name}에서 찍은 사진`}
-            onLoad={(event) =>
-              setLoaded({
-                url: current.imageUrl ?? "",
-                width: event.currentTarget.naturalWidth,
-                height: event.currentTarget.naturalHeight,
-              })
-            }
-            onError={() => setFailedUrl(current.imageUrl)}
-            style={bubbleSize ?? undefined}
-            className={cn(
-              "block transition-opacity duration-300",
-              !bubbleSize && "h-auto w-auto max-w-full",
-              !bubble && "max-h-[min(42vh,420px)] sm:max-h-[min(55vh,480px)]",
-              bubble && !bubbleSize && "max-h-[240px]",
-              imageLoaded ? "opacity-100" : "opacity-0",
-            )}
-          />
+          // 누르면 크게 보기 (사진을 다 받은 뒤부터)
+          <button
+            ref={photoButtonRef}
+            type="button"
+            aria-label="사진 크게 보기"
+            disabled={!imageLoaded}
+            onClick={openLightbox}
+            className="block max-w-full cursor-zoom-in disabled:cursor-default"
+          >
+            <img
+              src={current.imageUrl ?? ""}
+              alt={`${current.name}에서 찍은 사진`}
+              onLoad={(event) =>
+                setLoaded({
+                  url: current.imageUrl ?? "",
+                  width: event.currentTarget.naturalWidth,
+                  height: event.currentTarget.naturalHeight,
+                })
+              }
+              onError={() => setFailedUrl(current.imageUrl)}
+              style={bubbleSize ?? undefined}
+              className={cn(
+                "block transition-opacity duration-300",
+                !bubbleSize && "h-auto w-auto max-w-full",
+                !bubble && "max-h-[min(42vh,420px)] sm:max-h-[min(55vh,480px)]",
+                bubble && !bubbleSize && "max-h-[240px]",
+                imageLoaded ? "opacity-100" : "opacity-0",
+              )}
+            />
+          </button>
         ) : (
           // 사진 파일이 없으면 대표색으로 채움
           <div className="flex aspect-[4/3] w-full">
@@ -166,20 +229,47 @@ export function PhotoCard({
           </div>
         )}
 
+        {/* 왼쪽 위: 좋아요 하트, 바로 아래 좋아요 수 */}
+        {like && (
+          <div className="absolute top-2 left-2 flex flex-col items-center gap-1">
+            <button
+              type="button"
+              aria-label={`좋아요 ${like.likeCount}개`}
+              aria-pressed={like.liked}
+              onClick={toggleLike}
+              className={cn(PHOTO_BUTTON, like.liked && "text-like")}
+            >
+              <HeartIcon filled={like.liked} />
+            </button>
+            <span
+              aria-hidden
+              className="min-w-6 rounded-full bg-black/35 px-1.5 py-[3px] text-center font-mono text-[11px] leading-none text-white backdrop-blur-md"
+            >
+              {like.likeCount.toLocaleString()}
+            </span>
+          </div>
+        )}
+
+        {/* 몇 번째 사진인지 (하트가 있으면 그 오른쪽) */}
         {points.length > 1 && (
-          <span className="absolute top-2.5 left-2.5 rounded-full bg-black/35 px-2.5 py-1 font-mono text-[11px] leading-none text-white backdrop-blur-md">
+          <span
+            className={cn(
+              "absolute rounded-full bg-black/35 px-2.5 py-1 font-mono text-[11px] leading-none text-white backdrop-blur-md",
+              // 하트가 있으면 하트 오른쪽, 하트 가운데 높이에 맞춤
+              like ? "top-3.5 left-12" : "top-2.5 left-2.5",
+            )}
+          >
             {index + 1} / {points.length}
           </span>
         )}
         <button
+          ref={closeButtonRef}
           type="button"
           aria-label="닫기"
           onClick={onClose}
           className={cn(PHOTO_BUTTON, "absolute top-2 right-2")}
         >
-          <svg width="11" height="11" viewBox="0 0 14 14" aria-hidden>
-            <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <CloseIcon />
         </button>
 
         {index > 0 && (
@@ -221,45 +311,46 @@ export function PhotoCard({
 
       {/* 정보 영역: 올린 사람 · 시간대 / 찍은 시각 / 대표색 */}
       <div className="px-2 pt-3 pb-1.5">
-        {current ? (
-          <>
-            <div className="flex items-center justify-between gap-3">
-              <p className="truncate text-[15px] font-bold text-ink">{current.nickname}</p>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-field px-2.5 py-1 text-[11px] leading-none font-bold text-ink-sub">
-                <span
-                  aria-hidden
-                  className="size-2 rounded-[2px]"
-                  style={{ backgroundColor: BAND_PIXEL[current.timeBand] }}
-                />
-                {bandLabel(current.timeBand)}
-              </span>
-            </div>
-            <p className="mt-1 font-mono text-xs text-ink-muted">{formatTakenAt(current.takenAt)}</p>
-            {/* 업로드 화면 대표색 바와 같은 한 줄 막대 */}
-            <div className="mt-3 flex h-6 overflow-hidden rounded-[8px]">
-              {paletteShares(current).map(({ color, share }) => (
-                <span
-                  key={color}
-                  title={`${color} ${Math.round(share * 100)}%`}
-                  style={{ backgroundColor: color, width: `${share * 100}%` }}
-                />
-              ))}
-            </div>
-          </>
-        ) : (
-          !failed && (
-            <div className="animate-pulse space-y-2" aria-hidden>
-              <div className="h-4 w-24 rounded bg-field" />
-              <div className="h-3 w-32 rounded bg-field" />
-              <div className="mt-3 h-6 rounded-[6px] bg-field" />
-            </div>
-          )
-        )}
+        <PhotoMeta photo={current} failed={failed} />
       </div>
     </section>
   );
 
-  if (!bubble) return card;
+  const lightbox = zoomed && (
+    <PhotoLightbox
+      photo={current}
+      failed={failed}
+      index={index}
+      total={points.length}
+      onIndexChange={setIndex}
+      onClose={closeLightbox}
+    />
+  );
+
+  // 비로그인으로 하트를 누르면 로그인 안내 (다이얼로그는 화면 맨 위 층에 떠서 말풍선 안에 둬도 됨)
+  const loginPrompt = !mine && (
+    <LoginPromptDialog
+      open={promptOpen}
+      onClose={closePrompt}
+      title="마음에 드는 사진에 좋아요를 눌러 보세요"
+      description={
+        <>
+          좋아요한 사진은 마이페이지에서 다시 볼 수 있어요.
+          <br />
+          좋아요를 누르려면 로그인이 필요해요.
+        </>
+      }
+    />
+  );
+
+  if (!bubble)
+    return (
+      <>
+        {card}
+        {lightbox}
+        {loginPrompt}
+      </>
+    );
 
   // 말풍선: 픽셀 오른쪽 위에 뜨고, 왼쪽 아래 모서리에서 꼬리가 픽셀 쪽으로 비스듬히 뻗음
   // (말풍선 위치는 dong-page.tsx BUBBLE_OFFSET, 꼬리 끝은 확대된 픽셀 모서리 근처)
@@ -275,6 +366,8 @@ export function PhotoCard({
       >
         <path d="M1 27L14 4L24 14Z" fill="rgb(255 255 255 / 0.95)" strokeLinejoin="round" />
       </svg>
+      {lightbox}
+      {loginPrompt}
     </div>
   );
 }

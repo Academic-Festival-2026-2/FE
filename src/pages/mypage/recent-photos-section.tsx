@@ -3,37 +3,11 @@ import { Link } from "@tanstack/react-router";
 import { getMyPhotos, type MyPhotoItem } from "../../api/photo";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { MYPAGE_SECTION } from "./mypage-sections";
+import { PhotoTile } from "./photo-tile";
 import { SectionCard } from "./section-card";
 
 // 최근 사진 5장 + 마지막 칸은 사진 업로드
 const PREVIEW_COUNT = 5;
-
-function RecentPhoto({ photo }: { photo: MyPhotoItem }) {
-  const [failed, setFailed] = useState(false);
-  // 다 받기 전에는 감춰서 받는 중·실패 때 깨진 이미지 아이콘이 보이지 않게 (그동안은 사진 대표색)
-  const [loaded, setLoaded] = useState(false);
-  return (
-    // 누르면 내 사진 모아보기 (상세는 거기서)
-    <Link
-      to="/mypage/photos"
-      aria-label={`${photo.name}에서 촬영한 사진, 내 사진 모아보기로 이동`}
-      className="block aspect-square overflow-hidden rounded-[10px] transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-      // 썸네일이 없거나 받는 중이면 사진 대표색
-      style={{ backgroundColor: photo.color }}
-    >
-      {photo.thumbnailUrl && !failed && (
-        <img
-          src={photo.thumbnailUrl}
-          alt=""
-          loading="lazy"
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-          className={`h-full w-full object-cover transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`}
-        />
-      )}
-    </Link>
-  );
-}
 
 function UploadTile({ label }: { label: string }) {
   return (
@@ -110,7 +84,13 @@ export function RecentPhotosSection() {
         <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
           {photos.map((photo) => (
             <li key={photo.photoId}>
-              <RecentPhoto photo={photo} />
+              {/* 누르면 내 사진 모아보기 (상세는 거기서) */}
+              <PhotoTile
+                to="/mypage/photos"
+                thumbnailUrl={photo.thumbnailUrl}
+                color={photo.color}
+                label={`${photo.name}에서 촬영한 사진, 내 사진 모아보기로 이동`}
+              />
             </li>
           ))}
           <li>

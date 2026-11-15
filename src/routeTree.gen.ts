@@ -16,6 +16,7 @@ import { Route as MypageRouteImport } from './routes/mypage'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as DongDongCodeRouteImport } from './routes/dong.$dongCode'
+import { Route as MypageLikesRouteImport } from './routes/mypage_.likes'
 import { Route as MypagePhotosRouteImport } from './routes/mypage_.photos'
 import { Route as SharedShareKeyRouteImport } from './routes/shared.$shareKey'
 
@@ -54,6 +55,11 @@ const DongDongCodeRoute = DongDongCodeRouteImport.update({
   path: '/dong/$dongCode',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MypageLikesRoute = MypageLikesRouteImport.update({
+  id: '/mypage_/likes',
+  path: '/mypage/likes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MypagePhotosRoute = MypagePhotosRouteImport.update({
   id: '/mypage_/photos',
   path: '/mypage/photos',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage/likes': typeof MypageLikesRoute
   '/mypage/photos': typeof MypagePhotosRoute
   '/shared/$shareKey': typeof SharedShareKeyRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage/likes': typeof MypageLikesRoute
   '/mypage/photos': typeof MypagePhotosRoute
   '/shared/$shareKey': typeof SharedShareKeyRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
   '/dong/$dongCode': typeof DongDongCodeRoute
+  '/mypage_/likes': typeof MypageLikesRoute
   '/mypage_/photos': typeof MypagePhotosRoute
   '/shared/$shareKey': typeof SharedShareKeyRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage/likes'
     | '/mypage/photos'
     | '/shared/$shareKey'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage/likes'
     | '/mypage/photos'
     | '/shared/$shareKey'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/upload'
     | '/dong/$dongCode'
+    | '/mypage_/likes'
     | '/mypage_/photos'
     | '/shared/$shareKey'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   UploadRoute: typeof UploadRoute
   DongDongCodeRoute: typeof DongDongCodeRoute
+  MypageLikesRoute: typeof MypageLikesRoute
   MypagePhotosRoute: typeof MypagePhotosRoute
   SharedShareKeyRoute: typeof SharedShareKeyRoute
 }
@@ -198,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DongDongCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mypage_/likes': {
+      id: '/mypage_/likes'
+      path: '/mypage/likes'
+      fullPath: '/mypage/likes'
+      preLoaderRoute: typeof MypageLikesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mypage_/photos': {
       id: '/mypage_/photos'
       path: '/mypage/photos'
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   UploadRoute: UploadRoute,
   DongDongCodeRoute: DongDongCodeRoute,
+  MypageLikesRoute: MypageLikesRoute,
   MypagePhotosRoute: MypagePhotosRoute,
   SharedShareKeyRoute: SharedShareKeyRoute,
 }
