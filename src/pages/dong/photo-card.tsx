@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import type { DongPoint } from "../../api/dong";
 import { getPhotoDetail, likePhoto, unlikePhoto, type PhotoDetail } from "../../api/photo";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
@@ -10,6 +9,7 @@ import { Chevron, CloseIcon, HeartIcon } from "./photo-icons";
 import { paletteShares } from "./photo-info";
 import { PhotoLightbox } from "./photo-lightbox";
 import { PhotoMeta } from "./photo-meta";
+import { useLightboxHistory } from "./use-lightbox-history";
 
 // 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜
 // 세로 사진은 조금 더 길게 허용, 너무 좁아지면 아래 닉네임·시간대 줄이 들어갈 최소 폭 유지
@@ -110,39 +110,8 @@ export function PhotoCard({
   // 좋아요는 공유 지도에서만 (나의 지도는 내 사진만 나옴)
   const { like, toggle: toggleLike, promptOpen, closePrompt } = usePhotoLike(current, !mine);
   // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
-  const [zoomed, setZoomed] = useState(false);
-  const router = useRouter();
-  // 크게 보기를 열 때 쌓은 브라우저 기록의 key. 뒤로 가기로 이 기록이 빠지면 크게 보기만 닫힘
-  // (새로고침 뒤 남아 있는 예전 기록과 헷갈리지 않게 표시 값이 아닌 key로 확인)
-  const lightboxEntryKeyRef = useRef<string | null>(null);
-
-  function openLightbox() {
-    setZoomed(true);
-    // 주소는 그대로 두고 기록만 하나 쌓음 → 뒤로 가기가 동 화면을 벗어나지 않음
-    router.history.push(router.history.location.href);
-    lightboxEntryKeyRef.current = router.history.location.state.__TSR_key ?? null;
-  }
-
-  const onLightboxEntry = useCallback(
-    () =>
-      lightboxEntryKeyRef.current !== null &&
-      router.history.location.state.__TSR_key === lightboxEntryKeyRef.current,
-    [router],
-  );
-
-  // 닫기 버튼·배경·Esc: 쌓아 둔 기록에 있으면 뒤로 가서 지움 (아래 구독이 닫음)
-  const closeLightbox = useCallback(() => {
-    if (onLightboxEntry()) router.history.back();
-    else setZoomed(false);
-  }, [router, onLightboxEntry]);
-
-  // 뒤로 가기 등으로 크게 보기 기록에서 벗어나면 닫음
-  useEffect(() => {
-    if (!zoomed) return;
-    return router.history.subscribe(() => {
-      if (!onLightboxEntry()) setZoomed(false);
-    });
-  }, [zoomed, router, onLightboxEntry]);
+  // 뒤로 가기를 누르면 동 화면을 벗어나지 않고 크게 보기만 닫힘
+  const { open: zoomed, openLightbox, closeLightbox } = useLightboxHistory();
 
   // 크게 보기가 닫히면 카드의 사진(아직 못 받았으면 닫기 버튼)으로 포커스를 돌려줌
   const photoButtonRef = useRef<HTMLButtonElement>(null);

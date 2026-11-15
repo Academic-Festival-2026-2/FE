@@ -19,6 +19,7 @@ import { cn } from "../../utils/cn";
 import { bandLabel } from "../map/map-data";
 import { HeartIcon } from "../dong/photo-icons";
 import { PhotoLightbox } from "../dong/photo-lightbox";
+import { useLightboxHistory } from "../dong/use-lightbox-history";
 
 const PAGE_SIZE = 12;
 
@@ -136,8 +137,10 @@ export function LikedPhotosPage() {
   const [data, setData] = useState<LikedPhotosResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // 크게 보기로 연 사진의 위치 (지금 페이지 안)
+  // 크게 보기로 연 사진의 위치 (지금 페이지 안). 닫아도 남겨 둬 닫힌 뒤 그 카드로 포커스를 돌려줌
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  // 뒤로 가기를 누르면 이 화면을 벗어나지 않고 크게 보기만 닫힘 (동 화면 사진 카드와 같음)
+  const lightbox = useLightboxHistory();
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const likes = useLikeToggle();
 
@@ -174,17 +177,20 @@ export function LikedPhotosPage() {
 
   const photos = data?.photos ?? [];
 
-  const closeLightbox = useCallback(() => setOpenIndex(null), []);
+  function openPhoto(index: number) {
+    setOpenIndex(index);
+    lightbox.openLightbox();
+  }
 
   // 크게 보기가 닫히면 마지막으로 본 사진 카드로 포커스를 돌려줌
   // (열려 있는 동안은 뒤 화면이 inert라 닫힌 뒤에 옮김)
-  const lastOpenRef = useRef<number | null>(null);
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (openIndex === null && lastOpenRef.current !== null) {
-      cardRefs.current[lastOpenRef.current]?.focus({ preventScroll: true });
+    if (wasOpenRef.current && !lightbox.open && openIndex !== null) {
+      cardRefs.current[openIndex]?.focus({ preventScroll: true });
     }
-    lastOpenRef.current = openIndex;
-  }, [openIndex]);
+    wasOpenRef.current = lightbox.open;
+  }, [lightbox.open, openIndex]);
 
   function changePage(nextPage: number) {
     setData(null);
@@ -287,7 +293,7 @@ export function LikedPhotosPage() {
                         cardRefs.current[index] = element;
                       }}
                       type="button"
-                      onClick={() => setOpenIndex(index)}
+                      onClick={() => openPhoto(index)}
                       aria-label={`${photo.nickname}님이 ${photo.name}에서 ${formatDate(photo.takenAt)}에 찍은 사진 크게 보기`}
                       className="block w-full overflow-hidden rounded-2xl border border-card-line bg-white text-left transition group-hover:shadow-[0_8px_24px_rgba(26,36,64,0.10)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
@@ -353,12 +359,12 @@ export function LikedPhotosPage() {
           </>
         )}
       </main>
-      {openIndex !== null && photos[openIndex] && (
+      {lightbox.open && openIndex !== null && photos[openIndex] && (
         <LikedPhotoLightbox
           photos={photos}
           index={openIndex}
           onIndexChange={setOpenIndex}
-          onClose={closeLightbox}
+          onClose={lightbox.closeLightbox}
         />
       )}
     </div>
