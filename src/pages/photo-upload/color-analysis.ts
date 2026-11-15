@@ -148,9 +148,8 @@ export function dominantIndex(bins: number[]): number {
   return best;
 }
 
-// 대표색 5개: 첫 색은 대표색, 나머지는 비율 순(동점은 작은 인덱스). 5개가 안 되면 대표색으로 채웁니다.
-function toAnalysis(bins: number[], candidates: string[]): ColorAnalysis {
-  const first = dominantIndex(bins);
+// 대표색 5개: 첫 색은 대표색(기본은 BE 규칙으로 고른 색), 나머지는 비율 순(동점은 작은 인덱스). 5개가 안 되면 대표색으로 채웁니다.
+function toAnalysis(bins: number[], candidates: string[], first = dominantIndex(bins)): ColorAnalysis {
   const rest = bins.map((value, index) => ({ value, index })).filter((e) => e.value > 0 && e.index !== first)
     .sort((x, y) => y.value - x.value || x.index - y.index).slice(0, 4).map((e) => e.index);
   const top = [first, ...rest];
@@ -254,17 +253,13 @@ export function analyzePixels(pixels: Uint8ClampedArray, width = pixels.length /
   return toAnalysis(bins, picks.map((i) => COLOR_HEX[i]));
 }
 
-// 사용자가 고른 후보를 대표색으로: 고른 색 비율을 올리고(나머지는 같은 비율로 줄여 합 1 유지)
-// BE dominantColor가 그 색을 고르는 가장 작은 만큼만 섞습니다. 자동 대표색을 고르면 원래 분석 그대로입니다.
+// 사용자가 고른 후보를 대표색(5색 첫 색 = 사진 점 색)으로 바꿉니다.
+// 분포(bins)는 사진에서 분석한 그대로 둡니다. 고른 색에 맞춰 분포를 고치면 동 지도 칸 집계가 왜곡되기 때문입니다.
+// (고른 색을 지도 칸에 반영하는 건 BE 칸 집계를 5색 첫 색 기준으로 바꾸는 별도 작업)
 export function chooseRepresentative(analysis: ColorAnalysis, hex: string): ColorAnalysis {
   const index = COLOR_HEX.findIndex((c) => c === hex);
-  if (index < 0 || dominantIndex(analysis.bins) === index) return analysis;
-  for (let step = 1; step <= 20; step++) {
-    const t = Math.min(1, step * 0.05 + 0.05); // 경계에서 뒤집히지 않게 한 칸 여유
-    const bins = analysis.bins.map((v, i) => v * (1 - t) + (i === index ? t : 0));
-    if (dominantIndex(bins) === index) return toAnalysis(bins, analysis.candidates);
-  }
-  return toAnalysis(COLOR_HEX.map((_, i) => (i === index ? 1 : 0)), analysis.candidates);
+  if (index < 0 || COLOR_HEX.indexOf(analysis.palette[0] as (typeof COLOR_HEX)[number]) === index) return analysis;
+  return toAnalysis(analysis.bins, analysis.candidates, index);
 }
 
 export async function analyzePhoto(file: File): Promise<ColorAnalysis> {

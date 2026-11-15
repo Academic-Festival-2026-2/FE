@@ -86,20 +86,21 @@ test('투명한 픽셀은 세지 않고, 대표색 5개의 첫 색은 BE 대표�
   assert.equal(result.bins[COLOR_HEX.indexOf('#9CC8EC')], 0);
   assert.equal(result.palette[0], COLOR_HEX[dominantIndex(result.bins)]);
 });
-test('후보를 고르면 그 색이 BE 규칙상 대표색이 되도록 bins를 다시 맞춘다', () => {
+test('후보를 고르면 대표색(5색 첫 색)만 바뀌고 분포(bins)는 그대로다', () => {
   const analysis = image(10, 10, (x, y) => y < 4 ? [150, 70, 50] : [128, 128, 128]);
   assert.deepEqual(analysis.candidates.map(nameOf), ['단풍 빨강', '나무 · 흙', '아스팔트']);
   assert.equal(chooseRepresentative(analysis, analysis.candidates[0]), analysis);
-  // 짝(나무 · 흙)은 사진에 거의 없어도(비율 0) 고르면 대표색이 되어야 함
+  // 짝(나무 · 흙)은 사진에 거의 없어도(비율 0) 고르면 대표색이 됨
   const pair = chooseRepresentative(analysis, analysis.candidates[1]);
   assert.equal(nameOf(pair.palette[0]), '나무 · 흙');
+  assert.deepEqual(pair.bins, analysis.bins);
   assert.ok(validateColors(pair.palette, pair.bins));
-  // 유채색이 많은 사진에서 무채색을 골라도 대표색이 되어야 함 (유채색 합계 15% 미만까지 섞음)
+  // 유채색이 많은 사진에서 무채색을 골라도 분포를 부풀리지 않음 (동 지도 칸 집계 왜곡 방지)
   const chosen = chooseRepresentative(analysis, analysis.candidates[2]);
   assert.equal(chosen.palette[0], analysis.candidates[2]);
-  assert.equal(COLOR_HEX[dominantIndex(chosen.bins)], analysis.candidates[2]);
+  assert.deepEqual(chosen.bins, analysis.bins);
+  assert.equal(new Set(chosen.palette.filter((c) => c !== chosen.palette[0])).size, chosen.palette.filter((c) => c !== chosen.palette[0]).length);
   assert.ok(validateColors(chosen.palette, chosen.bins));
-  assert.ok(Math.abs(chosen.bins.reduce((a, b) => a + b, 0) - 1) < 1e-12);
   assert.deepEqual(chosen.candidates, analysis.candidates);
 });
 test('투명 이미지와 잘못된 색상 데이터 거부', () => {

@@ -18,7 +18,7 @@ import { UploadConfirmDialog } from "./upload-confirm-dialog";
 import { readPhoto, type PhotoMetadata } from "./photo-metadata";
 import { findDong, parseLocalTime, photoSeasonError, timeBand, validateColors } from "./photo-validation";
 
-import { analyzePhoto, chooseRepresentative, type ColorAnalysis as Colors } from "./color-analysis";
+import { analyzePhoto, chooseRepresentative, COLOR_HEX, COLOR_NAMES, type ColorAnalysis as Colors } from "./color-analysis";
 type Photo = {
   id: string; file: File; url: string; metadata: PhotoMetadata;
   takenAt: string; dongCode: string; regionCode: string; latitude?: number; longitude?: number;
@@ -39,7 +39,7 @@ function RepresentativePicker({ analysis, selected, disabled, onSelect }: { anal
       const checked = hex === selected;
       // 칸 전체를 후보 색으로 채우고 색상 코드는 칸 아래에.
       // 선택된 칸은 검정 테두리(배경색 틈을 두고)로 강조. 선택 안 된 칸도 원래 색 그대로 보여 줌(비교해서 고를 수 있게)
-      return <button key={hex} type="button" role="radio" aria-checked={checked} aria-label={hex} disabled={disabled} onClick={() => onSelect(hex)} className="group flex min-w-0 flex-col gap-2 text-left disabled:cursor-not-allowed">
+      return <button key={hex} type="button" role="radio" aria-checked={checked} aria-label={`${COLOR_NAMES[COLOR_HEX.findIndex((c) => c === hex)] ?? hex} (${hex})`} disabled={disabled} onClick={() => onSelect(hex)} className="group flex min-w-0 flex-col gap-2 text-left disabled:cursor-not-allowed">
         <span className={`block h-14 w-full rounded-[10px] transition ${checked ? "ring-2 ring-ink ring-offset-2 ring-offset-page" : "ring-1 ring-black/10 group-hover:ring-2 group-hover:ring-black/20 group-disabled:group-hover:ring-1 group-disabled:group-hover:ring-black/10"}`} style={{ background: hex }} aria-hidden />
         <span className={`truncate font-mono text-[13px] ${checked ? "font-bold text-ink" : "text-ink-muted"}`}>{hex}</span>
       </button>;
