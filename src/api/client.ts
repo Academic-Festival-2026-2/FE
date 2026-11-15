@@ -69,8 +69,11 @@ function withAuth(init: RequestInit, accessToken: string): RequestInit {
   return { ...init, headers: { ...init.headers, Authorization: `Bearer ${accessToken}` } };
 }
 
+// 재발급 결과는 재발급을 시작한 세션이 그대로일 때만 저장소에 반영
+// (응답을 기다리는 사이 로그아웃·다른 계정 로그인을 했으면 이전 토큰을 되살리거나 새 세션을 끊지 않음)
 async function reissueAccessToken(): Promise<string> {
-  const refreshToken = useAuthStore.getState().tokens?.refreshToken;
+  const { tokens: current, session } = useAuthStore.getState();
+  const refreshToken = current?.refreshToken;
   if (!refreshToken) {
     useAuthStore.getState().clearTokens();
     throw new ApiError(401, "COMMON401", "로그인이 만료되었어요. 다시 로그인해 주세요.");
@@ -81,24 +84,29 @@ async function reissueAccessToken(): Promise<string> {
       method: "POST",
       body: JSON.stringify({ refreshToken }),
     });
-    useAuthStore.getState().updateTokens(tokens);
+    if (useAuthStore.getState().session === session) useAuthStore.getState().updateTokens(tokens);
     return tokens.accessToken;
   } catch (error) {
     // 서버 연결 실패·5xx는 로그아웃시키지 않고 그대로 던짐
     if (!(error instanceof ApiError) || error.status === 0 || error.status >= 500) throw error;
     // USER401_2(잘못된·만료된 refresh), USER403_1(비활성 회원) 등 → 세션 만료
-    useAuthStore.getState().clearTokens();
+    if (useAuthStore.getState().session === session) useAuthStore.getState().clearTokens();
     throw new ApiError(401, error.code, "로그인이 만료되었어요. 다시 로그인해 주세요.");
   }
 }
 
 // 여러 요청이 동시에 401을 받아도 재발급은 한 번만 (Rotation이라 두 번 부르면 두 번째가 실패)
-let reissuing: Promise<string> | null = null;
+// 진행 중인 재발급은 세션별로 기억 → 다른 계정으로 로그인한 뒤의 요청이 이전 세션의 재발급 결과를 받지 않음
+let reissuing: { session: number; promise: Promise<string> } | null = null;
 function reissueOnce() {
-  reissuing ??= reissueAccessToken().finally(() => {
-    reissuing = null;
-  });
-  return reissuing;
+  const session = useAuthStore.getState().session;
+  if (reissuing?.session !== session) {
+    const promise = reissueAccessToken().finally(() => {
+      if (reissuing?.promise === promise) reissuing = null;
+    });
+    reissuing = { session, promise };
+  }
+  return reissuing.promise;
 }
 
 // 로그인이 필요한 API: access token이 만료(401)되면 재발급 후 한 번만 다시 보냄
