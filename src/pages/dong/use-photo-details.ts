@@ -1,13 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
 
+// 원본 주소(imageUrl)는 S3 서명 주소라 정해진 시간(X-Amz-Expires, 지금 BE는 300초) 뒤 만료되고 받을 때마다 바뀜
+// → 기억한 상세는 만료 1분 전까지만 씀. 주소에 만료 시간이 없으면(사진 파일 없음 등) 4분
+const DEFAULT_DETAIL_TTL_MS = 4 * 60 * 1000;
+const EXPIRY_MARGIN_MS = 60 * 1000;
+
+function detailTtl(detail: PhotoDetail) {
+  if (!detail.imageUrl) return DEFAULT_DETAIL_TTL_MS;
+  try {
+    const expires = Number(new URL(detail.imageUrl).searchParams.get("X-Amz-Expires"));
+    return expires > 0 ? Math.max(0, expires * 1000 - EXPIRY_MARGIN_MS) : DEFAULT_DETAIL_TTL_MS;
+  } catch {
+    return DEFAULT_DETAIL_TTL_MS;
+  }
+}
+
 // 내 사진 상세(authRequest)와 공유 지도 상세(optionalAuthRequest)는 따로 기억
 function cacheKey(photoId: number, mine: boolean) {
   return `${mine ? "mine" : "shared"}:${photoId}`;
 }
 
+function without<T>(map: ReadonlyMap<string, T>, key: string) {
+  const next = new Map(map);
+  next.delete(key);
+  return next;
+}
+
 // 사진 여러 장을 넘겨 보는 화면(동 화면 사진 카드, 좋아요한 사진 크게 보기)의 상세를 사진 번호별로 기억
-// 한 번 받은 사진은 넘겼다 돌아와도 다시 받지 않음 (이 훅을 쓰는 컴포넌트가 사라지면 같이 지워짐)
+// 받은 사진은 원본 주소가 만료되기 전까지 넘겼다 돌아와도 다시 받지 않음 (이 훅을 쓰는 컴포넌트가 사라지면 같이 지워짐)
+// 만료가 가까워진 상세는 보고 있는 동안은 그대로 두고, 다른 사진에서 넘어올 때 다시 받음 (받는 동안 로딩)
 // 실패한 사진은 기억하지 않음 → 넘겼다 돌아오면 다시 받는 동안 로딩으로 보임
 //
 // preload가 켜져 있으면(크게 보기가 열려 있을 때) 바로 옆 사진 1장씩의 상세와 원본 이미지를 미리 받아 둠
@@ -20,45 +42,81 @@ export function usePhotoDetails(
   const photoId = photoIds[index];
   const prevId = photoIds[index - 1] as number | undefined;
   const nextId = photoIds[index + 1] as number | undefined;
+  const key = cacheKey(photoId, mine);
 
-  // 화면에 그릴 상세 (state) / 이미 받았거나 받는 중인지 확인용 (ref, effect 안에서만 읽음)
-  const [details, setDetails] = useState<ReadonlyMap<string, PhotoDetail>>(new Map());
-  const detailsRef = useRef(new Map<string, PhotoDetail>());
+  // 화면에 그릴 상세 (state, 만료된 것도 보고 있는 사진이면 남아 있음)
+  // 만료 전이라 다시 쓸 수 있는 상세 (ref, effect 안에서만 읽음) / 받는 중인 요청
+  const [details, setDetails] = useState<ReadonlyMap<string, PhotoDetail>>(() => new Map());
+  const [expired, setExpired] = useState<ReadonlySet<string>>(() => new Set());
+  const freshRef = useRef(new Map<string, PhotoDetail>());
   const requestsRef = useRef(new Map<string, Promise<PhotoDetail>>());
+  const timersRef = useRef(new Set<number>());
   const [failedId, setFailedId] = useState<number | null>(null);
 
   // 다른 사진으로 넘기면 실패 표시를 지움 (실패한 사진으로 돌아오면 다시 받는 동안 로딩으로 보이게)
-  const [shownId, setShownId] = useState(photoId);
-  if (shownId !== photoId) {
-    setShownId(photoId);
+  // 넘어온 사진의 상세가 만료됐으면 버림 → 아래 effect가 다시 받는 동안 로딩 (만료된 주소로 사진을 그리지 않게)
+  const [shownKey, setShownKey] = useState(key);
+  if (shownKey !== key) {
+    setShownKey(key);
     setFailedId(null);
+    if (expired.has(key)) {
+      setDetails((current) => without(current, key));
+      setExpired((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+    }
   }
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      for (const timer of timers) window.clearTimeout(timer);
+    };
+  }, []);
 
   // 같은 사진을 받는 중이면 그 요청을 같이 씀 (미리 받는 중인 옆 사진으로 넘겨도 다시 보내지 않음)
   const load = useCallback(
     (id: number) => {
-      const key = cacheKey(id, mine);
-      const cached = detailsRef.current.get(key);
-      if (cached) return Promise.resolve(cached);
-      let request = requestsRef.current.get(key);
+      const requestKey = cacheKey(id, mine);
+      const fresh = freshRef.current.get(requestKey);
+      if (fresh) return Promise.resolve(fresh);
+      let request = requestsRef.current.get(requestKey);
       if (!request) {
         request = getPhotoDetail(id, mine);
-        requestsRef.current.set(key, request);
+        requestsRef.current.set(requestKey, request);
         request
           .then((detail) => {
-            detailsRef.current.set(key, detail);
-            setDetails((current) => new Map(current).set(key, detail));
+            freshRef.current.set(requestKey, detail);
+            setDetails((current) => new Map(current).set(requestKey, detail));
+            setExpired((current) => {
+              if (!current.has(requestKey)) return current;
+              const next = new Set(current);
+              next.delete(requestKey);
+              return next;
+            });
+            // 만료되면 다시 쓰지 않음 (화면에 그리던 상세는 남겨 둠, 다음에 넘어올 때 버림)
+            const timer = window.setTimeout(() => {
+              timersRef.current.delete(timer);
+              if (freshRef.current.get(requestKey) !== detail) return;
+              freshRef.current.delete(requestKey);
+              setExpired((current) => new Set(current).add(requestKey));
+            }, detailTtl(detail));
+            timersRef.current.add(timer);
           })
           .catch(() => {})
-          .finally(() => requestsRef.current.delete(key));
+          .finally(() => requestsRef.current.delete(requestKey));
       }
       return request;
     },
     [mine],
   );
 
-  // 지금 사진 상세
+  // 지금 사진 상세 (만료돼 버린 뒤에도 다시 받도록 화면에 있는지를 같이 봄)
+  const hasCurrent = details.has(key);
   useEffect(() => {
+    if (hasCurrent) return;
     let cancelled = false;
     load(photoId).catch(() => {
       if (!cancelled) setFailedId(photoId);
@@ -66,7 +124,7 @@ export function usePhotoDetails(
     return () => {
       cancelled = true;
     };
-  }, [photoId, load]);
+  }, [photoId, hasCurrent, load]);
 
   // 옆 사진 상세 미리 받기 (실패는 무시, 그 사진으로 넘기면 다시 받음)
   useEffect(() => {
@@ -76,12 +134,16 @@ export function usePhotoDetails(
     }
   }, [preload, prevId, nextId, load]);
 
-  const current = details.get(cacheKey(photoId, mine)) ?? null;
-  const prevUrl = prevId === undefined ? null : details.get(cacheKey(prevId, mine))?.imageUrl;
-  const nextUrl = nextId === undefined ? null : details.get(cacheKey(nextId, mine))?.imageUrl;
+  // 만료된 옆 사진 주소는 미리 받지 않음 (그 사진으로 넘기면 상세부터 다시 받음)
+  const neighborUrl = (id: number | undefined) => {
+    if (id === undefined) return null;
+    const neighborKey = cacheKey(id, mine);
+    return expired.has(neighborKey) ? null : (details.get(neighborKey)?.imageUrl ?? null);
+  };
+  const current = details.get(key) ?? null;
   const readyImageUrls = usePreloadedImages(
     preload ? (current?.imageUrl ?? null) : null,
-    preload ? [nextUrl ?? null, prevUrl ?? null] : [],
+    preload ? [neighborUrl(nextId), neighborUrl(prevId)] : [],
     preload && (current !== null || failedId === photoId),
   );
 
@@ -95,31 +157,26 @@ function usePreloadedImages(
   neighborUrls: (string | null)[],
   enabled: boolean,
 ) {
-  const imagesRef = useRef(new Map<string, HTMLImageElement>());
-  const [readyUrls, setReadyUrls] = useState<ReadonlySet<string>>(new Set());
+  // 받는 중이거나 받은 이미지 (Image를 잡아 둬야 받는 도중 정리되지 않음) → 다 받으면(실패해도) 끝나는 Promise
+  const imagesRef = useRef(new Map<string, { image: HTMLImageElement; done: Promise<void> }>());
+  const [readyUrls, setReadyUrls] = useState<ReadonlySet<string>>(() => new Set());
   const [firstNeighbor = null, secondNeighbor = null] = neighborUrls;
 
+  // 같은 주소는 한 번만 받음 (effect가 다시 돌아도 Image·이벤트를 새로 만들지 않음)
   const preloadImage = useCallback((url: string) => {
-    let image = imagesRef.current.get(url);
-    if (!image) {
-      image = new Image();
-      image.src = url;
-      imagesRef.current.set(url, image);
-    }
-    const target = image;
-    return new Promise<void>((resolve) => {
-      const markReady = () => {
+    const existing = imagesRef.current.get(url);
+    if (existing) return existing.done;
+    const image = new Image();
+    const done = new Promise<void>((resolve) => {
+      image.onload = () => {
         setReadyUrls((current) => (current.has(url) ? current : new Set(current).add(url)));
         resolve();
       };
-      if (target.complete) {
-        if (target.naturalWidth > 0) markReady();
-        else resolve();
-        return;
-      }
-      target.addEventListener("load", markReady, { once: true });
-      target.addEventListener("error", () => resolve(), { once: true });
+      image.onerror = () => resolve();
     });
+    image.src = url;
+    imagesRef.current.set(url, { image, done });
+    return done;
   }, []);
 
   useEffect(() => {

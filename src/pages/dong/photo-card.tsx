@@ -108,11 +108,7 @@ export function PhotoCard({
   // 뒤로 가기를 누르면 동 화면을 벗어나지 않고 크게 보기만 닫힘
   const { open: zoomed, openLightbox, closeLightbox } = useLightboxHistory();
   // 상세는 사진별로 기억. 크게 보기가 열려 있을 때만 옆 사진 상세·원본을 미리 받음 (카드만 있을 때는 안 받음)
-  const {
-    photo: current,
-    failed,
-    readyImageUrls,
-  } = usePhotoDetails(
+  const { photo: current, failed, readyImageUrls } = usePhotoDetails(
     points.map((point) => point.photoId),
     index,
     { mine, preload: zoomed },
