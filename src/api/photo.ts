@@ -54,7 +54,7 @@ export type PhotoDetail = {
   liked?: boolean;
 };
 
-// 모두의 지도에서도 로그인했으면 토큰을 붙여야 내 좋아요 여부(liked)가 옴
+// 공유 지도에서도 로그인했으면 토큰을 붙여야 내 좋아요 여부(liked)가 옴
 export function getPhotoDetail(photoId: number, mine = false) {
   const path = `/api/photos/${photoId}`;
   return mine ? authRequest<PhotoDetail>(path) : optionalAuthRequest<PhotoDetail>(path);

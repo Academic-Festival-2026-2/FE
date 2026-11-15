@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { ApiError } from "../../api/client";
 import { getLikedPhotos, type LikedPhotoItem } from "../../api/photo";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { currentTimeBand } from "../../utils/time-band";
@@ -14,6 +15,8 @@ export function LikedPhotosSection() {
   const expireSession = useExpireSession();
   const [photos, setPhotos] = useState<LikedPhotoItem[] | null>(null);
   const [error, setError] = useState(false);
+  // 좋아요 API가 없는 BE(좋아요 기능 배포 전, 404)면 영역을 통째로 숨김
+  const [unsupported, setUnsupported] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -24,12 +27,15 @@ export function LikedPhotosSection() {
       .catch((err: unknown) => {
         if (ignore) return;
         if (isSessionExpired(err)) expireSession();
+        else if (err instanceof ApiError && err.status === 404) setUnsupported(true);
         else setError(true);
       });
     return () => {
       ignore = true;
     };
   }, [expireSession]);
+
+  if (unsupported) return null;
 
   return (
     <SectionCard

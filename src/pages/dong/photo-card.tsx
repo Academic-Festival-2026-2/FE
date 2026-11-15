@@ -107,7 +107,7 @@ export function PhotoCard({
   );
   const photoId = points[index].photoId;
   const current = photo?.photoId === photoId ? photo : null;
-  // 좋아요는 모두의 지도에서만 (나의 지도는 내 사진만 나옴)
+  // 좋아요는 공유 지도에서만 (나의 지도는 내 사진만 나옴)
   const { like, toggle: toggleLike, promptOpen, closePrompt } = usePhotoLike(current, !mine);
   // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
   const [zoomed, setZoomed] = useState(false);

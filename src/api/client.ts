@@ -118,11 +118,30 @@ export async function authRequest<T>(path: string, init: RequestInit = {}): Prom
   }
 }
 
-// 로그인 없이도 되는 API: 로그인했으면 토큰을 붙여 보냄 (사진 상세의 내 좋아요 여부 등)
-// 세션이 끝나 재발급까지 실패하면(401) 토큰 없이 한 번 더 보냄 → 비로그인과 같은 결과
-export async function optionalAuthRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (!useAuthStore.getState().tokens) return request<T>(path, init);
+// 만료 직전 토큰도 미리 재발급 (보내는 사이 만료되거나 기기 시계가 조금 어긋나도 안전하게)
+const EXPIRY_MARGIN_MS = 30_000;
+
+// access token(JWT)의 만료 시각(ms). 읽을 수 없으면 null
+function tokenExpiresAt(token: string): number | null {
   try {
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const exp = (JSON.parse(atob(payload)) as { exp?: unknown }).exp;
+    return typeof exp === "number" ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+// 로그인 없이도 되는 API: 로그인했으면 토큰을 붙여 보냄 (사진 상세의 내 좋아요 여부 등)
+// 공개 API는 BE가 만료된 토큰을 401 없이 비로그인으로 처리함 → 401을 기다리지 않고
+// 보내기 전에 만료를 확인해 미리 재발급 (안 하면 이미 누른 사진도 빈 하트로 보임)
+// 세션이 끝나 재발급까지 실패하면(401) 토큰 없이 보냄 → 비로그인과 같은 결과
+export async function optionalAuthRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const accessToken = useAuthStore.getState().tokens?.accessToken;
+  if (!accessToken) return request<T>(path, init);
+  try {
+    const expiresAt = tokenExpiresAt(accessToken);
+    if (expiresAt !== null && expiresAt - EXPIRY_MARGIN_MS <= Date.now()) await reissueOnce();
     return await authRequest<T>(path, init);
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;

@@ -7,7 +7,7 @@ const moduleUrl = source => 'data:text/javascript;base64,' + Buffer.from(
   ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText,
 ).toString('base64');
 
-test('좋아요·좋아요 목록은 인증 API, 모두의 지도 사진 상세는 선택 인증 API를 쓴다', async () => {
+test('좋아요·좋아요 목록은 인증 API, 공유 지도 사진 상세는 선택 인증 API를 쓴다', async () => {
   const mockClient = moduleUrl(
     'export const authRequest = (...args) => globalThis.__likeCalls.push(["auth", ...args]);'
     + ' export const optionalAuthRequest = (...args) => globalThis.__likeCalls.push(["optional", ...args]);'
