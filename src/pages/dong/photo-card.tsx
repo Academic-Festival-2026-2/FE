@@ -1,22 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "@tanstack/react-router";
 import type { DongPoint } from "../../api/dong";
 import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
-import { BAND_PIXEL, bandLabel } from "../map/map-data";
-import { getPhotoColorRatios } from "./photo-color-ratios";
 import { cn } from "../../utils/cn";
-
-function formatTakenAt(value: string) {
-  return `${value.slice(0, 10).replaceAll("-", ".")} ${value.slice(11, 16)}`;
-}
-
-// 대표색 막대: 비율 계산은 getPhotoColorRatios (bins 검증, 없으면 같은 폭)
-// 5색을 채우려고 반복한 같은 색은 한 칸으로 합침
-function paletteShares({ palette, bins }: PhotoDetail) {
-  const ratios = getPhotoColorRatios(palette, bins);
-  const shares = new Map<string, number>();
-  palette.forEach((color, i) => shares.set(color, (shares.get(color) ?? 0) + (ratios[i] ?? 0)));
-  return [...shares].filter(([, share]) => share > 0).map(([color, share]) => ({ color, share }));
-}
+import { Chevron, CloseIcon } from "./photo-icons";
+import { paletteShares } from "./photo-info";
+import { PhotoLightbox } from "./photo-lightbox";
+import { PhotoMeta } from "./photo-meta";
 
 // 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜
 // 세로 사진은 조금 더 길게 허용, 너무 좁아지면 아래 닉네임·시간대 줄이 들어갈 최소 폭 유지
@@ -37,21 +27,6 @@ function bubblePhotoSize(naturalWidth: number, naturalHeight: number) {
 // 사진 위에 떠 있는 작은 버튼 (닫기·이전·다음). 어떤 사진 위에서도 보이게 어두운 반투명 + 흐림
 const PHOTO_BUTTON =
   "flex size-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55";
-
-function Chevron({ left }: { left?: boolean }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-      <path
-        d={left ? "M9 2.5L4.5 7 9 11.5" : "M5 2.5L9.5 7 5 11.5"}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 export function PhotoCard({
   points,
@@ -75,6 +50,54 @@ export function PhotoCard({
     null,
   );
   const photoId = points[index].photoId;
+  // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
+  const [zoomed, setZoomed] = useState(false);
+  const router = useRouter();
+  // 크게 보기를 열 때 쌓은 브라우저 기록의 key. 뒤로 가기로 이 기록이 빠지면 크게 보기만 닫힘
+  // (새로고침 뒤 남아 있는 예전 기록과 헷갈리지 않게 표시 값이 아닌 key로 확인)
+  const lightboxEntryKeyRef = useRef<string | null>(null);
+
+  function openLightbox() {
+    setZoomed(true);
+    // 주소는 그대로 두고 기록만 하나 쌓음 → 뒤로 가기가 동 화면을 벗어나지 않음
+    router.history.push(router.history.location.href);
+    lightboxEntryKeyRef.current = router.history.location.state.__TSR_key ?? null;
+  }
+
+  const onLightboxEntry = useCallback(
+    () =>
+      lightboxEntryKeyRef.current !== null &&
+      router.history.location.state.__TSR_key === lightboxEntryKeyRef.current,
+    [router],
+  );
+
+  // 닫기 버튼·배경·Esc: 쌓아 둔 기록에 있으면 뒤로 가서 지움 (아래 구독이 닫음)
+  const closeLightbox = useCallback(() => {
+    if (onLightboxEntry()) router.history.back();
+    else setZoomed(false);
+  }, [router, onLightboxEntry]);
+
+  // 뒤로 가기 등으로 크게 보기 기록에서 벗어나면 닫음
+  useEffect(() => {
+    if (!zoomed) return;
+    return router.history.subscribe(() => {
+      if (!onLightboxEntry()) setZoomed(false);
+    });
+  }, [zoomed, router, onLightboxEntry]);
+
+  // 크게 보기가 닫히면 카드의 사진(아직 못 받았으면 닫기 버튼)으로 포커스를 돌려줌
+  const photoButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const wasZoomedRef = useRef(false);
+  useEffect(() => {
+    if (wasZoomedRef.current && !zoomed) {
+      const photoButton = photoButtonRef.current;
+      (photoButton && !photoButton.disabled ? photoButton : closeButtonRef.current)?.focus({
+        preventScroll: true,
+      });
+    }
+    wasZoomedRef.current = zoomed;
+  }, [zoomed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,8 +115,9 @@ export function PhotoCard({
     };
   }, [photoId, mine]);
 
-  // Esc로 닫기, ←/→로 이전·다음 사진
+  // Esc로 닫기, ←/→로 이전·다음 사진 (크게 보기가 열려 있으면 그쪽이 키를 받음)
   useEffect(() => {
+    if (zoomed) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
       else if (event.key === "ArrowLeft" && index > 0) setIndex(index - 1);
@@ -101,7 +125,7 @@ export function PhotoCard({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [index, points.length, onClose]);
+  }, [zoomed, index, points.length, onClose]);
 
   const current = photo?.photoId === photoId ? photo : null;
   const failed = failedId === photoId;
@@ -137,26 +161,36 @@ export function PhotoCard({
         ) : !current ? (
           <div className="aspect-[4/3] w-full animate-pulse bg-[#e9ecf2]" />
         ) : showImage ? (
-          <img
-            src={current.imageUrl ?? ""}
-            alt={`${current.name}에서 찍은 사진`}
-            onLoad={(event) =>
-              setLoaded({
-                url: current.imageUrl ?? "",
-                width: event.currentTarget.naturalWidth,
-                height: event.currentTarget.naturalHeight,
-              })
-            }
-            onError={() => setFailedUrl(current.imageUrl)}
-            style={bubbleSize ?? undefined}
-            className={cn(
-              "block transition-opacity duration-300",
-              !bubbleSize && "h-auto w-auto max-w-full",
-              !bubble && "max-h-[min(42vh,420px)] sm:max-h-[min(55vh,480px)]",
-              bubble && !bubbleSize && "max-h-[240px]",
-              imageLoaded ? "opacity-100" : "opacity-0",
-            )}
-          />
+          // 누르면 크게 보기 (사진을 다 받은 뒤부터)
+          <button
+            ref={photoButtonRef}
+            type="button"
+            aria-label="사진 크게 보기"
+            disabled={!imageLoaded}
+            onClick={openLightbox}
+            className="block max-w-full cursor-zoom-in disabled:cursor-default"
+          >
+            <img
+              src={current.imageUrl ?? ""}
+              alt={`${current.name}에서 찍은 사진`}
+              onLoad={(event) =>
+                setLoaded({
+                  url: current.imageUrl ?? "",
+                  width: event.currentTarget.naturalWidth,
+                  height: event.currentTarget.naturalHeight,
+                })
+              }
+              onError={() => setFailedUrl(current.imageUrl)}
+              style={bubbleSize ?? undefined}
+              className={cn(
+                "block transition-opacity duration-300",
+                !bubbleSize && "h-auto w-auto max-w-full",
+                !bubble && "max-h-[min(42vh,420px)] sm:max-h-[min(55vh,480px)]",
+                bubble && !bubbleSize && "max-h-[240px]",
+                imageLoaded ? "opacity-100" : "opacity-0",
+              )}
+            />
+          </button>
         ) : (
           // 사진 파일이 없으면 대표색으로 채움
           <div className="flex aspect-[4/3] w-full">
@@ -172,14 +206,13 @@ export function PhotoCard({
           </span>
         )}
         <button
+          ref={closeButtonRef}
           type="button"
           aria-label="닫기"
           onClick={onClose}
           className={cn(PHOTO_BUTTON, "absolute top-2 right-2")}
         >
-          <svg width="11" height="11" viewBox="0 0 14 14" aria-hidden>
-            <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <CloseIcon />
         </button>
 
         {index > 0 && (
@@ -221,45 +254,29 @@ export function PhotoCard({
 
       {/* 정보 영역: 올린 사람 · 시간대 / 찍은 시각 / 대표색 */}
       <div className="px-2 pt-3 pb-1.5">
-        {current ? (
-          <>
-            <div className="flex items-center justify-between gap-3">
-              <p className="truncate text-[15px] font-bold text-ink">{current.nickname}</p>
-              <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-field px-2.5 py-1 text-[11px] leading-none font-bold text-ink-sub">
-                <span
-                  aria-hidden
-                  className="size-2 rounded-[2px]"
-                  style={{ backgroundColor: BAND_PIXEL[current.timeBand] }}
-                />
-                {bandLabel(current.timeBand)}
-              </span>
-            </div>
-            <p className="mt-1 font-mono text-xs text-ink-muted">{formatTakenAt(current.takenAt)}</p>
-            {/* 업로드 화면 대표색 바와 같은 한 줄 막대 */}
-            <div className="mt-3 flex h-6 overflow-hidden rounded-[8px]">
-              {paletteShares(current).map(({ color, share }) => (
-                <span
-                  key={color}
-                  title={`${color} ${Math.round(share * 100)}%`}
-                  style={{ backgroundColor: color, width: `${share * 100}%` }}
-                />
-              ))}
-            </div>
-          </>
-        ) : (
-          !failed && (
-            <div className="animate-pulse space-y-2" aria-hidden>
-              <div className="h-4 w-24 rounded bg-field" />
-              <div className="h-3 w-32 rounded bg-field" />
-              <div className="mt-3 h-6 rounded-[6px] bg-field" />
-            </div>
-          )
-        )}
+        <PhotoMeta photo={current} failed={failed} />
       </div>
     </section>
   );
 
-  if (!bubble) return card;
+  const lightbox = zoomed && (
+    <PhotoLightbox
+      photo={current}
+      failed={failed}
+      index={index}
+      total={points.length}
+      onIndexChange={setIndex}
+      onClose={closeLightbox}
+    />
+  );
+
+  if (!bubble)
+    return (
+      <>
+        {card}
+        {lightbox}
+      </>
+    );
 
   // 말풍선: 픽셀 오른쪽 위에 뜨고, 왼쪽 아래 모서리에서 꼬리가 픽셀 쪽으로 비스듬히 뻗음
   // (말풍선 위치는 dong-page.tsx BUBBLE_OFFSET, 꼬리 끝은 확대된 픽셀 모서리 근처)
@@ -275,6 +292,7 @@ export function PhotoCard({
       >
         <path d="M1 27L14 4L24 14Z" fill="rgb(255 255 255 / 0.95)" strokeLinejoin="round" />
       </svg>
+      {lightbox}
     </div>
   );
 }
