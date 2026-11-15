@@ -103,6 +103,13 @@ export function LikedPhotosPage() {
     getLikedPhotos(page, PAGE_SIZE)
       .then((result) => {
         if (ignore) return;
+        // 그사이 좋아요를 취소했거나 사진이 비공개로 바뀌어 이 페이지가 비면 남은 마지막 페이지로 감
+        // (그대로 두면 좋아요한 사진이 있는데도 "아직 없어요"가 보임)
+        if (result.photos.length === 0 && page > 0) {
+          // 항상 지금보다 앞 페이지로 (같은 값이면 다시 받지 않아 로딩에 멈춤)
+          setPage(Math.max(0, Math.min(page - 1, Math.ceil(result.totalElements / PAGE_SIZE) - 1)));
+          return;
+        }
         setData(result);
         setLoading(false);
         setError(null);
