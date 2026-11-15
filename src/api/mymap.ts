@@ -1,4 +1,4 @@
-import { authRequest } from "./client";
+import { authRequest, request } from "./client";
 import type { DongPoint } from "./dong";
 import type { TimeBand } from "./map";
 
@@ -47,6 +47,20 @@ export function shareMyMap() {
 // 공유 끄기: 키가 지워져서 예전 링크는 더 이상 열리지 않음
 export function stopSharingMyMap() {
   return authRequest<void>("/api/users/me/map/share", { method: "DELETE" });
+}
+
+// 공유받은 지도 (로그인 없이 열림). 공유를 껐거나 없는 키면 404 MYMAP404_1
+// map은 나의 지도 응답과 같은 형식이고, 비공개 사진은 BE에서 빼고 옴
+export type SharedMap = {
+  nickname: string;
+  profileImage: string;
+  map: MyMap;
+};
+
+export function getSharedMap(shareKey: string, regionCode: string) {
+  return request<SharedMap>(
+    `/api/shared-maps/${encodeURIComponent(shareKey)}?regionCode=${regionCode}`,
+  );
 }
 
 export type MyDongPhotos = {
