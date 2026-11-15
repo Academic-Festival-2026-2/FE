@@ -19,6 +19,7 @@ const BACKDROP = { "data-lightbox-backdrop": "" };
 export function PhotoLightbox({
   photo,
   failed,
+  readyImageUrls,
   index,
   total,
   onIndexChange,
@@ -27,6 +28,8 @@ export function PhotoLightbox({
   // 지금 사진 상세 (넘겨서 아직 받는 중이면 null)
   photo: PhotoDetail | null;
   failed: boolean;
+  // 미리 다 받아 둔 원본 이미지 주소. 여기 있으면 받기를 기다리지 않고(페이드 없이) 바로 보여 줌
+  readyImageUrls?: ReadonlySet<string>;
   index: number;
   total: number;
   onIndexChange: (index: number) => void;
@@ -84,6 +87,7 @@ export function PhotoLightbox({
   }
 
   const imageUrl = photo?.imageUrl && photo.imageUrl !== failedUrl ? photo.imageUrl : null;
+  const imageReady = imageUrl !== null && (loadedUrl === imageUrl || readyImageUrls?.has(imageUrl));
 
   return createPortal(
     <div
@@ -143,7 +147,7 @@ export function PhotoLightbox({
               onError={() => setFailedUrl(imageUrl)}
               className={cn(
                 "max-h-full max-w-full min-w-0 rounded-[6px] object-contain shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-opacity duration-300",
-                loadedUrl === imageUrl ? "opacity-100" : "opacity-0",
+                imageReady ? "opacity-100" : "opacity-0",
               )}
             />
           ) : (

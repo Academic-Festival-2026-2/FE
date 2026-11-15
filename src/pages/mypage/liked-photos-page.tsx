@@ -3,12 +3,10 @@ import { Link } from "@tanstack/react-router";
 import { ApiError } from "../../api/client";
 import {
   getLikedPhotos,
-  getPhotoDetail,
   likePhoto,
   unlikePhoto,
   type LikedPhotoItem,
   type LikedPhotosResponse,
-  type PhotoDetail,
 } from "../../api/photo";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { UploadButton } from "../../components/layout/upload-button";
@@ -20,6 +18,7 @@ import { bandLabel } from "../map/map-data";
 import { HeartIcon } from "../dong/photo-icons";
 import { PhotoLightbox } from "../dong/photo-lightbox";
 import { useLightboxHistory } from "../dong/use-lightbox-history";
+import { usePhotoDetails } from "../dong/use-photo-details";
 
 const PAGE_SIZE = 12;
 
@@ -84,8 +83,9 @@ function useLikeToggle() {
   return { isLiked: (photoId: number) => !unliked.has(photoId), toggle, reset };
 }
 
-// 지금 페이지 사진들을 크게 보기로 넘겨 봄. 넘길 때마다 상세(원본 사진·대표색 비율)를 받음
-// 성공·실패를 마지막으로 받은 사진 하나에만 기록 → 실패한 사진도 넘겼다 돌아오면 다시 받는 동안 로딩으로 보임
+// 지금 페이지 사진들을 크게 보기로 넘겨 봄. 상세(원본 사진·대표색 비율)는 사진별로 기억하고,
+// 바로 옆 사진 1장씩의 상세·원본을 미리 받아 넘길 때 바로 보이게 함 (동 화면 크게 보기와 같음)
+// 실패한 사진은 넘겼다 돌아오면 다시 받는 동안 로딩으로 보임
 // 닫으면 이 컴포넌트가 사라져 기록도 지워짐 → 다시 열면 처음부터 받음
 function LikedPhotoLightbox({
   photos,
@@ -98,30 +98,16 @@ function LikedPhotoLightbox({
   onIndexChange: (index: number) => void;
   onClose: () => void;
 }) {
-  const photoId = photos[index].photoId;
-  const [result, setResult] = useState<{ photoId: number; detail: PhotoDetail | null } | null>(
-    null,
+  const { photo, failed, readyImageUrls } = usePhotoDetails(
+    photos.map((item) => item.photoId),
+    index,
+    { preload: true },
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    getPhotoDetail(photoId)
-      .then((detail) => {
-        if (!cancelled) setResult({ photoId, detail });
-      })
-      .catch(() => {
-        if (!cancelled) setResult({ photoId, detail: null });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [photoId]);
-
-  const current = result?.photoId === photoId ? result : null;
   return (
     <PhotoLightbox
-      photo={current?.detail ?? null}
-      failed={current !== null && current.detail === null}
+      photo={photo}
+      failed={failed}
+      readyImageUrls={readyImageUrls}
       index={index}
       total={photos.length}
       onIndexChange={onIndexChange}
