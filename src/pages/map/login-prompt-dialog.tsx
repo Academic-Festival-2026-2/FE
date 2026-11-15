@@ -1,13 +1,27 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { LogoMark } from "../../components/layout/logo-mark";
 
 type LoginPromptDialogProps = {
   open: boolean;
   onClose: () => void;
+  // 기본은 업로드 안내. 좋아요처럼 다른 기능에서 열 때 문구만 바꿈
+  title?: string;
+  description?: ReactNode;
 };
 
-export function LoginPromptDialog({ open, onClose }: LoginPromptDialogProps) {
+export function LoginPromptDialog({
+  open,
+  onClose,
+  title = "내 사진으로 지도를 칠해 보세요",
+  description = (
+    <>
+      사진을 올리고 나의 지도를 모으려면
+      <br />
+      로그인이 필요해요.
+    </>
+  ),
+}: LoginPromptDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -34,13 +48,9 @@ export function LoginPromptDialog({ open, onClose }: LoginPromptDialogProps) {
       <div className="flex flex-col items-center px-8 pt-8 pb-7 text-center">
         <LogoMark size={48} />
         <h2 id="login-prompt-title" className="mt-5 text-[22px] font-extrabold text-ink">
-          내 사진으로 지도를 칠해 보세요
+          {title}
         </h2>
-        <p className="mt-2 text-sm leading-[22px] text-ink-sub">
-          사진을 올리고 나의 지도를 모으려면
-          <br />
-          로그인이 필요해요.
-        </p>
+        <p className="mt-2 text-sm leading-[22px] text-ink-sub">{description}</p>
 
         <Link
           to="/login"
