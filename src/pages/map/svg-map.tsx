@@ -412,7 +412,6 @@ export function SvgMap({
   function select(shape: DongShape) {
     // 공유 지도처럼 onSelect가 없으면 동을 눌러도 아무 일도 안 함 (보기만)
     if (!onSelect || movedRef.current || selectingRef.current) return;
-    if (movedRef.current || selectingRef.current) return;
     selectingRef.current = true;
     setSelecting(shape);
     onHover(shape.dongCode);
@@ -610,9 +609,10 @@ export function SvgMap({
                   transitionDelay: fillDelays.get(shape.dongCode),
                 }}
                 fillRule="evenodd"
-                className={`cursor-pointer outline-none ${FILL_TRANSITION}`}
-                tabIndex={0}
-                role="button"
+                className={`${onSelect ? "cursor-pointer" : ""} outline-none ${FILL_TRANSITION}`}
+                // 보기 전용(onSelect 없음)이면 버튼이 아니므로 키보드 포커스·버튼 역할도 뺌
+                tabIndex={onSelect ? 0 : undefined}
+                role={onSelect ? "button" : undefined}
                 aria-label={shape.name}
                 onPointerEnter={() => onHover(shape.dongCode)}
                 onPointerLeave={() => onHover(null)}

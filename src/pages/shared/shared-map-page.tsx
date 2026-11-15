@@ -2,18 +2,24 @@ import { useCallback, useMemo, useState } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import type { TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
-import { bandLabel, useRegionBoundaries, useRegionList, useSharedMap } from "../map/map-data";
+import { bandLabel, seasonOf, useRegionBoundaries, useRegionList, useSharedMap } from "../map/map-data";
 import { fitView, regionAt, regionsInView, unproject, type View } from "../map/map-geometry";
 import { MapLoading } from "../map/map-loading";
 import { MapTooltip } from "../map/map-tooltip";
 import { ErrorBanner, MapTitlePanel, TimeBandBar } from "../map/map-ui";
 import { SvgMap } from "../map/svg-map";
+import { Avatar } from "../../components/avatar";
 
 const route = getRouteApi("/shared/$shareKey");
 
-// 공유받은 나의 지도 (로그인 없이, 보기만). 메인 지도와 같은 경기도 지도에 공유한 사람이 칠한 동만 색칠
+// 다른 공유 링크로 바로 넘어가도 앞 사람의 칸·오류(notFound)가 남지 않게, 키마다 화면을 새로 만듦
 export function SharedMapPage() {
   const { shareKey } = route.useParams();
+  return <SharedMap key={shareKey} shareKey={shareKey} />;
+}
+
+// 공유받은 나의 지도 (로그인 없이, 보기만). 메인 지도와 같은 경기도 지도에 공유한 사람이 칠한 동만 색칠
+function SharedMap({ shareKey }: { shareKey: string }) {
   const { timeBand } = route.useSearch();
   const navigate = route.useNavigate();
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
@@ -92,6 +98,7 @@ export function SharedMapPage() {
             {homeView && regions.length > 0 && (
               <SvgMap
                 regions={regions}
+                focusRegion={currentCode}
                 homeView={homeView}
                 dongs={shared.dongs}
                 hoveredCode={hoveredCode}
@@ -114,12 +121,17 @@ export function SharedMapPage() {
 
           <div className="absolute top-[23px] left-[23px]">
             {shared.owner && currentRegion && (
-              <MapTitlePanel title={`${shared.owner.nickname}님의 ${currentRegion.name} ${bandLabel(timeBand)}`}>
-                칠한 동{" "}
-                <b className="text-ink">
-                  {filledCount}/{currentRegion.dongCount}
-                </b>
-              </MapTitlePanel>
+              <div className="flex items-start gap-2">
+                <Avatar image={shared.owner.profileImage} size={40} />
+                <MapTitlePanel
+                  title={`${shared.owner.nickname}님의 ${seasonOf(shared.season)?.name ?? ""} ${bandLabel(timeBand)}`}
+                >
+                  {currentRegion.name} · 칠한 동{" "}
+                  <b className="text-ink">
+                    {filledCount}/{currentRegion.dongCount}
+                  </b>
+                </MapTitlePanel>
+              </div>
             )}
             <div className="mt-2 max-w-[360px]">
               <ErrorBanner message={regionError ?? boundaryError ?? shared.error} />

@@ -116,7 +116,7 @@ export function ShareSection() {
           <button
             type="button"
             onClick={handleCopy}
-            className="h-10 shrink-0 rounded-[10px] border border-card-line bg-white px-4 text-sm font-bold text-ink transition-colors hover:bg-field disabled:cursor-not-allowed disabled:bg-field disabled:text-ink-faint disabled:hover:bg-field"
+            className="h-10 shrink-0 rounded-[10px] border border-card-line bg-white px-4 text-sm font-bold text-ink transition-colors hover:bg-field"
           >
             {copied ? "복사했어요" : "링크 복사"}
           </button>

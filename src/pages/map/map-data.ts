@@ -278,8 +278,6 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
     }
   }, [enabled, accessToken, key, expireSession]);
 
-
-
   const cellsByRegion = loaded && loaded.token === accessToken ? loaded.cells : null;
 
   // 지역 하나의 내 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
@@ -384,8 +382,6 @@ export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: 
     loading: Boolean(first) && !cells.has(first) && !error && !notFound,
   };
 }
-
-
 
 export const TIME_BANDS: { value: TimeBand; label: string; swatch: string[] }[] = [
   { value: "DAWN", label: "새벽", swatch: ["#8a86c8", "#a9a3d6", "#6f7fbf", "#c3b3dc"] },
