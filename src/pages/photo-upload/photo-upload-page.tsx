@@ -126,7 +126,10 @@ export function PhotoUploadPage() {
   const gpsRegions = hasGps && regionList ? regionList.regions.filter(({ bbox: [minX, minY, maxX, maxY] }) =>
     longitude >= minX && longitude <= maxX && latitude >= minY && latitude <= maxY).map((r) => r.regionCode) : [];
   const pickedRegion = photo?.regionCode || photo?.dongCode.slice(0, 4) || "";
-  const regionCodes = [...new Set([pickedRegion || defaultRegion, ...gpsRegions])].sort();
+  // 손대지 않은 사진의 기본 시·군: GPS가 bbox에 들어가는 시·군이 있으면 그중 첫 곳, 없으면 기본 지역(부천)
+  // → 고양시 GPS 사진이면 쓰지 않을 부천 경계를 따로 받지 않음
+  const fallbackRegion = gpsRegions[0] ?? defaultRegion;
+  const regionCodes = [...new Set([pickedRegion || fallbackRegion, ...gpsRegions])].sort();
   const { regions: loadedRegions, error: boundaryLoadError, failed: failedRegions } = useRegionBoundaries(regionCodes);
   // 완료 화면 개략도: 이번에 올린 사진들의 시 경계
   const { regions: resultRegions } = useRegionBoundaries([...new Set(results.flatMap((p) => p.result ? [p.result.dongCode.slice(0, 4)] : []))].sort());
@@ -191,7 +194,7 @@ export function PhotoUploadPage() {
   const locating = Boolean(photo && photo.regionCode === undefined && !photo.dongCode && gpsPending && !regionListError);
 
   // 시·구·동 단계별 선택에 보여 줄 값과 목록
-  const region = photo?.regionCode ?? selectedFeature?.properties.dongCode.slice(0, 4) ?? defaultRegion;
+  const region = photo?.regionCode ?? selectedFeature?.properties.dongCode.slice(0, 4) ?? fallbackRegion;
   const regionFeatures = regionOf(region)?.features;
   // 구가 없는 시(광명, 시흥 등)는 구를 건너뛰고 바로 동을 고름
   const hasGu = Boolean(regionFeatures?.some((f) => f.properties.guName));
@@ -343,10 +346,10 @@ export function PhotoUploadPage() {
                 {locationAgreed && photo.status !== "reading" && photo.status !== "invalid" && photo.metadata.latitude === undefined && <p className="mb-3 rounded-xl bg-brand-soft p-3 text-xs leading-5 text-brand-strong">사진의 GPS 정보를 확인하지 못했어요. 휴대폰에서 사진을 선택하거나 촬영하는 과정에서 위치정보가 빠질 수 있어요. 위치를 직접 선택하면 나의 지도에만 반영돼요.</p>}
                 {boundaryError && <p role="alert" className="mb-3 text-sm text-danger">{boundaryError} 새로고침 후 다시 시도해 주세요.</p>}
                 {locationMismatch && <p role="alert" className="mb-3 text-sm text-brand-strong">선택한 동과 사진 좌표가 달라요. 지도에서 새 촬영 위치를 확정해 주세요.</p>}
-                {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">지도에 있는 지역 밖의 위치예요. 시 목록에 있는 지역에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 실제 촬영 위치를 선택해 주세요.</p>}
+                {outside && <p role="alert" className="mb-3 text-sm text-brand-strong">경기도 밖의 위치예요. 경기도에서 찍은 사진만 더할 수 있어요. 잘못 기록된 위치라면 시·군과 동을 고른 뒤 지도에서 실제 촬영 위치를 선택해 주세요.</p>}
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-                  <Select label="시" value={locating ? "" : region} disabled={!regionList || locating} onChange={(code) => update(photo.id, { regionCode: code, guName: "", dongCode: "", latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}
-                    placeholder={regionList && !locating ? "시 선택" : locating ? waitingLabel : regionListError ? "불러오지 못했어요" : "불러오는 중…"} options={cityOptions} />
+                  <Select label="시·군" value={locating ? "" : region} disabled={!regionList || locating} onChange={(code) => update(photo.id, { regionCode: code, guName: "", dongCode: "", latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}
+                    placeholder={regionList && !locating ? "시·군 선택" : locating ? waitingLabel : regionListError ? "불러오지 못했어요" : "불러오는 중…"} options={cityOptions} />
                   <Select label="구" value={locating ? "" : gu} disabled={!regionFeatures || !hasGu || locating} onChange={(name) => update(photo.id, { regionCode: region, guName: name, dongCode: "", latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}
                     placeholder={!regionFeatures || locating ? waitingLabel : hasGu ? "구 선택" : "구 없음"} options={guNames.map((name) => [name, name])} />
                   <Select label="동" value={selectedFeature?.properties.dongCode ?? ""} disabled={!regionFeatures || (hasGu && !gu) || locating} onChange={(code) => update(photo.id, { regionCode: region, guName: gu, dongCode: code, latitude: photo.metadata.latitude, longitude: photo.metadata.longitude })}

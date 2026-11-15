@@ -112,7 +112,12 @@ export function useRegionBoundaries(regionCodes: string[]) {
     for (const code of key ? key.split(",") : []) {
       if (boundariesCache.has(code)) continue;
       loadBoundaries(code)
-        .then(() => !cancelled && setVersion((v) => v + 1))
+        .then(() => {
+          if (cancelled) return;
+          setVersion((v) => v + 1);
+          // 전에 실패했다가 다시 받아 성공하면 실패 목록에서 뺌
+          setFailed((codes) => (codes.includes(code) ? codes.filter((c) => c !== code) : codes));
+        })
         .catch(() => {
           if (cancelled) return;
           setError("동 경계를 불러오지 못했어요.");
