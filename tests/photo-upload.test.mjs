@@ -2,30 +2,76 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
-import { analyzePixels, COLOR_HEX } from '../src/pages/photo-upload/color-analysis.ts';
+import { analyzePixels, chooseRepresentative, dominantIndex, COLOR_HEX, COLOR_NAMES } from '../src/pages/photo-upload/color-analysis.ts';
 import { parseLocalTime, photoSeasonError, timeBand, validateColors, validateImage, findDong, MAX_IMAGE_BYTES } from '../src/pages/photo-upload/photo-validation.ts';
 
 const pixel = (hex, alpha = 255) => [...[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)), alpha];
 
-test('모든 기준색은 자신의 인덱스로 분류되고 API 계약을 만족한다', () => {
+// w×h 이미지: color(x, y)가 [r, g, b] 또는 [r, g, b, a]를 돌려줌
+const image = (w, h, color) => {
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const [r, g, b, a = 255] = color(x, y); data.set([r, g, b, a], (y * w + x) * 4); }
+  return analyzePixels(data, w, h);
+};
+const nameOf = (hex) => COLOR_NAMES[COLOR_HEX.indexOf(hex)];
+
+test('모든 기준색 한 픽셀 결과가 API 계약을 만족하고 첫 후보가 대표색이다', () => {
   assert.equal(COLOR_HEX.length, 40);
-  for (const [index, hex] of COLOR_HEX.entries()) {
+  assert.equal(COLOR_NAMES.length, 40);
+  for (const hex of COLOR_HEX) {
     const result = analyzePixels(new Uint8ClampedArray(pixel(hex)));
-    assert.equal(result.bins[index], 1);
-    assert.deepEqual(result.palette, Array(5).fill(hex));
-    assert.deepEqual(result.ratios, [1, 0, 0, 0, 0]);
     assert.ok(validateColors(result.palette, result.bins));
+    assert.ok(Math.abs(result.bins.reduce((a, b) => a + b, 0) - 1) < 1e-12);
+    assert.equal(result.candidates[0], result.palette[0]);
+    assert.equal(result.ratios[0], result.bins[COLOR_HEX.indexOf(result.palette[0])]);
   }
 });
-test('빈도순·동점 인덱스 순서와 투명도 가중치', () => {
-  const result = analyzePixels(new Uint8ClampedArray([
-    ...pixel(COLOR_HEX[0]), ...pixel(COLOR_HEX[0]), ...pixel(COLOR_HEX[1]),
-    ...pixel(COLOR_HEX[36]), ...pixel(COLOR_HEX[2], 0), ...pixel(COLOR_HEX[37], 128),
-  ]));
-  assert.deepEqual(result.palette.slice(0, 4), [COLOR_HEX[0], COLOR_HEX[1], COLOR_HEX[36], COLOR_HEX[37]]);
-  assert.equal(result.bins[2], 0);
-  assert.ok(Math.abs(result.bins[37] / result.bins[1] - 128 / 255) < 1e-12);
-  assert.ok(Math.abs(result.bins.reduce((a,b) => a+b, 0) - 1) < 1e-12);
+test('대표색에 헷갈리는 짝이 있으면 다음 색 자리에 짝을 넣는다', () => {
+  // 단풍 빨강 + 회색 바닥 + 작은 초록: 원래 [단풍 빨강, 아스팔트(다음 색), 나무 초록(선명한 색)] → 다음 색 자리가 짝(나무 · 흙)으로
+  const result = image(12, 12, (x, y) => y < 7 ? [150, 70, 50] : x < 11 ? [128, 128, 128] : [60, 150, 60]);
+  assert.deepEqual(result.candidates.map(nameOf), ['단풍 빨강', '나무 · 흙', '나무 초록']);
+});
+test('대표색이 유채색이어도 사진 대부분이 무채색이면 가장 넓은 무채색을 후보에 넣는다', () => {
+  // 눈 덮인 풍경: 가운데 붉은 문(유채색 대표색) + 밝기가 조금씩 다른 눈(무채색 여러 칸)
+  const snow = image(16, 16, (x, y) => x >= 5 && x < 11 && y >= 4 && y < 12 ? [170, 50, 40] : [205 + (x % 3) * 12, 208 + (x % 3) * 12, 212 + (x % 3) * 12]);
+  assert.equal(nameOf(snow.palette[0]), '단풍 빨강');
+  assert.equal(snow.candidates.length, 3);
+  assert.ok(snow.candidates.slice(1).some((hex) => COLOR_HEX.indexOf(hex) >= 34), `무채색 후보 없음: ${snow.candidates.map(nameOf)}`);
+});
+test('색상 규칙표: 사진처럼 흐린 색도 대상 색으로 분류한다', () => {
+  // 가장 가까운 색으로 고르면 셋 다 나무 · 흙(#8A6245) 쪽으로 가던 색
+  assert.equal(nameOf(image(4, 4, () => [150, 70, 50]).palette[0]), '단풍 빨강');
+  assert.equal(nameOf(image(4, 4, () => [190, 160, 50]).palette[0]), '은행 노랑');
+  assert.equal(nameOf(image(4, 4, () => [45, 75, 45]).palette[0]), '짙은 숲');
+  assert.equal(nameOf(image(4, 4, () => [110, 160, 220]).palette[0]), '하늘');
+  assert.equal(nameOf(image(4, 4, () => [128, 128, 128]).palette[0]), '아스팔트');
+});
+test('어두운 사진의 밝은 따뜻한 색은 창문 불빛으로 본다', () => {
+  const night = image(10, 10, (x, y) => x >= 4 && x < 7 && y >= 4 && y < 7 ? [240, 200, 120] : [15, 15, 20]);
+  assert.equal(nameOf(night.palette[0]), '창문 불빛');
+  // 창문 불빛은 금빛 노을과 헷갈릴 수 있어 짝으로 같이 보여 줌
+  assert.deepEqual(night.candidates.map(nameOf), ['창문 불빛', '금빛 노을', '먹색']);
+});
+test('투명한 픽셀은 세지 않고, 대표색 5개의 첫 색은 BE 대표색 규칙과 같다', () => {
+  const result = image(6, 6, (x) => x < 3 ? [150, 70, 50] : [110, 160, 220, 0]);
+  assert.equal(result.bins[COLOR_HEX.indexOf('#9CC8EC')], 0);
+  assert.equal(result.palette[0], COLOR_HEX[dominantIndex(result.bins)]);
+});
+test('후보를 고르면 그 색이 BE 규칙상 대표색이 되도록 bins를 다시 맞춘다', () => {
+  const analysis = image(10, 10, (x, y) => y < 4 ? [150, 70, 50] : [128, 128, 128]);
+  assert.deepEqual(analysis.candidates.map(nameOf), ['단풍 빨강', '나무 · 흙', '아스팔트']);
+  assert.equal(chooseRepresentative(analysis, analysis.candidates[0]), analysis);
+  // 짝(나무 · 흙)은 사진에 거의 없어도(비율 0) 고르면 대표색이 되어야 함
+  const pair = chooseRepresentative(analysis, analysis.candidates[1]);
+  assert.equal(nameOf(pair.palette[0]), '나무 · 흙');
+  assert.ok(validateColors(pair.palette, pair.bins));
+  // 유채색이 많은 사진에서 무채색을 골라도 대표색이 되어야 함 (유채색 합계 15% 미만까지 섞음)
+  const chosen = chooseRepresentative(analysis, analysis.candidates[2]);
+  assert.equal(chosen.palette[0], analysis.candidates[2]);
+  assert.equal(COLOR_HEX[dominantIndex(chosen.bins)], analysis.candidates[2]);
+  assert.ok(validateColors(chosen.palette, chosen.bins));
+  assert.ok(Math.abs(chosen.bins.reduce((a, b) => a + b, 0) - 1) < 1e-12);
+  assert.deepEqual(chosen.candidates, analysis.candidates);
 });
 test('투명 이미지와 잘못된 색상 데이터 거부', () => {
   assert.throws(() => analyzePixels(new Uint8ClampedArray([0,0,0,0])));
