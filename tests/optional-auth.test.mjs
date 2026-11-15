@@ -110,16 +110,52 @@ test('재발급을 기다리는 사이 다른 계정으로 로그인하면 새 �
   assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', `Bearer ${other}`]]);
 });
 
-test('이전 세션의 재발급이 거절돼도 그사이 로그인한 새 세션은 유지', async () => {
+test('이전 세션의 재발급이 거절돼도 그사이 로그인한 새 세션은 유지하고 새 계정 토큰으로 받음', async () => {
   const other = jwt(now() + 1800);
-  const { tokens } = await run(
+  const { calls, tokens, error } = await run(
     { accessToken: jwt(now() - 60), refreshToken: 'r' },
     store => {
       store.login({ accessToken: other, refreshToken: 'n' });
       return Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 });
     },
   );
+  assert.equal(error, undefined);
   assert.equal(tokens.accessToken, other);
+  // 토큰 없이 받으면 새 계정의 좋아요가 false로 기억되므로, 새 계정 토큰으로 다시 받음
+  assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', `Bearer ${other}`]]);
+});
+
+test('이전 세션의 재발급이 거절된 사이 로그아웃했으면 토큰 없이 받음', async () => {
+  const { calls, tokens, error } = await run(
+    { accessToken: jwt(now() - 60), refreshToken: 'r' },
+    store => {
+      store.logout();
+      return Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 });
+    },
+  );
+  assert.equal(error, undefined);
+  assert.equal(tokens, null);
+  assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', null]]);
+});
+
+test('공개 API 응답을 기다리는 사이 다른 계정으로 로그인해도 토큰 없이 다시 보내지 않음', async () => {
+  // 공개 API는 401을 안 주지만, 401을 받은 경우(재발급 → 세션 바뀜)에도 이전 세션 결과를 쓰지 않는지 확인
+  const other = { accessToken: jwt(now() + 1700), refreshToken: 'n' };
+  const valid = jwt(now() + 600);
+  const { calls, error } = await run(
+    { accessToken: valid, refreshToken: 'r' },
+    store => {
+      store.login(other);
+      return ok({ accessToken: jwt(now() + 1800), refreshToken: 'r2' });
+    },
+    { respond: n => n === 1 ? Response.json({ isSuccess: false, code: 'COMMON401', message: '' }, { status: 401 }) : undefined },
+  );
+  assert.equal(error, undefined);
+  assert.deepEqual(calls, [
+    ['/api/photos/7', `Bearer ${valid}`],
+    ['/api/auth/reissue', null],
+    ['/api/photos/7', `Bearer ${other.accessToken}`],
+  ]);
 });
 
 test('만료 시각을 읽을 수 없는 토큰은 그대로 보냄 (401이면 기존처럼 재발급)', async () => {

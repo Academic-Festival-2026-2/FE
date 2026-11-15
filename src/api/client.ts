@@ -172,7 +172,13 @@ function tokenExpiresAt(token: string): number | null {
 // 공개 API는 BE가 만료된 토큰을 401 없이 비로그인으로 처리함 → 401을 기다리지 않고
 // 보내기 전에 만료를 확인해 미리 재발급 (안 하면 이미 누른 사진도 빈 하트로 보임)
 // 세션이 끝나 재발급까지 실패하면(401) 토큰 없이 보냄 → 비로그인과 같은 결과
-export async function optionalAuthRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+// 기다리는 사이 로그아웃·다른 계정 로그인을 했으면(SESSION_CHANGED) 토큰 없이 받지 않고 지금 세션으로 한 번 더 받음
+// (토큰 없이 받으면 새 계정이 누른 사진도 liked false로 기억됨)
+export function optionalAuthRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return optionalAuthRequestOnce<T>(path, init, false);
+}
+
+async function optionalAuthRequestOnce<T>(path: string, init: RequestInit, retried: boolean): Promise<T> {
   const accessToken = useAuthStore.getState().tokens?.accessToken;
   if (!accessToken) return request<T>(path, init);
   try {
@@ -181,6 +187,10 @@ export async function optionalAuthRequest<T>(path: string, init: RequestInit = {
     return await authRequest<T>(path, init);
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error;
+    if (error.code === SESSION_CHANGED) {
+      if (retried) throw error;
+      return optionalAuthRequestOnce<T>(path, init, true);
+    }
     return request<T>(path, init);
   }
 }
