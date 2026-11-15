@@ -181,10 +181,13 @@ export function PhotoUploadPage() {
   const regionOf = (code: string) => loadedRegions.find((r) => r.regionCode === code);
   const gpsFeatures = gpsRegions.flatMap((code) => regionOf(code)?.features ?? []);
   const located = hasGps ? findDong(gpsFeatures, latitude, longitude) : undefined;
-  // 동을 직접 골랐으면 그 동, 시·구만 바꾸고 동을 아직 안 골랐으면 없음, 손대지 않았으면 GPS로 찾은 동
+  // 동을 직접 골랐으면 그 동. 아니면 GPS로 찾은 동을 기본값으로 쓰되, 시·군·구를 바꿨다면 그 시·군·구 안에 있을 때만
+  // (다른 시·군으로 바꿨다가 되돌리면 GPS 동이 다시 채워짐. 구를 다른 곳으로 고르면 동을 새로 골라야 함)
+  const locatedFits = located && (photo?.regionCode === undefined
+    || (located.properties.dongCode.startsWith(photo.regionCode) && (!photo.guName || photo.guName === located.properties.guName)));
   const selectedFeature = photo?.dongCode
     ? loadedRegions.flatMap((r) => r.features).find((f) => f.properties.dongCode === photo.dongCode)
-    : photo?.regionCode === undefined ? located : undefined;
+    : locatedFits ? located : undefined;
   // 좌표가 들어갈 수 있는 시의 경계를 다 받았는데도 어느 동에도 없으면 지도 밖
   const outside = Boolean(regionList && hasGps && !located && gpsRegions.every((code) => regionOf(code)));
   // GPS로 동을 찾는 데 필요한 시 중 아직 받는 중인 것 / 받지 못한 것
@@ -199,7 +202,8 @@ export function PhotoUploadPage() {
   // 구가 없는 시(광명, 시흥 등)는 구를 건너뛰고 바로 동을 고름
   const hasGu = Boolean(regionFeatures?.some((f) => f.properties.guName));
   const guNames = [...new Set((regionFeatures ?? []).flatMap((f) => f.properties.guName ? [f.properties.guName] : []))].sort(byName);
-  const gu = photo?.guName ?? selectedFeature?.properties.guName ?? "";
+  // 구를 아직 안 골랐으면("") 고른 동(GPS 동 포함)의 구
+  const gu = photo?.guName || selectedFeature?.properties.guName || "";
   const dongOptions = (regionFeatures ?? []).filter((f) => !hasGu || (gu !== "" && f.properties.guName === gu))
     .sort((a, b) => byName(a.properties.name, b.properties.name));
   const cityOptions = (regionList?.regions ?? []).map((r) => [r.regionCode, r.name]).sort((a, b) => byName(a[1], b[1]));
