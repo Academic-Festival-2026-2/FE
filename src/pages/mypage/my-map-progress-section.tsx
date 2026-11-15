@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { BAND_PIXEL, TIME_BANDS } from "../map/map-data";
 import { currentTimeBand } from "../../utils/time-band";
+import { parseSeason } from "../../utils/season";
 import { FilterSelect } from "./filter-select";
 import { REGION_OPTIONS, SEASON_FILTER_OPTIONS } from "./my-map-filters";
 import type { MyMapStats } from "./my-map-stats";
@@ -59,7 +60,7 @@ export function MyMapProgressSection({
                 <li key={band.value}>
                   <Link
                     to="/map"
-                    search={{ timeBand: band.value, mode: "mine" }}
+                    search={{ timeBand: band.value, mode: "mine", season: parseSeason(season), region: Number(region) }}
                     aria-label={`${band.label} ${filled} / ${total}곳, 나의 지도에서 보기`}
                     className="grid grid-cols-[40px_minmax(0,1fr)_64px] items-center gap-3 rounded-lg px-1 py-1.5 text-sm transition-colors hover:bg-field"
                   >
@@ -87,7 +88,7 @@ export function MyMapProgressSection({
             </p>
             <Link
               to="/map"
-              search={{ timeBand: currentTimeBand(), mode: "mine" }}
+              search={{ timeBand: currentTimeBand(), mode: "mine", season: parseSeason(season), region: Number(region) }}
               className="text-sm font-bold text-brand-strong hover:text-brand"
             >
               나의 지도에서 보기 ›

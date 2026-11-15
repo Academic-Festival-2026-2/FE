@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
-import type { TimeBand } from "../../api/map";
+import type { SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { bandLabel, seasonOf, useRegionBoundaries, useRegionList, useSharedMap } from "../map/map-data";
 import { fitView, regionAt, regionsInView, unproject, type View } from "../map/map-geometry";
@@ -9,6 +9,7 @@ import { MapTooltip } from "../map/map-tooltip";
 import { ErrorBanner, MapTitlePanel, TimeBandBar } from "../map/map-ui";
 import { SvgMap } from "../map/svg-map";
 import { Avatar } from "../../components/avatar";
+import { preferredSeason, rememberSeason } from "../../utils/season";
 
 const route = getRouteApi("/shared/$shareKey");
 
@@ -20,7 +21,8 @@ export function SharedMapPage() {
 
 // 공유받은 나의 지도 (로그인 없이, 보기만). 메인 지도와 같은 경기도 지도에 공유한 사람이 칠한 동만 색칠
 function SharedMap({ shareKey }: { shareKey: string }) {
-  const { timeBand } = route.useSearch();
+  const { timeBand, season: urlSeason } = route.useSearch();
+  const selectedSeason = preferredSeason(urlSeason);
   const navigate = route.useNavigate();
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
 
@@ -44,7 +46,7 @@ function SharedMap({ shareKey }: { shareKey: string }) {
       : codes;
   }, [regionList, shownView, currentCode]);
   const { regions, error: boundaryError } = useRegionBoundaries(visibleCodes);
-  const shared = useSharedMap(shareKey, timeBand, visibleCodes);
+  const shared = useSharedMap(shareKey, timeBand, visibleCodes, selectedSeason);
 
   // 화면 이동이 멈추면 가운데 지역을 다시 정함 (공유 화면은 주소에 지역을 남기지 않음)
   const handleViewChange = useCallback(
@@ -56,8 +58,13 @@ function SharedMap({ shareKey }: { shareKey: string }) {
     [regions],
   );
 
+  function changeSeason(value: SeasonType) {
+    rememberSeason(value);
+    navigate({ search: (prev) => ({ ...prev, season: value }), replace: true });
+  }
+
   function changeTimeBand(value: TimeBand) {
-    navigate({ search: { timeBand: value }, replace: true });
+    navigate({ search: (prev) => ({ ...prev, timeBand: value }), replace: true });
   }
 
   const currentRegion = regionList?.regions.find((r) => r.regionCode === currentCode);
@@ -77,7 +84,7 @@ function SharedMap({ shareKey }: { shareKey: string }) {
           <p className="mt-2 text-sm text-ink-sub">공유한 사람이 공유를 껐거나 링크가 잘못됐을 수 있어요.</p>
           <Link
             to="/map"
-            search={{ timeBand }}
+            search={{ timeBand, season: selectedSeason }}
             className="mt-6 flex h-11 items-center rounded-[10px] bg-brand px-5 font-bold text-white transition-colors hover:bg-brand-hover"
           >
             지도 둘러보기
@@ -139,7 +146,7 @@ function SharedMap({ shareKey }: { shareKey: string }) {
           </div>
 
           <div className="absolute bottom-[27px] left-1/2 w-max -translate-x-1/2">
-            <TimeBandBar season={shared.season} timeBand={timeBand} onChange={changeTimeBand} />
+            <TimeBandBar season={selectedSeason} timeBand={timeBand} onChange={changeTimeBand} onSeasonChange={changeSeason} />
           </div>
         </section>
       </main>

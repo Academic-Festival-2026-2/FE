@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import type { ColorRatio, TimeBand } from "../../api/map";
+import type { ColorRatio, SeasonType, TimeBand } from "../../api/map";
 import chevronDown from "../../assets/icons/chevron-down-navy.svg";
 import { cn } from "../../utils/cn";
 import { BAND_PIXEL, SEASON_OPTIONS, TIME_BANDS } from "./map-data";
@@ -137,8 +137,7 @@ export function MapModeToggle({
 
 
 // 계절 선택 (지도 아래 시간대 바 왼쪽, 목록은 위로 펼침)
-// 계절은 지금 서버가 주는 시즌만 고를 수 있음 (다른 계절 조회 API가 생기면 onChange 연결)
-function SeasonSelect({ season }: { season: string | null }) {
+function SeasonSelect({ season, onChange }: { season: SeasonType; onChange: (value: SeasonType) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = SEASON_OPTIONS.find((option) => option.value === season);
@@ -164,8 +163,8 @@ function SeasonSelect({ season }: { season: string | null }) {
     <div ref={ref} className="relative">
       <button
         type="button"
-        aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={`계절 선택: ${current?.name ?? "미선택"}`}
         onClick={() => setOpen((prev) => !prev)}
         className={cn(SELECTED_PILL, "flex h-8 shrink-0 items-center gap-1 rounded-[9px] pr-2 pl-3 text-[13px] leading-none font-bold whitespace-nowrap text-white")}
       >
@@ -184,7 +183,6 @@ function SeasonSelect({ season }: { season: string | null }) {
       </button>
       {open && (
         <ul
-          role="listbox"
           aria-label="계절"
           // 목록 글자가 지도 위에서도 잘 읽히게 패널보다 덜 비치게 (흰색 88%)
           className={cn(GLASS_SOLID, "absolute bottom-full left-0 z-20 mb-3 flex w-[70px] flex-col gap-0.5 rounded-xl p-1")}
@@ -195,16 +193,16 @@ function SeasonSelect({ season }: { season: string | null }) {
               <li key={option.value}>
                 <button
                   type="button"
-                  role="option"
-                  aria-selected={selected}
-                  disabled={!selected}
-                  title={selected ? undefined : "다른 계절은 준비 중이에요"}
-                  onClick={() => setOpen(false)}
+                  aria-pressed={selected}
+                  onClick={() => {
+                    onChange(option.value as SeasonType);
+                    setOpen(false);
+                  }}
                   className={cn(
                     "w-full rounded-lg py-[7px] pr-1.5 pl-2.5 text-left text-sm",
                     selected
                       ? cn(SELECTED_PILL, "font-bold text-white")
-                      : "font-medium text-ink disabled:cursor-not-allowed disabled:text-ink-faint",
+                      : "font-medium text-ink hover:bg-field",
                   )}
                 >
                   {option.name}
@@ -223,15 +221,17 @@ export function TimeBandBar({
   season,
   timeBand,
   onChange,
+  onSeasonChange,
 }: {
-  season: string | null;
+  season: SeasonType;
   timeBand: TimeBand;
   onChange: (value: TimeBand) => void;
+  onSeasonChange: (value: SeasonType) => void;
 }) {
   const activeIndex = TIME_BANDS.findIndex((band) => band.value === timeBand);
   return (
     <div className={cn(GLASS, "flex items-center gap-1 rounded-xl p-1")}>
-      <SeasonSelect season={season} />
+      <SeasonSelect season={season} onChange={onSeasonChange} />
       <span className="h-5 w-px bg-[#c9d0dc]" aria-hidden />
       <div className="relative flex gap-0.5">
         <LiquidIndicator activeIndex={activeIndex} className="rounded-[9px]" />
@@ -337,7 +337,7 @@ export function TopDongsPanel({
 }
 
 // 나의 지도에 아직 칠한 칸이 하나도 없을 때 지도 가운데에 띄우는 안내 (피그마 "18 · 나의 지도 비어 있음")
-export function EmptyMyMapCard() {
+export function EmptyMyMapCard({ season }: { season: string }) {
   return (
     <div className="flex w-[min(372px,calc(100vw-72px))] flex-col items-center rounded-[18px] bg-white px-6 pt-6 pb-6 text-center shadow-[0_16px_20px_rgba(22,22,26,0.18)]">
       <span className="grid grid-cols-3 gap-1" aria-hidden>
@@ -349,7 +349,7 @@ export function EmptyMyMapCard() {
           ),
         )}
       </span>
-      <p className="mt-3.5 text-lg font-extrabold text-ink">나의 지도는 아직 비어 있어요</p>
+      <p className="mt-3.5 text-lg font-extrabold text-ink">이 지역의 {season} 지도는 아직 비어 있어요</p>
       <p className="mt-1 text-sm text-ink-sub">사진 한 장이면 첫 동이 칠해져요.</p>
       <Link
         to="/upload"

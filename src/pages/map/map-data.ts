@@ -13,6 +13,7 @@ import {
   type DongColor,
   type TimeBand,
   type TopDong,
+  type SeasonType,
 } from "../../api/map";
 
 // 지역 목록을 받기 전·동 상세의 기본 지역 (BE Region.DEFAULT_CODE와 같음)
@@ -148,10 +149,10 @@ type RegionColors = { dongs: Map<string, DongColor>; topDongs: TopDong[]; season
 
 // 마지막으로 받은 지역·시간대별 동 색. 화면을 다시 열면 이 값을 먼저 보여 주고 바로 새로 받아 바꿈
 const lastDongColors = new Map<string, RegionColors>();
-const colorKey = (regionCode: string, band: TimeBand) => `${regionCode}:${band}`;
+const colorKey = (regionCode: string, band: TimeBand, season: SeasonType) => `${regionCode}:${band}:${season}`;
 
 // 보이는 지역들의 동 색. 첫 지역(화면 가운데)은 나머지 시간대도 미리 받아 탭을 바꾸면 바로 바뀜
-export function useDongColors(timeBand: TimeBand, regionCodes: string[]) {
+export function useDongColors(timeBand: TimeBand, regionCodes: string[], season: SeasonType) {
   const key = regionCodes.join(",");
   const [cache, setCache] = useState(() => new Map(lastDongColors));
   const [errors, setErrors] = useState(() => new Map<string, string>());
@@ -176,15 +177,18 @@ export function useDongColors(timeBand: TimeBand, regionCodes: string[]) {
       for (const band of TIME_BAND_VALUES) if (band !== timeBand) jobs.push([codes[0], band]);
     }
     for (const [code, band] of jobs) {
-      const k = colorKey(code, band);
+      const k = colorKey(code, band, season);
       if (requested.has(k)) continue;
       requested.add(k);
-      getMapDongs(band, code)
-        .then(({ dongs, topDongs, season }) => {
+      getMapDongs(band, code, season)
+        .then(({ dongs, topDongs, season: responseSeason }) => {
+          if (responseSeason !== season) {
+            throw new Error("요청한 계절과 응답 계절이 다릅니다.");
+          }
           const state: RegionColors = {
             dongs: new Map(dongs.map((dong) => [dong.dongCode, dong])),
             topDongs,
-            season,
+            season: responseSeason,
           };
           lastDongColors.set(k, state);
           if (!aliveRef.current) return;
@@ -203,26 +207,26 @@ export function useDongColors(timeBand: TimeBand, regionCodes: string[]) {
           setErrors((prev) => new Map(prev).set(k, "동 색을 불러오지 못했어요."));
         });
     }
-  }, [timeBand, key]);
+  }, [timeBand, key, season]);
 
   // 보이는 지역 동 색을 하나로 합침 (지도 칠하기용)
   const dongs = useMemo(() => {
     const merged = new Map<string, DongColor>();
     for (const code of key ? key.split(",") : []) {
-      for (const [dongCode, dong] of cache.get(colorKey(code, timeBand))?.dongs ?? []) {
+      for (const [dongCode, dong] of cache.get(colorKey(code, timeBand, season))?.dongs ?? []) {
         merged.set(dongCode, dong);
       }
     }
     return merged;
-  }, [cache, key, timeBand]);
+  }, [cache, key, timeBand, season]);
 
   const first = key.split(",")[0];
-  const firstColors = first ? cache.get(colorKey(first, timeBand)) : undefined;
-  const error = first ? (errors.get(colorKey(first, timeBand)) ?? null) : null;
+  const firstColors = first ? cache.get(colorKey(first, timeBand, season)) : undefined;
+  const error = first ? (errors.get(colorKey(first, timeBand, season)) ?? null) : null;
   return {
     dongs,
     // 지역 하나의 동 색 (제목의 칠해진 동 수, Top 3)
-    colorsOf: (regionCode: string) => cache.get(colorKey(regionCode, timeBand)),
+    colorsOf: (regionCode: string) => cache.get(colorKey(regionCode, timeBand, season)),
     season: firstColors?.season ?? null,
     error,
     loading: Boolean(first) && !firstColors && !error,
@@ -235,12 +239,18 @@ export function toKakaoPath(rings: number[][][]) {
 
 // 나의 지도: 보이는 지역마다 내 칸을 받음 (지역 하나에 4개 시간대가 한 번에 옴).
 // 로그인한 사람(토큰)이 바뀌면 받은 것을 버리고 새로 받음
-export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: string[]) {
+export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: string[], season: SeasonType) {
   const accessToken = useAuthStore((state) => state.tokens?.accessToken);
+  const activeTokenRef = useRef(accessToken);
+
+  useEffect(() => {
+    activeTokenRef.current = accessToken;
+  }, [accessToken]);
+
   const expireSession = useExpireSession();
   const key = regionCodes.join(",");
   const [loaded, setLoaded] = useState<{ token: string; cells: Map<string, MyMapCell[]> } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [failedKeys, setFailedKeys] = useState<Set<string>>(() => new Set());
   // 이미 요청한 "토큰:지역" (받는 중에 같은 지역을 또 요청하지 않게)
   const requestedRef = useRef(new Set<string>());
 
@@ -257,33 +267,41 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
   useEffect(() => {
     if (!enabled || !accessToken) return;
     for (const code of key ? key.split(",") : []) {
-      const k = `${accessToken}:${code}`;
+      const k = `${accessToken}:${season}:${code}`;
       if (requestedRef.current.has(k)) continue;
       requestedRef.current.add(k);
-      getMyMap({ regionCode: code })
+      getMyMap({ regionCode: code, season })
         .then((data) => {
-          if (!aliveRef.current) return;
+          if (!aliveRef.current || activeTokenRef.current !== accessToken) return;
+          if (data.season !== season) {
+            throw new Error("나의 지도 응답 계절이 일치하지 않습니다.");
+          }
           setLoaded((prev) => {
             const base = prev && prev.token === accessToken ? prev.cells : new Map<string, MyMapCell[]>();
-            return { token: accessToken, cells: new Map(base).set(code, data.cells) };
+            return { token: accessToken, cells: new Map(base).set(`${season}:${code}`, data.cells) };
           });
-          setError(null);
+          setFailedKeys((prev) => {
+            if (!prev.has(k)) return prev;
+            const next = new Set(prev);
+            next.delete(k);
+            return next;
+          });
         })
         .catch((err) => {
           requestedRef.current.delete(k);
-          if (!aliveRef.current) return;
+          if (!aliveRef.current || activeTokenRef.current !== accessToken) return;
           if (isSessionExpired(err)) expireSession();
-          else setError("나의 지도를 불러오지 못했어요.");
+          else setFailedKeys((prev) => new Set(prev).add(k));
         });
     }
-  }, [enabled, accessToken, key, expireSession]);
+  }, [enabled, accessToken, key, season, expireSession]);
 
   const cellsByRegion = loaded && loaded.token === accessToken ? loaded.cells : null;
 
   // 지역 하나의 내 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
   function dongsOf(regionCode: string | null) {
     const result = new Map<string, DongColor>();
-    for (const cell of (regionCode && cellsByRegion?.get(regionCode)) || []) {
+    for (const cell of (regionCode && cellsByRegion?.get(`${season}:${regionCode}`)) || []) {
       if (cell.timeBand !== timeBand) continue;
       result.set(cell.dongCode, {
         dongCode: cell.dongCode,
@@ -301,24 +319,27 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
   // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
   const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
   const first = codes[0];
+  const firstCells = first ? cellsByRegion?.get(`${season}:${first}`) : undefined;
+  const error = first && failedKeys.has(`${accessToken}:${season}:${first}`)
+    ? "나의 지도를 불러오지 못했어요." : null;
 
   return {
     dongs,
     dongsOf,
-    loading: enabled && Boolean(first) && !cellsByRegion?.has(first) && !error,
+    empty: Boolean(firstCells) && !firstCells?.some((cell) => cell.filled),
+    loading: enabled && Boolean(first) && !firstCells && !error,
     error,
   };
 }
 
 // 공유받은 지도 (로그인 없음). useMyMap과 같은 방식으로 보이는 지역마다 받고, 응답을 지역별로 모음
 // 공유가 꺼졌거나 없는 키(404)면 notFound
-export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: string[]) {
+export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: string[], season: SeasonType) {
   const key = regionCodes.join(",");
   const [cells, setCells] = useState<Map<string, MyMapCell[]>>(new Map());
   const [owner, setOwner] = useState<{ nickname: string; profileImage: string } | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [season, setSeason] = useState<string | null>(null);
+  const [failedKeys, setFailedKeys] = useState<Set<string>>(() => new Set());
   // 이미 요청한 지역 (받는 중에 같은 지역을 또 요청하지 않게)
   const requestedRef = useRef(new Set<string>());
 
@@ -332,29 +353,37 @@ export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: 
 
   useEffect(() => {
     for (const code of key ? key.split(",") : []) {
-      if (requestedRef.current.has(code)) continue;
-      requestedRef.current.add(code);
-      getSharedMap(shareKey, code)
+      const requestKey = `${season}:${code}`;
+      if (requestedRef.current.has(requestKey)) continue;
+      requestedRef.current.add(requestKey);
+      getSharedMap(shareKey, code, season)
         .then((data) => {
           if (!aliveRef.current) return;
+          if (data.map.season !== season) {
+            throw new Error("공유 지도 응답 계절이 일치하지 않습니다.");
+          }
           setOwner({ nickname: data.nickname, profileImage: data.profileImage });
-          setSeason(data.map.season);
-          setCells((prev) => new Map(prev).set(code, data.map.cells));
-          setError(null);
+          setCells((prev) => new Map(prev).set(`${season}:${code}`, data.map.cells));
+          setFailedKeys((prev) => {
+            if (!prev.has(requestKey)) return prev;
+            const next = new Set(prev);
+            next.delete(requestKey);
+            return next;
+          });
         })
         .catch((err) => {
-          requestedRef.current.delete(code);
+          requestedRef.current.delete(requestKey);
           if (!aliveRef.current) return;
           if (err instanceof ApiError && err.code === "MYMAP404_1") setNotFound(true);
-          else setError("공유 지도를 불러오지 못했어요.");
+          else setFailedKeys((prev) => new Set(prev).add(requestKey));
         });
     }
-  }, [shareKey, key]);
+  }, [shareKey, key, season]);
 
   // 지역 하나의 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
   function dongsOf(regionCode: string | null) {
     const result = new Map<string, DongColor>();
-    for (const cell of (regionCode && cells.get(regionCode)) || []) {
+    for (const cell of (regionCode && cells.get(`${season}:${regionCode}`)) || []) {
       if (cell.timeBand !== timeBand) continue;
       result.set(cell.dongCode, {
         dongCode: cell.dongCode,
@@ -371,6 +400,8 @@ export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: 
   // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
   const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
   const first = codes[0];
+  const error = first && failedKeys.has(`${season}:${first}`)
+    ? "공유 지도를 불러오지 못했어요." : null;
 
   return {
     owner,
@@ -379,7 +410,7 @@ export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: 
     dongsOf,
     notFound,
     error,
-    loading: Boolean(first) && !cells.has(first) && !error && !notFound,
+    loading: Boolean(first) && !cells.has(`${season}:${first}`) && !error && !notFound,
   };
 }
 

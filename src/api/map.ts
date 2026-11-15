@@ -1,6 +1,7 @@
 import { request } from "./client";
 
 export type TimeBand = "DAWN" | "DAY" | "SUNSET" | "NIGHT";
+export type SeasonType = "SPRING" | "SUMMER" | "AUTUMN" | "WINTER";
 export type CellStatus = "OK" | "INSUFFICIENT" | "EMPTY";
 
 export type DongProperties = {
@@ -47,7 +48,7 @@ export type TopDong = {
 };
 
 export type MapDongs = {
-  season: string;
+  season: SeasonType;
   timeBand: TimeBand;
   dongs: DongColor[];
   topDongs: TopDong[];
@@ -74,6 +75,7 @@ export function getBoundaries(regionCode: string) {
   return request<Boundaries>(`/api/map/boundaries?regionCode=${regionCode}`);
 }
 
-export function getMapDongs(timeBand: TimeBand, regionCode: string) {
-  return request<MapDongs>(`/api/map/dongs?timeBand=${timeBand}&regionCode=${regionCode}`);
+export function getMapDongs(timeBand: TimeBand, regionCode: string, season?: SeasonType) {
+  const suffix = season ? `&season=${season}` : "";
+  return request<MapDongs>(`/api/map/dongs?timeBand=${timeBand}&regionCode=${regionCode}${suffix}`);
 }

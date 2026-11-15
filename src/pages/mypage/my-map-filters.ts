@@ -16,12 +16,8 @@ export const REGION_OPTIONS: FilterOption[] = [
   { value: "upcoming", label: "경기도 다른 시", disabled: true },
 ];
 
-// 나의 지도 현황 계절 선택. 연도 없이 계절 이름만 ("가을")
-// TODO: 시즌이 추가되면 열린 계절 목록을 BE에서 받기. 같은 계절이 여러 해가 되면 연도 구분 필요
-export const DEFAULT_SEASON = "AUTUMN";
-const OPEN_SEASONS = new Set([DEFAULT_SEASON]);
+// 사계절 모두 조회 가능. 같은 계절의 연도 구분은 후속 작업.
 export const SEASON_FILTER_OPTIONS: FilterOption[] = SEASON_OPTIONS.map((option) => ({
   value: option.value,
   label: option.name,
-  disabled: !OPEN_SEASONS.has(option.value),
 }));

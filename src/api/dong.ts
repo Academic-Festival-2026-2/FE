@@ -1,5 +1,5 @@
 import { request } from "./client";
-import type { CellStatus, ColorRatio, TimeBand } from "./map";
+import type { CellStatus, ColorRatio, SeasonType, TimeBand } from "./map";
 
 export type DongTimeBand = {
   timeBand: TimeBand;
@@ -23,11 +23,12 @@ export type DongDetail = {
   guName: string | null;
   regionCode: string;
   regionName: string;
-  season: string;
+  season: SeasonType;
   timeBands: DongTimeBand[];
   points: DongPoint[];
 };
 
-export function getDongDetail(dongCode: string, timeBand: TimeBand) {
-  return request<DongDetail>(`/api/dongs/${dongCode}?timeBand=${timeBand}`);
+export function getDongDetail(dongCode: string, timeBand: TimeBand, season?: SeasonType) {
+  const suffix = season ? `&season=${season}` : "";
+  return request<DongDetail>(`/api/dongs/${dongCode}?timeBand=${timeBand}${suffix}`);
 }

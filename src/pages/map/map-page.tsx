@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useAuthStore } from "../../stores/auth-store";
 import { peekReturnFrom, prepareDongTransition } from "../../utils/view-transition";
-import type { DongColor, TimeBand } from "../../api/map";
+import type { DongColor, SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { UploadButton } from "../../components/layout/upload-button";
@@ -22,13 +22,14 @@ import {
 } from "./map-ui";
 import { MapLoading } from "./map-loading";
 import { SvgMap } from "./svg-map";
-import { useUserStore } from "../../stores/user-store";
+import { preferredSeason, rememberSeason } from "../../utils/season";
 
 // 시간대 탭 순서 (지도 아래 바 왼쪽부터)
 const BAND_ORDER: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
 
 export function MapPage() {
-  const { timeBand, mode, region: regionParam } = useSearch({ from: "/map" });
+  const { timeBand, mode, region: regionParam, season: urlSeason } = useSearch({ from: "/map" });
+  const selectedSeason = preferredSeason(urlSeason);
   const navigate = useNavigate();
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
@@ -86,7 +87,7 @@ export function MapPage() {
       : codes;
   }, [regionList, shownView, currentCode]);
   const { regions, error: boundaryError } = useRegionBoundaries(visibleCodes);
-  const { dongs, colorsOf, season, error: colorError, loading } = useDongColors(timeBand, visibleCodes);
+  const { dongs, colorsOf, error: colorError, loading } = useDongColors(timeBand, visibleCodes, selectedSeason);
   const currentRegion = regionList?.regions.find((r) => r.regionCode === currentCode);
   const currentColors = currentCode ? colorsOf(currentCode) : undefined;
   const topDongs = currentColors?.topDongs ?? [];
@@ -100,21 +101,20 @@ export function MapPage() {
       const code = regionAt(regions, unproject([next.x + next.size / 2, next.y + next.size / 2]));
       if (code && code !== currentCode) {
         setCenterCode(code);
-        navigate({ to: "/map", search: { timeBand, mode, region: Number(code) }, replace: true });
+        navigate({ to: "/map", search: { timeBand, mode, region: Number(code), season: selectedSeason }, replace: true });
       }
     },
-    [regions, currentCode, timeBand, mode, navigate],
+    [regions, currentCode, timeBand, mode, selectedSeason, navigate],
   );
-  const myMap = useMyMap(mine, timeBand, visibleCodes);
+  const myMap = useMyMap(mine, timeBand, visibleCodes, selectedSeason);
   // 지도에 칠할 색: 공유 지도는 보이는 지역 전부, 나의 지도는 내 칸
   const shownDongs = mine ? myMap.dongs : dongs;
   const shownLoading = mine ? myMap.loading : loading;
   const shownError = mine ? myMap.error : colorError;
   // 어느 지역에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음. 내 정보(헤더가 불러옴)의 칸 수는 전체 지역 합계
-  const filledTotal = useUserStore((state) => state.me?.filledCellCount);
-  const myMapEmpty = mine && filledTotal === 0;
+  const myMapEmpty = mine && myMap.empty;
 
-  const seasonInfo = seasonOf(season);
+  const seasonInfo = seasonOf(selectedSeason);
   // 제목의 칸 수·사진 수는 한 지역 기준 (화면 가운데 지역)
   const titleDongs = mine
     ? myMap.dongsOf(currentCode)
@@ -143,6 +143,20 @@ export function MapPage() {
         }))
     : [];
 
+  function changeSeason(value: SeasonType) {
+    rememberSeason(value);
+    navigate({
+      to: "/map",
+      search: {
+        timeBand,
+        mode,
+        region: currentCode ? Number(currentCode) : regionParam,
+        season: value,
+      },
+      replace: true,
+    });
+  }
+
   function changeTimeBand(value: TimeBand) {
     navigate({ to: "/map", search: (prev) => ({ ...prev, timeBand: value }), replace: true });
   }
@@ -154,7 +168,7 @@ export function MapPage() {
     }
     navigate({
       to: "/map",
-      search: {timeBand, mode: nextMine ? "mine" : undefined, region: currentCode ? Number(currentCode) : undefined },
+      search: {timeBand, mode: nextMine ? "mine" : undefined, region: currentCode ? Number(currentCode) : undefined, season: selectedSeason },
     });
   }
   return (
@@ -209,7 +223,7 @@ export function MapPage() {
                     navigate({
                       to: "/dong/$dongCode",
                       params: { dongCode },
-                      search: { timeBand, mode },
+                      search: { timeBand, mode, season: selectedSeason },
                       // 확대가 끝난 화면과 동 상세가 같은 모습이라 아주 짧게만 겹쳐 바꿈 (미지원·동작 줄이기면 바로 이동)
                       viewTransition: prepareDongTransition(),
                     })
@@ -260,12 +274,12 @@ export function MapPage() {
             {/* 피그마처럼 카드 정중앙보다 30px 아래 (지도 가운데 근처) */}
             {myMapEmpty && (
               <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:top-[calc(50%+30px)] ${leaveFade}`}>
-                <EmptyMyMapCard />
+                <EmptyMyMapCard season={seasonInfo?.name ?? ""} />
               </div>
             )}
 
             <div className={`absolute bottom-[27px] left-1/2 w-max -translate-x-1/2 ${leaveFade}`}>
-              <TimeBandBar season={season} timeBand={timeBand} onChange={changeTimeBand} />
+              <TimeBandBar season={selectedSeason} timeBand={timeBand} onChange={changeTimeBand} onSeasonChange={changeSeason} />
             </div>
           </section>
 
