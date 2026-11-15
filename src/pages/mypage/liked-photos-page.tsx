@@ -321,7 +321,7 @@ export function LikedPhotosPage() {
                       onClick={() => likes.toggle(photo.photoId)}
                       className={cn(
                         "absolute top-2 left-2 flex size-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-md transition-colors hover:bg-black/55 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                        liked && "text-[#ff5c7c]",
+                        liked && "text-like",
                       )}
                     >
                       <HeartIcon filled={liked} />

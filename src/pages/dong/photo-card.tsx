@@ -237,7 +237,7 @@ export function PhotoCard({
               aria-label={`좋아요 ${like.likeCount}개`}
               aria-pressed={like.liked}
               onClick={toggleLike}
-              className={cn(PHOTO_BUTTON, like.liked && "text-[#ff5c7c]")}
+              className={cn(PHOTO_BUTTON, like.liked && "text-like")}
             >
               <HeartIcon filled={like.liked} />
             </button>
