@@ -232,6 +232,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
 export function MyPhotosPage() {
   const expireSession = useExpireSession();
   const [page, setPage] = useState(0);
+  const [seasonFilter, setSeasonFilter] = useState<SeasonType | "ALL">("ALL");
   const [refreshKey, setRefreshKey] = useState(0);
   const [data, setData] = useState<MyPhotosResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -240,7 +241,7 @@ export function MyPhotosPage() {
 
   useEffect(() => {
     let ignore = false;
-    getMyPhotos(page, PAGE_SIZE)
+    getMyPhotos(page, PAGE_SIZE, seasonFilter === "ALL" ? undefined : seasonFilter)
       .then((result) => {
         if (ignore) return;
         setData(result);
@@ -256,7 +257,17 @@ export function MyPhotosPage() {
         }
       });
     return () => { ignore = true; };
-  }, [page, refreshKey, expireSession]);
+  }, [page, seasonFilter, refreshKey, expireSession]);
+
+  function changeSeasonFilter(value: SeasonType | "ALL") {
+    if (value === seasonFilter) return;
+    setData(null);
+    setLoading(true);
+    setError(null);
+    setSelected(null);
+    setPage(0);
+    setSeasonFilter(value);
+  }
 
   function changePage(nextPage: number) {
     setData(null);
@@ -327,7 +338,22 @@ export function MyPhotosPage() {
               </span>
             )}
           </h2>
-          <span className="text-[13px] text-ink-muted">최신순</span>
+          <div className="flex items-center gap-3">
+            <label htmlFor="my-photos-season" className="sr-only">사진 계절 필터</label>
+            <select
+              id="my-photos-season"
+              value={seasonFilter}
+              onChange={(event) => changeSeasonFilter(event.target.value as SeasonType | "ALL")}
+              className="h-9 rounded-[10px] border border-field-line bg-white px-3 text-sm font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <option value="ALL">전체 계절</option>
+              <option value="SPRING">봄</option>
+              <option value="SUMMER">여름</option>
+              <option value="AUTUMN">가을</option>
+              <option value="WINTER">겨울</option>
+            </select>
+            <span className="text-[13px] text-ink-muted">최신순</span>
+          </div>
         </div>
         {error ? (
           <div role="alert" className="rounded-2xl border border-danger-line bg-white px-6 py-10 text-center">
@@ -338,9 +364,15 @@ export function MyPhotosPage() {
           <p role="status" className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center text-sm text-ink-muted">내 사진을 불러오는 중...</p>
         ) : photos.length === 0 ? (
           <div className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center">
-            <p className="font-bold text-ink">아직 업로드한 사진이 없어요.</p>
-            <p className="mt-2 text-sm text-ink-muted">사진을 업로드하고 동네의 색을 기록해 보세요.</p>
-            <Link to="/upload" className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">첫 사진 업로드</Link>
+            {seasonFilter === "ALL" ? (
+              <>
+                <p className="font-bold text-ink">아직 업로드한 사진이 없어요.</p>
+                <p className="mt-2 text-sm text-ink-muted">사진을 업로드하고 동네의 색을 기록해 보세요.</p>
+                <Link to="/upload" className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">첫 사진 업로드</Link>
+              </>
+            ) : (
+              <p className="font-bold text-ink">이 계절에 등록한 사진이 없어요.</p>
+            )}
           </div>
         ) : (
           <>
@@ -364,9 +396,9 @@ export function MyPhotosPage() {
                 </button>
               ))}
             </div>
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-[13px] text-ink-muted">
-              <p>{firstNumber}–{lastNumber} / {data?.totalElements.toLocaleString()}장</p>
-              <div className="flex items-center gap-2">
+            <div className="mt-6 grid grid-cols-1 items-center gap-3 text-[13px] text-ink-muted sm:grid-cols-3">
+              <p className="text-center sm:text-left">{firstNumber}–{lastNumber} / {data?.totalElements.toLocaleString()}장</p>
+              <div className="flex items-center justify-center gap-2">
                 <button type="button" disabled={page === 0} onClick={() => changePage(page - 1)} className="h-9 rounded-[10px] border border-line bg-white px-4 font-bold text-ink-sub hover:bg-field disabled:opacity-40">이전</button>
                 <span aria-label="현재 페이지" className="min-w-7 text-center font-bold text-ink">{page + 1}</span>
                 <button type="button" disabled={!data?.hasNext} onClick={() => changePage(page + 1)} className="h-9 rounded-[10px] border border-line bg-white px-4 font-bold text-ink-sub hover:bg-field disabled:opacity-40">다음</button>
