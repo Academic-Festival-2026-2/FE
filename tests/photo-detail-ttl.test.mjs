@@ -28,6 +28,22 @@ test("만료 시간이 1분 이하면 바로 만료로 본다 (음수가 되지 
   assert.equal(detailTtl({ imageUrl: signedUrl({ "X-Amz-Expires": "30" }) }), 0);
 });
 
+test("축소 이미지 주소(displayUrl)가 있으면 그 주소의 만료 시간을 본다", () => {
+  assert.equal(
+    detailTtl({
+      imageUrl: signedUrl({ "X-Amz-Expires": "600" }),
+      displayUrl: signedUrl({ "X-Amz-Expires": "300" }),
+    }),
+    240_000,
+  );
+});
+
+test("축소 이미지가 없으면(null·없음) 원본 주소의 만료 시간을 본다", () => {
+  const imageUrl = signedUrl({ "X-Amz-Expires": "600" });
+  assert.equal(detailTtl({ imageUrl, displayUrl: null }), 540_000);
+  assert.equal(detailTtl({ imageUrl }), 540_000);
+});
+
 test("사진 파일이 없거나 만료 시간을 알 수 없으면 기본값(4분)", () => {
   assert.equal(DEFAULT_DETAIL_TTL_MS, 240_000);
   assert.equal(detailTtl({ imageUrl: null }), DEFAULT_DETAIL_TTL_MS);

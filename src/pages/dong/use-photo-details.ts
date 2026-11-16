@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
 import { detailTtl } from "./photo-detail-ttl";
+import { photoImageUrl } from "./photo-image-url";
 
 // 내 사진 상세(authRequest)와 공유 지도 상세(optionalAuthRequest)는 따로 기억
 function cacheKey(photoId: number, mine: boolean) {
@@ -14,12 +15,13 @@ function without<T>(map: ReadonlyMap<string, T>, key: string) {
 }
 
 // 사진 여러 장을 넘겨 보는 화면(동 화면 사진 카드, 좋아요한 사진 크게 보기)의 상세를 사진 번호별로 기억
-// 받은 사진은 원본 주소가 만료되기 전까지 넘겼다 돌아와도 다시 받지 않음 (이 훅을 쓰는 컴포넌트가 사라지면 같이 지워짐)
+// 받은 사진은 이미지 주소가 만료되기 전까지 넘겼다 돌아와도 다시 받지 않음 (이 훅을 쓰는 컴포넌트가 사라지면 같이 지워짐)
 // 만료가 가까워진 상세는 보고 있는 동안은 그대로 두고, 다른 사진에서 넘어올 때 다시 받음 (받는 동안 로딩)
 // 실패한 사진은 기억하지 않음 → 넘겼다 돌아오면 다시 받는 동안 로딩으로 보임
 //
-// preload가 켜져 있으면(크게 보기가 열려 있을 때) 바로 옆 사진 1장씩의 상세와 원본 이미지를 미리 받아 둠
-// 원본은 4000px 수준으로 커서, 지금 사진 이미지를 다 받은 뒤에 옆 사진을 받음 (지금 사진이 먼저 뜨게)
+// preload가 켜져 있으면(크게 보기가 열려 있을 때) 바로 옆 사진 1장씩의 상세와 이미지를 미리 받아 둠
+// 이미지는 축소 이미지(displayUrl), 없으면 원본 (photo-image-url.ts)
+// 원본은 4000px 수준으로 클 수 있어서, 지금 사진 이미지를 다 받은 뒤에 옆 사진을 받음 (지금 사진이 먼저 뜨게)
 export function usePhotoDetails(
   photoIds: number[],
   index: number,
@@ -124,11 +126,12 @@ export function usePhotoDetails(
   const neighborUrl = (id: number | undefined) => {
     if (id === undefined) return null;
     const neighborKey = cacheKey(id, mine);
-    return expired.has(neighborKey) ? null : (details.get(neighborKey)?.imageUrl ?? null);
+    const neighbor = details.get(neighborKey);
+    return expired.has(neighborKey) || !neighbor ? null : photoImageUrl(neighbor);
   };
   const current = details.get(key) ?? null;
   const readyImageUrls = usePreloadedImages(
-    preload ? (current?.imageUrl ?? null) : null,
+    preload && current ? photoImageUrl(current) : null,
     preload ? [neighborUrl(nextId), neighborUrl(prevId)] : [],
     preload && (current !== null || failedId === photoId),
   );
@@ -144,7 +147,7 @@ type PreloadEntry = {
 };
 
 // 놓아주는 이미지 정리: 이벤트를 떼고 기다리는 쪽을 끝냄
-// 아직 받는 중이면 src를 비워 받기를 멈춤 (원본이 커서 넘겨 버린 사진까지 끝까지 받지 않게)
+// 아직 받는 중이면 src를 비워 받기를 멈춤 (넘겨 버린 사진까지 끝까지 받지 않게, 원본이면 특히 큼)
 // 다 받은 이미지는 브라우저 캐시에 남도록 src를 그대로 둠
 function disposePreload(entry: PreloadEntry) {
   entry.image.onload = null;
@@ -153,7 +156,7 @@ function disposePreload(entry: PreloadEntry) {
   entry.settle();
 }
 
-// 원본 이미지를 화면에 붙이지 않고 미리 받아 둠. 다 받은 주소를 돌려줘 크게 보기가 페이드 없이 바로 보여 줌
+// 사진 이미지를 화면에 붙이지 않고 미리 받아 둠. 다 받은 주소를 돌려줘 크게 보기가 페이드 없이 바로 보여 줌
 // currentUrl을 다 받은(또는 실패한) 뒤에 neighborUrls를 받음. 지금·옆 사진이 아닌 이미지는 놓아줌
 function usePreloadedImages(
   currentUrl: string | null,

@@ -4,7 +4,7 @@ import { cn } from "../../utils/cn";
 import { formatTakenAt, paletteShares } from "./photo-info";
 
 // 사진 정보: 올린 사람 · 시간대 / 찍은 시각 / 대표색 막대
-// 카드(밝은 배경)와 크게 보기(어두운 배경)가 같은 내용을 쓰고 색만 다름
+// 카드와 크게 보기(흰 정보 박스)가 같은 내용을 쓰고 색만 다름
 const TONE = {
   light: {
     nickname: "text-ink",
@@ -12,11 +12,12 @@ const TONE = {
     takenAt: "text-ink-muted",
     skeleton: "bg-field",
   },
-  dark: {
-    nickname: "text-white",
-    badge: "bg-white/12 text-white/85",
-    takenAt: "text-white/60",
-    skeleton: "bg-white/10",
+  // 크게 보기 정보 박스: 글자는 모두 검정
+  lightbox: {
+    nickname: "text-ink",
+    badge: "bg-field text-ink",
+    takenAt: "text-ink",
+    skeleton: "bg-field",
   },
 };
 
