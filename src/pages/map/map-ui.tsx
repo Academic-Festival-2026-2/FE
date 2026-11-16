@@ -337,7 +337,7 @@ export function TopDongsPanel({
 }
 
 // 나의 지도에 아직 칠한 칸이 하나도 없을 때 지도 가운데에 띄우는 안내 (피그마 "18 · 나의 지도 비어 있음")
-export function EmptyMyMapCard({ season, canUpload }: { season: string; canUpload: boolean }) {
+export function EmptyMyMapCard({ season }: { season: string }) {
   return (
     <div className="flex w-[min(372px,calc(100vw-72px))] flex-col items-center rounded-[18px] bg-white px-6 pt-6 pb-6 text-center shadow-[0_16px_20px_rgba(22,22,26,0.18)]">
       <span className="grid grid-cols-3 gap-1" aria-hidden>
@@ -350,17 +350,13 @@ export function EmptyMyMapCard({ season, canUpload }: { season: string; canUploa
         )}
       </span>
       <p className="mt-3.5 text-lg font-extrabold text-ink">이 지역의 {season} 지도는 아직 비어 있어요</p>
-      <p className="mt-1 text-sm text-ink-sub">
-        {canUpload ? "사진 한 장이면 첫 동이 칠해져요." : `${season} 사진 업로드는 준비 중이에요.`}
-      </p>
-      {canUpload && (
-        <Link
-          to="/upload"
-          className="mt-4 flex h-12 items-center rounded-xl bg-brand px-[22px] text-[15px] font-extrabold text-white transition-colors hover:bg-brand-hover"
-        >
-          첫 사진 업로드
-        </Link>
-      )}
+      <p className="mt-1 text-sm text-ink-sub">사진 한 장이면 첫 동이 칠해져요.</p>
+      <Link
+        to="/upload"
+        className="mt-4 flex h-12 items-center rounded-xl bg-brand px-[22px] text-[15px] font-extrabold text-white transition-colors hover:bg-brand-hover"
+      >
+        첫 사진 업로드
+      </Link>
     </div>
   );
 }

@@ -167,7 +167,7 @@ export function PhotoUploadPage() {
     const selected = Array.from(files).map((file): Photo => {
       const url = URL.createObjectURL(file);
       urls.current.add(url);
-      return { id: crypto.randomUUID(), file, url, metadata: {}, takenAt: "", season: "AUTUMN", selectedBand: "", dongCode: "", isPublic: true, status: "reading" };
+      return { id: crypto.randomUUID(), file, url, metadata: {}, takenAt: "", season: "", selectedBand: "", dongCode: "", isPublic: true, status: "reading" };
     });
     setPhotos((list) => [...list, ...selected]);
     // 한 번에 디코딩하는 사진 수를 제한해 큰 사진 여러 장의 메모리 급증을 피합니다.
@@ -406,7 +406,6 @@ export function PhotoUploadPage() {
                         <button
                           key={value}
                           type="button"
-                          disabled={value !== "AUTUMN"}
                           aria-pressed={photo.season === value}
                           onClick={() => update(photo.id, {
                             season: value,

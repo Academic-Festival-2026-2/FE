@@ -21,15 +21,21 @@ export function parseLocalTime(value: string): string | undefined {
   return `${y}-${m}-${d}T${h}:${min}:${sec}`;
 }
 
-// 현재 BE의 2026 가을 시즌 시드(03_seed.sql) 기준입니다.
-// 다른 계절이 DB에 등록되면 지원 범위를 함께 갱신해야 합니다.
-export const SUPPORTED_PHOTO_DATES = { start: "2026-09-01", end: "2026-11-30" } as const;
+// 현재 BE의 pixel/db/03_seed.sql(2026년 봄~2027년 겨울 종료)과 일치하는 날짜 범위.
+// BE에 새로운 연도·시즌이 등록되면 여기의 허용 기간도 함께 갱신합니다.
+export const SUPPORTED_PHOTO_DATES = [
+  { season: "SPRING", start: "2026-03-01", end: "2026-05-31" },
+  { season: "SUMMER", start: "2026-06-01", end: "2026-08-31" },
+  { season: "AUTUMN", start: "2026-09-01", end: "2026-11-30" },
+  { season: "WINTER", start: "2026-12-01", end: "2027-02-28" },
+] as const;
 
 export function photoSeasonError(value: string): string | undefined {
   const date = parseLocalTime(value)?.slice(0, 10);
-  if (!date || (date >= SUPPORTED_PHOTO_DATES.start && date <= SUPPORTED_PHOTO_DATES.end)) return;
-  const start = SUPPORTED_PHOTO_DATES.start.replaceAll("-", ".");
-  const end = SUPPORTED_PHOTO_DATES.end.replaceAll("-", ".");
+  // 유효하지 않은 시각은 별도의 시간 검증에서 처리합니다.
+  if (!date || SUPPORTED_PHOTO_DATES.some(({ start, end }) => date >= start && date <= end)) return;
+  const start = SUPPORTED_PHOTO_DATES[0].start.replaceAll("-", ".");
+  const end = SUPPORTED_PHOTO_DATES[SUPPORTED_PHOTO_DATES.length - 1].end.replaceAll("-", ".");
   return `현재 등록된 시즌(${start}~${end})에 포함되지 않는 사진이에요. 다른 사진을 선택해 주세요.`;
 }
 

@@ -118,12 +118,21 @@ test('KST 로컬 시각 검증과 시간대 경계', () => {
   for (const value of ['2026-02-29T12:00', '2026-11-07T24:00', '2026-11-07T12:00:00Z', '2026-11-07T12:00:00+09:00']) assert.equal(parseLocalTime(value), undefined);
   for (const [hour, band] of [[4,'NIGHT'],[5,'DAWN'],[8,'DAY'],[16,'SUNSET'],[19,'NIGHT']]) assert.equal(timeBand(`2026-11-07T${String(hour).padStart(2,'0')}:00`), band);
 });
-test('등록된 시즌에 해당하지 않는 촬영 날짜를 업로드 전에 안내한다', () => {
-  assert.equal(photoSeasonError('2026-09-01T00:00'), undefined);
-  assert.equal(photoSeasonError('2026-11-30T23:59'), undefined);
-  assert.match(photoSeasonError('2026-08-31T23:59'), /등록된 시즌/);
-  assert.match(photoSeasonError('2026-12-01T00:00'), /등록된 시즌/);
-  assert.match(photoSeasonError('2026-12-01T00:00'), /2026\.09\.01~2026\.11\.30/);
+test('2026년 사계절 경계 날짜(겨울은 2027년 2월까지)를 모두 허용한다', () => {
+  for (const [start, end] of [
+    ['2026-03-01T00:00', '2026-05-31T23:59'],
+    ['2026-06-01T00:00', '2026-08-31T23:59'],
+    ['2026-09-01T00:00', '2026-11-30T23:59'],
+    ['2026-12-01T00:00', '2027-02-28T23:59'],
+  ]) {
+    assert.equal(photoSeasonError(start), undefined, start);
+    assert.equal(photoSeasonError(end), undefined, end);
+  }
+});
+test('시즌 밖 날짜는 기존 안내를 유지한다', () => {
+  assert.match(photoSeasonError('2026-02-28T23:59'), /등록된 시즌/);
+  assert.match(photoSeasonError('2027-03-01T00:00'), /등록된 시즌/);
+  assert.match(photoSeasonError('2027-03-01T00:00'), /2026\.03\.01~2027\.02\.28/);
   assert.equal(photoSeasonError('invalid'), undefined);
 });
 test('파일 확장자가 아니라 JPEG/PNG 시그니처와 크기를 검사한다', async () => {
@@ -243,11 +252,13 @@ test('EXIF 촬영 시각이 있으면 날짜만 전송한다', () => {
   );
 });
 
-test('EXIF 촬영 시각이 없으면 계절과 시간대만 전송한다', () => {
-  assert.deepEqual(
-    photoUploadTimeFields(undefined, undefined, 'AUTUMN', 'SUNSET'),
-    { season: 'AUTUMN', timeBand: 'SUNSET' },
-  );
+test('EXIF 촬영 시각이 없으면 선택한 사계절과 시간대만 전송한다', () => {
+  for (const season of ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER']) {
+    assert.deepEqual(
+      photoUploadTimeFields(undefined, undefined, season, 'SUNSET'),
+      { season, timeBand: 'SUNSET' },
+    );
+  }
 });
 
 test('필수 촬영 정보가 누락되면 업로드 요청을 생성하지 않는다', () => {
