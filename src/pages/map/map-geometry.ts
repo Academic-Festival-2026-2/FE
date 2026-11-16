@@ -114,6 +114,31 @@ export function toShapes(boundaries: Boundaries): DongShape[] {
   });
 }
 
+// 동 이름 글자 상자 어림: 한글은 글자 크기만큼, 숫자·영문은 그 0.6배 넓이. 흰 테두리 몫으로 조금 여유
+function labelBox(shape: DongShape, fontSize: number) {
+  const units = [...shape.name].reduce((sum, ch) => sum + (/[가-힣]/.test(ch) ? 1 : 0.6), 0);
+  const halfWidth = (units * fontSize) / 2 + fontSize * 0.15;
+  const halfHeight = fontSize * 0.6;
+  const [x, y] = shape.label;
+  return { left: x - halfWidth, right: x + halfWidth, top: y - halfHeight, bottom: y + halfHeight };
+}
+
+// 이름 상자가 겹치는 동은 넓은 동부터 자리를 차지하고 나머지는 이름을 뺌 (원래 순서는 유지)
+export function dropOverlappingLabels(shapes: DongShape[], fontSize: number): DongShape[] {
+  const placed: ReturnType<typeof labelBox>[] = [];
+  const kept = new Set<DongShape>();
+  for (const shape of [...shapes].sort((a, b) => b.area - a.area)) {
+    const box = labelBox(shape, fontSize);
+    const overlaps = placed.some((other) =>
+      box.left < other.right && other.left < box.right
+      && box.top < other.bottom && other.top < box.bottom);
+    if (overlaps) continue;
+    placed.push(box);
+    kept.add(shape);
+  }
+  return shapes.filter((shape) => kept.has(shape));
+}
+
 // 동 이름을 띄울 자리: 가장 큰 조각 외곽 링의 넓이 가중 무게중심 [경도, 위도]
 export function labelPoint(feature: BoundaryFeature): [number, number] {
   let best = feature.geometry.coordinates[0][0];

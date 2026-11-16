@@ -12,16 +12,24 @@ import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
 import {
-  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel, regionOutline,
+  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel, regionOutline, dropOverlappingLabels,
   type DongShape, type View, MAX_VIEW_SCALE
 } from "./map-geometry";
 
-const EDGE_WIDTH = 6;
-const EDGE_BLUR = 5;
+// 동 색을 흐리게 섞는 세기 (viewBox 단위). 시안 "그라데이션 중" = 부천 첫 화면(view ≈ 625)에서 10.
+// 확대할 때는 이 값 그대로라 화면에서는 점점 세지고(의도), 축소할 때는 화면(view) 한 변 × FILL_BLUR_SHARE로
+// 키워서 화면에서 같은 세기로 보이게 (고정값이면 축소할수록 그라데이션이 사라짐)
+const FILL_BLUR = 10;
+const FILL_BLUR_SHARE = 0.016;
+// 동 경계선: 얇고 흐리게 (화면 px, 투명도)
+const DONG_LINE_WIDTH = 0.4;
+const DONG_LINE_OPACITY = 0.3;
 const MIN_VIEW = 90;
 // 동 이름은 화면(view) 넓이의 이 비율보다 크게 보이는 동에만 띄움
 // (시 하나가 화면에 꽉 차면 대부분 동에 뜨고, 축소하면 사라져서 시 이름만 남음)
 const DONG_LABEL_MIN_SHARE = 0.005;
+// 동 이름 글자 크기 = 화면(view) 한 변 × 이 비율
+const DONG_LABEL_FONT = 0.019;
 // 가운데 지역이 화면(view) 한 변의 이 비율 이상으로 크게 보이면 "그 지역에 들어왔다"고 봄
 // (부천 첫 화면 0.92, 한 번 축소 0.61, 두 번 축소 0.41 → 두 번 축소하면 시 이름으로 돌아감)
 const REGION_ARRIVE_SHARE = 0.5;
@@ -193,17 +201,21 @@ export function SvgMap({
   }, [shapes, fillWave]);
   const svgRef = useRef<SVGSVGElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (가장자리 흐림, 부천 모양 자르기)
-  const edgeGroupRef = useRef<SVGGElement>(null);
+  // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (동 색 흐림 층, 부천 모양 자르기)
+  const blurGroupRef = useRef<SVGGElement>(null);
   const clipGroupRef = useRef<SVGGElement>(null);
   const focusOverlayRef = useRef<SVGPathElement>(null);
   const [view, setView] = useState<View>(homeView);
   // 가운데 지역이 화면에 충분히 크게 보일 때(그 지역에 들어왔을 때)만 그 지역 동 이름 표시.
   // 그중에서도 화면에서 너무 작은 동은 글자가 겹쳐서 뺌
   const arrived = Boolean(focusRegion) && focusSize / view.size > REGION_ARRIVE_SHARE;
+  // 남은 동끼리도 이름이 겹치면 큰 동 이름만 남김 (확대하면 글자가 상대적으로 작아져 다시 나타남)
   const dongLabels = arrived
-    ? shapes.filter((shape) => shape.dongCode.startsWith(focusRegion!)
-      && shape.area / (view.size * view.size) > DONG_LABEL_MIN_SHARE)
+    ? dropOverlappingLabels(
+      shapes.filter((shape) => shape.dongCode.startsWith(focusRegion!)
+        && shape.area / (view.size * view.size) > DONG_LABEL_MIN_SHARE),
+      view.size * DONG_LABEL_FONT,
+    )
     : [];
   const viewRef = useRef<View>(homeView);
   // 화면 이동이 0.2초 멈추면 한 번만 알림 (드래그 중 매 프레임 알리지 않게)
@@ -248,8 +260,6 @@ export function SvgMap({
   const uid = useId();
   const clipId = `${uid}-clip`;
   const blurId = `${uid}-blur`;
-  const featherId = `${uid}-feather`;
-  const edgesId = `${uid}-edges`;
 
   function moveTooltip(event: React.PointerEvent<HTMLDivElement>) {
     const tip = tooltipRef.current;
@@ -352,9 +362,9 @@ export function SvgMap({
     root.style.zIndex = "50";
     root.style.overflow = "hidden";
     root.style.backgroundColor = "#ffffff";
-    // 렉 줄이기: 가장자리 흐림(가우시안 블러 + 마스크)과 부천 모양 자르기(clip-path)는 viewBox가 바뀔 때마다
+    // 렉 줄이기: 동 색 흐림 층(지도 전체 가우시안 블러)과 부천 모양 자르기(clip-path)는 viewBox가 바뀔 때마다
     // 지도 전체를 다시 계산해서 가장 무거움. 움직이는 동안에는 차이가 거의 안 보이므로 꺼 두고 끝나면 되돌림
-    edgeGroupRef.current?.style.setProperty("display", "none");
+    blurGroupRef.current?.style.setProperty("display", "none");
     clipGroupRef.current?.removeAttribute("clip-path");
 
     const draw = (e: number) => {
@@ -404,7 +414,7 @@ export function SvgMap({
         root.style[name] = "";
       }
     }
-    edgeGroupRef.current?.style.removeProperty("display");
+    blurGroupRef.current?.style.removeProperty("display");
     clipGroupRef.current?.setAttribute("clip-path", `url(#${clipId})`);
     viewRef.current = homeView;
     svgRef.current?.setAttribute("viewBox", `${homeView.x} ${homeView.y} ${homeView.size} ${homeView.size}`);
@@ -536,11 +546,15 @@ export function SvgMap({
     return () => svg.removeEventListener("wheel", handleWheel);
   }, [maxSize]);
 
+  // 흐린 층: 빈 동은 투명으로 빼서 옆 동 색이 빈 동을 덮어 칠한 것처럼 보이지 않게 (빈 동은 아래 선명한 회색이 보임)
   const fills = shapes.map((shape) => (
     <path
       key={shape.dongCode}
       d={shape.path}
-      style={{ fill: fillOf(shape.dongCode), transitionDelay: fillDelays.get(shape.dongCode) }}
+      style={{
+        fill: colorOf(shape.dongCode) ? fillOf(shape.dongCode) : "transparent",
+        transitionDelay: fillDelays.get(shape.dongCode),
+      }}
       fillRule="evenodd"
       className={FILL_TRANSITION}
     />
@@ -657,31 +671,8 @@ export function SvgMap({
             ))}
           </clipPath>
           <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation={EDGE_BLUR} />
+            <feGaussianBlur stdDeviation={Math.max(FILL_BLUR, view.size * FILL_BLUR_SHARE)} />
           </filter>
-          <filter id={featherId} x="-10%" y="-10%" width="120%" height="120%">
-            <feGaussianBlur stdDeviation={EDGE_WIDTH / 4} />
-          </filter>
-          <mask
-            id={edgesId}
-            maskUnits="userSpaceOnUse"
-            x={-100}
-            y={-100}
-            width={WORLD_WIDTH + 200}
-            height={WORLD_HEIGHT + 200}
-          >
-            <g
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth={EDGE_WIDTH}
-              strokeLinejoin="round"
-              filter={`url(#${featherId})`}
-            >
-              {shapes.map((shape) => (
-                <path key={shape.dongCode} d={shape.path} />
-              ))}
-            </g>
-          </mask>
         </defs>
 
         <g ref={clipGroupRef} clipPath={`url(#${clipId})`}>
@@ -711,7 +702,8 @@ export function SvgMap({
               />
             ))}
           </g>
-          <g ref={edgeGroupRef} mask={`url(#${edgesId})`} pointerEvents="none">
+          {/* 선명한 동 색 위에 흐린 동 색을 덮어 칠한 동 사이 색이 이어지게. 시 바깥은 clipPath가 자름 */}
+          <g ref={blurGroupRef} pointerEvents="none">
             <g filter={`url(#${blurId})`}>{fills}</g>
           </g>
         </g>
@@ -723,8 +715,8 @@ export function SvgMap({
               d={shape.path}
               fill="none"
               stroke="#ffffff"
-              strokeOpacity={0.45}
-              strokeWidth={0.8}
+              strokeOpacity={DONG_LINE_OPACITY}
+              strokeWidth={DONG_LINE_WIDTH}
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -809,13 +801,13 @@ export function SvgMap({
                 y={shape.label[1]}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontSize={view.size * 0.022}
+                fontSize={view.size * DONG_LABEL_FONT}
                 fontWeight={700}
                 fill="#2b3245"
                 fillOpacity={0.75}
                 stroke="#ffffff"
-                strokeOpacity={0.85}
-                strokeWidth={view.size * 0.005}
+                strokeOpacity={0.75}
+                strokeWidth={view.size * 0.003}
                 strokeLinejoin="round"
                 paintOrder="stroke"
               >
