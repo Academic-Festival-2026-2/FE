@@ -16,9 +16,23 @@ const SWIPE_MIN_DISTANCE = 50;
 // 눌러도 닫히는 빈 배경 영역 표시 (사진·정보·버튼을 누르면 안 닫힘)
 const BACKDROP = { "data-lightbox-backdrop": "" };
 
+function LoadingSpinner({ className }: { className?: string }) {
+  return (
+    <div
+      role="status"
+      aria-label="사진 불러오는 중"
+      className={cn(
+        "size-9 animate-spin rounded-full border-2 border-white/20 border-t-white",
+        className,
+      )}
+    />
+  );
+}
+
 export function PhotoLightbox({
   photo,
   failed,
+  readyImageUrls,
   index,
   total,
   onIndexChange,
@@ -27,6 +41,8 @@ export function PhotoLightbox({
   // 지금 사진 상세 (넘겨서 아직 받는 중이면 null)
   photo: PhotoDetail | null;
   failed: boolean;
+  // 미리 다 받아 둔 원본 이미지 주소. 여기 있으면 받기를 기다리지 않고(페이드 없이) 바로 보여 줌
+  readyImageUrls?: ReadonlySet<string>;
   index: number;
   total: number;
   onIndexChange: (index: number) => void;
@@ -36,6 +52,12 @@ export function PhotoLightbox({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // 다른 사진으로 넘기면 원본 실패 표시를 지움 (기억한 상세라 주소가 같아도, 돌아오면 원본을 다시 받아 봄)
+  const [shownIndex, setShownIndex] = useState(index);
+  if (shownIndex !== index) {
+    setShownIndex(index);
+    setFailedUrl(null);
+  }
   const hasPrev = index > 0;
   const hasNext = index < total - 1;
 
@@ -84,6 +106,7 @@ export function PhotoLightbox({
   }
 
   const imageUrl = photo?.imageUrl && photo.imageUrl !== failedUrl ? photo.imageUrl : null;
+  const imageReady = imageUrl !== null && (loadedUrl === imageUrl || readyImageUrls?.has(imageUrl));
 
   return createPortal(
     <div
@@ -129,23 +152,23 @@ export function PhotoLightbox({
           {failed ? (
             <p className="text-sm text-white/80">사진을 불러오지 못했어요.</p>
           ) : !photo ? (
-            <div
-              role="status"
-              aria-label="사진 불러오는 중"
-              className="size-9 animate-spin rounded-full border-2 border-white/20 border-t-white"
-            />
+            <LoadingSpinner />
           ) : imageUrl ? (
-            <img
-              key={imageUrl}
-              src={imageUrl}
-              alt={`${photo.name}에서 찍은 사진`}
-              onLoad={() => setLoadedUrl(imageUrl)}
-              onError={() => setFailedUrl(imageUrl)}
-              className={cn(
-                "max-h-full max-w-full min-w-0 rounded-[6px] object-contain shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-opacity duration-300",
-                loadedUrl === imageUrl ? "opacity-100" : "opacity-0",
-              )}
-            />
+            <>
+              <img
+                key={imageUrl}
+                src={imageUrl}
+                alt={`${photo.name}에서 찍은 사진`}
+                onLoad={() => setLoadedUrl(imageUrl)}
+                onError={() => setFailedUrl(imageUrl)}
+                className={cn(
+                  "max-h-full max-w-full min-w-0 rounded-[6px] object-contain shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-opacity duration-300",
+                  imageReady ? "opacity-100" : "opacity-0",
+                )}
+              />
+              {/* 원본(4000px 수준)을 받는 동안 빈 화면 대신 로딩 표시 (미리 받기가 덜 끝났거나 느린 망) */}
+              {!imageReady && <LoadingSpinner className="pointer-events-none absolute" />}
+            </>
           ) : (
             // 사진 파일이 없으면 대표색으로 채움 (카드와 같음)
             <div className="flex aspect-[4/3] max-h-full w-full max-w-[720px] overflow-hidden rounded-[12px]">

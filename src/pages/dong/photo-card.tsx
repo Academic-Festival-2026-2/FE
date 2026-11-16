@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { DongPoint } from "../../api/dong";
-import { getPhotoDetail, likePhoto, unlikePhoto, type PhotoDetail } from "../../api/photo";
+import { likePhoto, unlikePhoto, type PhotoDetail } from "../../api/photo";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { cn } from "../../utils/cn";
@@ -10,6 +10,7 @@ import { paletteShares } from "./photo-info";
 import { PhotoLightbox } from "./photo-lightbox";
 import { PhotoMeta } from "./photo-meta";
 import { useLightboxHistory } from "./use-lightbox-history";
+import { usePhotoDetails } from "./use-photo-details";
 
 // 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜
 // 세로 사진은 조금 더 길게 허용, 너무 좁아지면 아래 닉네임·시간대 줄이 들어갈 최소 폭 유지
@@ -35,7 +36,7 @@ type LikeState = { liked: boolean; likeCount: number };
 
 // 사진 카드의 좋아요. 누르면 바로 바꿔 보여 주고, 실패하면 원래대로 되돌림
 // 이 카드에서 누른 결과는 사진 id별로 기억해 상세보다 우선함
-// → 응답 전에 다른 사진으로 넘겼다 돌아와 상세를 다시 받아도(누르기 전 값일 수 있음) 누른 결과가 보임
+// → 기억해 둔 상세·미리 받은 상세가 누르기 전 값이어도 누른 결과가 보임
 function usePhotoLike(photo: PhotoDetail | null, enabled: boolean) {
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const expireSession = useExpireSession();
@@ -98,20 +99,28 @@ export function PhotoCard({
 }) {
   const bubble = variant === "bubble";
   const [index, setIndex] = useState(0);
-  const [photo, setPhoto] = useState<PhotoDetail | null>(null);
-  const [failedId, setFailedId] = useState<number | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // 다른 사진으로 넘기면 사진 실패 표시를 지움 (기억한 상세라 주소가 같아도, 돌아오면 사진을 다시 받아 봄)
+  const [shownIndex, setShownIndex] = useState(index);
+  if (shownIndex !== index) {
+    setShownIndex(index);
+    setFailedUrl(null);
+  }
   // 다 받은 사진의 원래 크기 (말풍선 카드 폭을 사진 비율에 맞출 때 씀)
   const [loaded, setLoaded] = useState<{ url: string; width: number; height: number } | null>(
     null,
   );
-  const photoId = points[index].photoId;
-  const current = photo?.photoId === photoId ? photo : null;
-  // 좋아요는 공유 지도에서만 (나의 지도는 내 사진만 나옴)
-  const { like, toggle: toggleLike, promptOpen, closePrompt } = usePhotoLike(current, !mine);
   // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
   // 뒤로 가기를 누르면 동 화면을 벗어나지 않고 크게 보기만 닫힘
   const { open: zoomed, openLightbox, closeLightbox } = useLightboxHistory();
+  // 상세는 사진별로 기억. 크게 보기가 열려 있을 때만 옆 사진 상세·원본을 미리 받음 (카드만 있을 때는 안 받음)
+  const { photo: current, failed, readyImageUrls } = usePhotoDetails(
+    points.map((point) => point.photoId),
+    index,
+    { mine, preload: zoomed },
+  );
+  // 좋아요는 공유 지도에서만 (나의 지도는 내 사진만 나옴)
+  const { like, toggle: toggleLike, promptOpen, closePrompt } = usePhotoLike(current, !mine);
 
   // 크게 보기가 닫히면 카드의 사진(아직 못 받았으면 닫기 버튼)으로 포커스를 돌려줌
   const photoButtonRef = useRef<HTMLButtonElement>(null);
@@ -127,24 +136,6 @@ export function PhotoCard({
     wasZoomedRef.current = zoomed;
   }, [zoomed]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getPhotoDetail(photoId, mine)
-      .then((data) => {
-        if (cancelled) return;
-        setPhoto(data);
-        // 예전에 실패한 사진을 넘겼다 돌아와 다시 받았으면 실패 표시를 지움
-        setFailedId(null);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setFailedId(photoId);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [photoId, mine]);
-
   // Esc로 닫기, ←/→로 이전·다음 사진 (크게 보기·로그인 안내가 열려 있으면 그쪽이 키를 받음)
   useEffect(() => {
     if (zoomed || promptOpen) return;
@@ -157,7 +148,6 @@ export function PhotoCard({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [zoomed, promptOpen, index, points.length, onClose]);
 
-  const failed = failedId === photoId;
   const showImage = current?.imageUrl && current.imageUrl !== failedUrl;
   const imageLoaded = Boolean(showImage && loaded?.url === current?.imageUrl);
   const bubbleSize =
@@ -320,6 +310,7 @@ export function PhotoCard({
     <PhotoLightbox
       photo={current}
       failed={failed}
+      readyImageUrls={readyImageUrls}
       index={index}
       total={points.length}
       onIndexChange={setIndex}
