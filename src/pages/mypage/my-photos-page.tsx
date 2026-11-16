@@ -8,6 +8,7 @@ import {
   type MyPhotoItem,
   type MyPhotosResponse,
   type PhotoDetail,
+  type SeasonType,
 } from "../../api/photo";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { UploadButton } from "../../components/layout/upload-button";
@@ -15,6 +16,7 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { getPhotoColorRatios } from "../dong/photo-color-ratios";
 import { useUserStore } from "../../stores/user-store";
 import { formatDate } from "../../utils/date";
+import { seasonOf } from "../map/map-data";
 
 const PAGE_SIZE = 12;
 const timeBandLabel = {
@@ -24,8 +26,11 @@ const timeBandLabel = {
   NIGHT: "밤",
 } as const;
 
-function formatDateTime(value: string) {
-  return `${formatDate(value)} ${value.slice(11, 16)}`;
+function formatPhotoDate(value: string | null, season: SeasonType) {
+  return value ? formatDate(value) : (seasonOf(season)?.name ?? "촬영 시기 미상");
+}
+function formatDateTime(value: string | null, season: SeasonType) {
+  return value ? `${formatDate(value)} ${value.slice(11, 16)}` : (seasonOf(season)?.name ?? "촬영 시기 미상");
 }
 
 function PhotoThumbnail({ photo }: { photo: MyPhotoItem }) {
@@ -187,7 +192,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
               </p>
               <h3 className="mt-7 border-b border-divider pb-3 text-sm font-bold text-ink">촬영 정보</h3>
               <dl className="space-y-4 py-4 text-sm">
-                <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">촬영 일시</dt><dd className="font-bold text-ink">{formatDateTime(detail.takenAt)}</dd></div>
+                <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">{detail.takenAt ? "촬영 일시" : "촬영 시기"}</dt><dd className="font-bold text-ink">{formatDateTime(detail.takenAt, detail.season)}</dd></div>
                 <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">촬영 지역</dt><dd className="font-bold text-ink">{detail.name}</dd></div>
                 <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">시간대</dt><dd className="font-bold text-ink">{timeBandLabel[detail.timeBand]}</dd></div>
               </dl>
@@ -342,14 +347,14 @@ export function MyPhotosPage() {
                   key={photo.photoId}
                   type="button"
                   onClick={() => setSelected(photo)}
-                  aria-label={`${photo.name} ${formatDate(photo.takenAt)} 사진 상세 보기`}
+                  aria-label={`${photo.name} ${formatPhotoDate(photo.takenAt, photo.season)} 사진 상세 보기`}
                   className="overflow-hidden rounded-2xl border border-card-line bg-white text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(26,36,64,0.10)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <PhotoThumbnail photo={photo} />
                   <div className="flex items-start justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-ink sm:text-base">{photo.name}</p>
-                      <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">{formatDate(photo.takenAt)} · {timeBandLabel[photo.timeBand]}</p>
+                      <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">{formatPhotoDate(photo.takenAt, photo.season)} · {timeBandLabel[photo.timeBand]}</p>
                     </div>
                     <span className="mt-1 size-3 shrink-0 rounded-[3px]" style={{ backgroundColor: photo.color }} aria-hidden="true" />
                   </div>
