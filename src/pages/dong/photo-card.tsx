@@ -8,6 +8,7 @@ import { LoginPromptDialog } from "../map/login-prompt-dialog";
 import { Chevron, CloseIcon, HeartIcon } from "./photo-icons";
 import { paletteShares } from "./photo-info";
 import { PhotoLightbox } from "./photo-lightbox";
+import { photoImageUrl } from "./photo-image-url";
 import { PhotoMeta } from "./photo-meta";
 import { useLightboxHistory } from "./use-lightbox-history";
 import { usePhotoDetails } from "./use-photo-details";
@@ -113,7 +114,7 @@ export function PhotoCard({
   // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
   // 뒤로 가기를 누르면 동 화면을 벗어나지 않고 크게 보기만 닫힘
   const { open: zoomed, openLightbox, closeLightbox } = useLightboxHistory();
-  // 상세는 사진별로 기억. 크게 보기가 열려 있을 때만 옆 사진 상세·원본을 미리 받음 (카드만 있을 때는 안 받음)
+  // 상세는 사진별로 기억. 크게 보기가 열려 있을 때만 옆 사진 상세·이미지를 미리 받음 (카드만 있을 때는 안 받음)
   const { photo: current, failed, readyImageUrls } = usePhotoDetails(
     points.map((point) => point.photoId),
     index,
@@ -148,8 +149,10 @@ export function PhotoCard({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [zoomed, promptOpen, index, points.length, onClose]);
 
-  const showImage = current?.imageUrl && current.imageUrl !== failedUrl;
-  const imageLoaded = Boolean(showImage && loaded?.url === current?.imageUrl);
+  // 축소 이미지가 있으면 그것을 보여 줌 (크게 보기와 같은 주소라 카드에서 받은 이미지를 그대로 씀)
+  const imageUrl = current ? photoImageUrl(current) : null;
+  const showImage = imageUrl && imageUrl !== failedUrl;
+  const imageLoaded = Boolean(showImage && loaded?.url === imageUrl);
   const bubbleSize =
     bubble && imageLoaded && loaded ? bubblePhotoSize(loaded.width, loaded.height) : null;
 
@@ -190,16 +193,16 @@ export function PhotoCard({
             className="block max-w-full cursor-zoom-in disabled:cursor-default"
           >
             <img
-              src={current.imageUrl ?? ""}
+              src={imageUrl}
               alt={`${current.name}에서 찍은 사진`}
               onLoad={(event) =>
                 setLoaded({
-                  url: current.imageUrl ?? "",
+                  url: imageUrl,
                   width: event.currentTarget.naturalWidth,
                   height: event.currentTarget.naturalHeight,
                 })
               }
-              onError={() => setFailedUrl(current.imageUrl)}
+              onError={() => setFailedUrl(imageUrl)}
               style={bubbleSize ?? undefined}
               className={cn(
                 "block transition-opacity duration-300",

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { PhotoDetail } from "../../api/photo";
 import { cn } from "../../utils/cn";
 import { Chevron, CloseIcon } from "./photo-icons";
+import { photoImageUrl } from "./photo-image-url";
 import { paletteShares } from "./photo-info";
 import { PhotoMeta } from "./photo-meta";
 
@@ -41,7 +42,7 @@ export function PhotoLightbox({
   // 지금 사진 상세 (넘겨서 아직 받는 중이면 null)
   photo: PhotoDetail | null;
   failed: boolean;
-  // 미리 다 받아 둔 원본 이미지 주소. 여기 있으면 받기를 기다리지 않고(페이드 없이) 바로 보여 줌
+  // 미리 다 받아 둔 이미지 주소 (축소 이미지, 없으면 원본). 여기 있으면 받기를 기다리지 않고(페이드 없이) 바로 보여 줌
   readyImageUrls?: ReadonlySet<string>;
   index: number;
   total: number;
@@ -52,7 +53,7 @@ export function PhotoLightbox({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  // 다른 사진으로 넘기면 원본 실패 표시를 지움 (기억한 상세라 주소가 같아도, 돌아오면 원본을 다시 받아 봄)
+  // 다른 사진으로 넘기면 이미지 실패 표시를 지움 (기억한 상세라 주소가 같아도, 돌아오면 이미지를 다시 받아 봄)
   const [shownIndex, setShownIndex] = useState(index);
   if (shownIndex !== index) {
     setShownIndex(index);
@@ -105,7 +106,9 @@ export function PhotoLightbox({
     else if (dx < 0 && hasNext) onIndexChange(index + 1);
   }
 
-  const imageUrl = photo?.imageUrl && photo.imageUrl !== failedUrl ? photo.imageUrl : null;
+  // 축소 이미지가 있으면 그것, 없으면(이 기능 전에 올린 사진) 원본
+  const shownUrl = photo ? photoImageUrl(photo) : null;
+  const imageUrl = shownUrl && shownUrl !== failedUrl ? shownUrl : null;
   const imageReady = imageUrl !== null && (loadedUrl === imageUrl || readyImageUrls?.has(imageUrl));
 
   return createPortal(
@@ -166,7 +169,7 @@ export function PhotoLightbox({
                   imageReady ? "opacity-100" : "opacity-0",
                 )}
               />
-              {/* 원본(4000px 수준)을 받는 동안 빈 화면 대신 로딩 표시 (미리 받기가 덜 끝났거나 느린 망) */}
+              {/* 이미지를 받는 동안 빈 화면 대신 로딩 표시 (미리 받기가 덜 끝났거나 느린 망, 축소 이미지가 없어 원본을 받을 때) */}
               {!imageReady && <LoadingSpinner className="pointer-events-none absolute" />}
             </>
           ) : (

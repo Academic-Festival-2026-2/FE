@@ -13,6 +13,7 @@ import { AuthHeader } from "../../components/layout/auth-header";
 import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { getPhotoColorRatios } from "../dong/photo-color-ratios";
+import { photoImageUrl } from "../dong/photo-image-url";
 import { useUserStore } from "../../stores/user-store";
 import { formatDate } from "../../utils/date";
 
@@ -85,6 +86,8 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const ratios = detail ? getPhotoColorRatios(detail.palette, detail.bins) : [];
+  // 축소 이미지가 있으면 그것, 없으면(이 기능 전에 올린 사진) 원본
+  const imageUrl = detail ? photoImageUrl(detail) : null;
 
   useEffect(() => {
     let ignore = false;
@@ -153,11 +156,11 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
           {!detail && !loadError && <p className="py-10 text-center text-sm text-ink-muted">사진을 불러오는 중...</p>}
           {detail && (
             <>
-              {detail.imageUrl && !imageFailed ? (
+              {imageUrl && !imageFailed ? (
                 // 원래 비율 그대로, 잘리지 않게 (아주 좁은 사진은 양옆을 옅은 배경으로)
                 <div className="flex justify-center overflow-hidden rounded-[14px] bg-field">
                   <img
-                    src={detail.imageUrl}
+                    src={imageUrl}
                     alt={`${photo.name} 사진`}
                     onLoad={(event) =>
                       setNatural({

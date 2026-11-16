@@ -41,7 +41,11 @@ export function uploadPhoto(image: File, data: PhotoUploadData) {
 
 export type PhotoDetail = {
   photoId: number;
+  // 원본 사진 서명 주소. 사진 파일이 없으면 null
   imageUrl: string | null;
+  // 크게 보기용 축소 이미지(긴 변 2048px 이하 JPEG) 서명 주소
+  // 축소 이미지 기능 전에 올린 사진은 null, 그 기능 전 BE에서는 없음 → 원본을 씀 (photo-image-url.ts)
+  displayUrl?: string | null;
   nickname: string;
   name: string;
   takenAt: string;
