@@ -114,7 +114,6 @@ export function PhotoUploadPage() {
   const setMe = useUserStore((state) => state.setMe);
   const photo = photos[index];
   // 업로드 실패나 읽을 수 없는 사진으로 이동했을 때만 안내로 이동합니다.
-  // 날짜 직접 입력 중 발생하는 시즌 오류는 입력 포커스를 유지합니다.
   useEffect(() => {
     if (!photo?.error || (photo.status !== "error" && photo.status !== "invalid")) return;
     const frame = requestAnimationFrame(() => {
@@ -450,7 +449,6 @@ export function PhotoUploadPage() {
                     </div>
                     <p className="mt-3 text-xs leading-5 text-ink-muted">
                       정확한 날짜는 기록되지 않으며 나의 지도에만 반영돼요.
-
                     </p>
                   </>
                 )}
