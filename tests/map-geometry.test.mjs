@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { project, unproject, fitView, regionsInView, regionAt, regionOutline, WORLD_WIDTH, WORLD_HEIGHT } from '../src/pages/map/map-geometry.ts';
+import { project, unproject, fitView, regionsInView, regionAt, regionOutline, dropOverlappingLabels, WORLD_WIDTH, WORLD_HEIGHT } from '../src/pages/map/map-geometry.ts';
 
 const close = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} ≠ ${b}`);
 
@@ -66,4 +66,26 @@ test('regionOutline은 동끼리 맞닿은 선은 빼고 지역 바깥 테두리
   assert.ok(!path.includes(`${mx},${my}L${tx},${ty}`), '가운데 선이 그려짐');
   assert.ok(!path.includes(`${tx},${ty}L${mx},${my}`), '가운데 선이 거꾸로 그려짐');
   assert.equal((path.match(/L/g) ?? []).length, 6, '바깥 선분 6개');
+});
+
+test('동 이름이 겹치면 넓은 동 이름만 남기고, 안 겹치면 다 남긴다 (원래 순서 유지)', () => {
+  // 글자 크기 10이면 "가나동"은 가로 약 33, 세로 12인 상자
+  const shape = (dongCode, label, area) => ({ dongCode, name: '가나동', label, area });
+  const small = shape('small', [0, 0], 10);
+  const big = shape('big', [20, 5], 100);
+  const far = shape('far', [200, 200], 1);
+
+  assert.deepEqual(dropOverlappingLabels([small, big, far], 10).map((s) => s.dongCode), ['big', 'far']);
+  // 확대해서 글자가 상대적으로 작아지면 겹침이 풀려 둘 다 남는다
+  assert.deepEqual(dropOverlappingLabels([small, big, far], 4).map((s) => s.dongCode), ['small', 'big', 'far']);
+});
+
+test('동 이름 상자는 숫자를 한글보다 좁게 친다', () => {
+  // 가운데 거리 52: 한글 5자(가로 약 53)면 겹치고, 한글 3자 + 숫자 2자(약 45)면 안 겹침
+  const pair = (name) => [
+    { dongCode: 'a', name, label: [0, 0], area: 2 },
+    { dongCode: 'b', name, label: [52, 0], area: 1 },
+  ];
+  assert.equal(dropOverlappingLabels(pair('가나다라동'), 10).length, 1);
+  assert.equal(dropOverlappingLabels(pair('가나12동'), 10).length, 2);
 });
