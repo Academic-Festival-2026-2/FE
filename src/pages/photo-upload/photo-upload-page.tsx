@@ -167,7 +167,7 @@ export function PhotoUploadPage() {
     const selected = Array.from(files).map((file): Photo => {
       const url = URL.createObjectURL(file);
       urls.current.add(url);
-      return { id: crypto.randomUUID(), file, url, metadata: {}, takenAt: "", season: "", selectedBand: "", dongCode: "", isPublic: true, status: "reading" };
+      return { id: crypto.randomUUID(), file, url, metadata: {}, takenAt: "", season: "AUTUMN", selectedBand: "", dongCode: "", isPublic: true, status: "reading" };
     });
     setPhotos((list) => [...list, ...selected]);
     // 한 번에 디코딩하는 사진 수를 제한해 큰 사진 여러 장의 메모리 급증을 피합니다.
@@ -448,7 +448,7 @@ export function PhotoUploadPage() {
                     </div>
                     <p className="mt-3 text-xs leading-5 text-ink-muted">
                       정확한 날짜는 기록되지 않으며 나의 지도에만 반영돼요.
-                      현재는 가을 사진만 등록할 수 있어요. 다른 계절은 사계절 지도 지원 후 선택할 수 있어요.
+                      현재는 가을 사진만 등록할 수 있어요. 봄·여름·겨울 사진 업로드는 추후 지원할 예정이에요.
                     </p>
                   </>
                 )}

@@ -1,10 +1,10 @@
 import { test } from 'node:test';
-import { photoUploadTimeFields } from '../src/pages/photo-upload/photo-upload-time.ts';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 import { analyzePixels, chooseRepresentative, dominantIndex, COLOR_HEX, COLOR_NAMES } from '../src/pages/photo-upload/color-analysis.ts';
 import { parseLocalTime, photoSeasonError, timeBand, validateColors, validateImage, findDong, MAX_IMAGE_BYTES } from '../src/pages/photo-upload/photo-validation.ts';
+import { photoUploadTimeFields } from '../src/pages/photo-upload/photo-upload-time.ts';
 
 const pixel = (hex, alpha = 255) => [...[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)), alpha];
 
