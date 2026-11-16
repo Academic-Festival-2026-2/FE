@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PhotoDetail } from "../../api/photo";
 import { cn } from "../../utils/cn";
+import { EMPTY_FILL } from "../map/map-data";
 import { Chevron, CloseIcon } from "./photo-icons";
 import { photoImageUrl } from "./photo-image-url";
 import { paletteShares } from "./photo-info";
 import { PhotoMeta } from "./photo-meta";
 
-// 라이트박스 위 버튼 (닫기·이전·다음). 어두운 배경 위에서 보이게 흰 반투명
+// 라이트박스 위 버튼 (닫기·이전·다음). 흰 반투명 배경 위에서도 보이게 테두리·그림자를 둠
 const LIGHTBOX_BUTTON =
-  "flex size-11 items-center justify-center rounded-full bg-white/12 text-white backdrop-blur-md transition-colors hover:bg-white/25";
+  "flex size-11 items-center justify-center rounded-full border border-line bg-white/85 text-ink shadow-[0_4px_14px_rgba(0,0,0,0.12)] backdrop-blur-md transition-colors hover:bg-white";
 
 // 이 거리(px) 이상 옆으로 밀면 이전·다음 사진 (세로로 더 많이 움직였으면 무시)
 const SWIPE_MIN_DISTANCE = 50;
@@ -23,7 +24,7 @@ function LoadingSpinner({ className }: { className?: string }) {
       role="status"
       aria-label="사진 불러오는 중"
       className={cn(
-        "size-9 animate-spin rounded-full border-2 border-white/20 border-t-white",
+        "size-9 animate-spin rounded-full border-2 border-ink/15 border-t-ink-sub",
         className,
       )}
     />
@@ -125,14 +126,14 @@ export function PhotoLightbox({
       onTouchEnd={handleTouchEnd}
       // touch-pinch-zoom: 한 손가락으로 끌어도 브라우저가 화면을 움직이지 않게 (안드로이드 당겨서 새로고침 방지)
       // 두 손가락 확대는 그대로 허용, 옆으로 넘기기는 위 터치 이벤트로 직접 처리
-      className="fixed inset-0 z-50 flex animate-[lightbox-in_180ms_ease-out] touch-pinch-zoom flex-col bg-black/90 text-white backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex animate-[lightbox-in_180ms_ease-out] touch-pinch-zoom flex-col bg-white/60 text-ink backdrop-blur-sm"
     >
       {/* 위: 몇 번째 사진인지 / 닫기 */}
       <div
         {...BACKDROP}
         className="flex items-center justify-between px-4 pt-[max(1rem,env(safe-area-inset-top))]"
       >
-        <span className="font-mono text-xs text-white/70">
+        <span className="font-mono text-xs text-ink-muted">
           {total > 1 && `${index + 1} / ${total}`}
         </span>
         <button
@@ -153,12 +154,12 @@ export function PhotoLightbox({
           className="absolute inset-x-4 inset-y-3 flex items-center justify-center sm:inset-x-20"
         >
           {failed ? (
-            <p className="text-sm text-white/80">사진을 불러오지 못했어요.</p>
+            <p className="text-sm text-ink-sub">사진을 불러오지 못했어요.</p>
           ) : !photo ? (
             <LoadingSpinner />
           ) : imageUrl ? (
             <>
-              {/* 흰 배경: 투명 PNG(축소 이미지가 없는 옛 사진은 원본 PNG)의 투명한 부분이 검은 배경에 묻혀 검게 보이지 않게 */}
+              {/* 흰 배경: 투명 PNG(축소 이미지가 없는 옛 사진은 원본 PNG)의 투명한 부분에 뒤 화면이 비쳐 보이지 않게 */}
               <img
                 key={imageUrl}
                 src={imageUrl}
@@ -166,7 +167,7 @@ export function PhotoLightbox({
                 onLoad={() => setLoadedUrl(imageUrl)}
                 onError={() => setFailedUrl(imageUrl)}
                 className={cn(
-                  "max-h-full max-w-full min-w-0 rounded-[6px] bg-white object-contain shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-opacity duration-300",
+                  "max-h-full max-w-full min-w-0 rounded-[6px] bg-white object-contain shadow-[0_16px_40px_rgba(0,0,0,0.18)] transition-opacity duration-300",
                   imageReady ? "opacity-100" : "opacity-0",
                 )}
               />
@@ -210,8 +211,12 @@ export function PhotoLightbox({
         {...BACKDROP}
         className="mx-auto w-full max-w-[560px] px-4 pt-1 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
-        <div className="min-h-[104px] rounded-[18px] bg-white/8 px-4 py-3.5">
-          <PhotoMeta photo={photo} failed={failed} tone="dark" />
+        {/* 정보 박스는 지도의 사진 없는 동 색과 같게 */}
+        <div
+          className="min-h-[104px] rounded-[18px] px-4 py-3.5"
+          style={{ backgroundColor: EMPTY_FILL }}
+        >
+          <PhotoMeta photo={photo} failed={failed} tone="lightbox" />
         </div>
       </div>
     </div>,
