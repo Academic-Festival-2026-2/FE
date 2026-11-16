@@ -111,7 +111,7 @@ export function MapPage() {
   const shownDongs = mine ? myMap.dongs : dongs;
   const shownLoading = mine ? myMap.loading : loading;
   const shownError = mine ? myMap.error : colorError;
-  // 어느 지역에도 칠한 칸이 없음 = 아직 사진을 올린 적 없음. 내 정보(헤더가 불러옴)의 칸 수는 전체 지역 합계
+  // 선택한 지역·계절에 칠한 칸이 없으면 빈 지도 안내를 표시
   const myMapEmpty = mine && myMap.empty;
 
   const seasonInfo = seasonOf(selectedSeason);

@@ -24,7 +24,7 @@ export function MyPage() {
   const [info, setInfo] = useState<MyInfoResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // 요약 카드 숫자(칠한 동·배지)와 아래 영역이 같이 쓰는 데이터
-  // 나의 지도 현황에서 고른 지역·계절 (지금은 부천·가을만)
+  // 나의 지도 현황에서 고른 지역·계절
   const [region, setRegion] = useState(DEFAULT_REGION);
   const [season, setSeason] = useState(preferredSeason);
   const [myMap, setMyMap] = useState<{ key: string; data: MyMap } | null>(null);
