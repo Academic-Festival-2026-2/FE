@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "reac
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams, useRouter, useSearch } from "@tanstack/react-router";
 import { getDongDetail, type DongPoint } from "../../api/dong";
-import type { TimeBand } from "../../api/map";
+import type { SeasonType, TimeBand } from "../../api/map";
 import { getMyDongPhotos } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
@@ -23,6 +23,7 @@ import {
 } from "../map/map-data";
 import { ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
 import { cn } from "../../utils/cn";
+import { preferredSeason, rememberSeason } from "../../utils/season";
 import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
 import { MapLoading } from "../map/map-loading";
 import { canUseDongTransition, markReturnFrom, prepareDongTransition } from "../../utils/view-transition";
@@ -47,7 +48,11 @@ function signedArea(path: kakao.maps.LatLng[]) {
 
 type LocatedPoint = DongPoint & { lat: number; lng: number };
 // 고른 사진 묶음. anchor가 있으면 데스크톱에서 그 픽셀 위에 말풍선으로 띄움 (위치 없는 사진은 null)
-type Selection = { points: DongPoint[]; anchor: { key: string; lat: number; lng: number } | null };
+type Selection = {
+  points: DongPoint[];
+  anchor: { key: string; lat: number; lng: number } | null;
+  season: SeasonType;
+};
 
 // 말풍선을 픽셀에서 오른쪽 위로 띄우는 거리 (말풍선 왼쪽 아래 모서리 기준, px)
 const BUBBLE_OFFSET = 28;
@@ -81,18 +86,21 @@ function pixelElement(color: string, count: number) {
   return pixel;
 }
 
-function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean) {
-  const key = `${dongCode}:${timeBand}:${mine ? "mine" : "shared"}`;
+function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean, season: SeasonType) {
+  const key = `${dongCode}:${timeBand}:${mine ? "mine" : "shared"}:${season}`;
   const expireSession = useExpireSession();
   const [loaded, setLoaded] = useState<{ key: string; points: DongPoint[] } | null>(null);
   const [failedKey, setFailedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const request = mine ? getMyDongPhotos(dongCode, timeBand) : getDongDetail(dongCode, timeBand);
+    const request = mine ? getMyDongPhotos(dongCode, timeBand, season) : getDongDetail(dongCode, timeBand, season);
     request
       .then((data) => {
         if (cancelled) return;
+        if (!mine && "season" in data && data.season !== season) {
+          throw new Error("동 상세 응답 계절이 일치하지 않습니다.");
+        }
         setLoaded({ key, points: data.points });
       })
       .catch((err) => {
@@ -103,7 +111,7 @@ function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [key, dongCode, timeBand, mine, expireSession]);
+  }, [key, dongCode, timeBand, mine, season, expireSession]);
 
   return {
     points: loaded && loaded.key === key ? loaded.points : null,
@@ -113,7 +121,8 @@ function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean) {
 
 export function DongPage() {
   const { dongCode } = useParams({ from: "/dong/$dongCode" });
-  const { timeBand, mode } = useSearch({ from: "/dong/$dongCode" });
+  const { timeBand, mode, season: urlSeason } = useSearch({ from: "/dong/$dongCode" });
+  const selectedSeason = preferredSeason(urlSeason);
   // 지역 코드 = 동 코드 앞 4자리 (부천 3105)
   const regionCode = dongCode.slice(0, 4);
   const regionCodes = useMemo(() => [regionCode], [regionCode]);
@@ -124,16 +133,18 @@ export function DongPage() {
   const { boundaries, error: boundaryError } = useBoundaries(regionCode);
   const loggedIn = useAuthStore((state) => state.tokens !== null);
   const mine = mode === "mine" && loggedIn;
-  const { dongs, season, error: colorError } = useDongColors(timeBand, regionCodes);
-  const seasonName = seasonOf(season)?.name;
-  const myMap = useMyMap(mine, timeBand, regionCodes);
-  const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine);
+  const { dongs, error: colorError } = useDongColors(timeBand, regionCodes, selectedSeason);
+  const seasonName = seasonOf(selectedSeason)?.name;
+  const myMap = useMyMap(mine, timeBand, regionCodes, selectedSeason);
+  const { points, error: detailError } = useDongPoints(dongCode, timeBand, mine, selectedSeason);
   const [map, setMap] = useState<kakao.maps.Map | null>(null);
   // 카카오맵 타일이 처음 다 그려진 동 (그 전까지 로딩 안내 표시)
   const [tilesReadyFor, setTilesReadyFor] = useState<string | null>(null);
   // "전체" 버튼으로 처음 보던 범위(동 전체)로 되돌릴 때 씀
   const dongBoundsRef = useRef<kakao.maps.LatLngBounds | null>(null);
   const [selected, setSelected] = useState<Selection | null>(null);
+  const activeSelection = selected?.season === selectedSeason ? selected : null;
+
   const isDesktop = useIsDesktop();
   // 지도에 찍은 픽셀 요소 (위치 키 → 요소). 고른 픽셀 강조용
   const pixelElementsRef = useRef(new Map<string, HTMLElement>());
@@ -260,7 +271,7 @@ export function DongPage() {
       const content = pixelElement(group[0].color, group.length);
       elements.set(key, content);
       content.addEventListener("click", () =>
-        setSelected({ points: group, anchor: { key, lat: group[0].lat, lng: group[0].lng } }),
+        setSelected({ points: group, anchor: { key, lat: group[0].lat, lng: group[0].lng }, season: selectedSeason }),
       );
       return new kakao.maps.CustomOverlay({
         map,
@@ -275,10 +286,10 @@ export function DongPage() {
       pixels.forEach((pixel) => pixel.setMap(null));
       elements.clear();
     };
-  }, [map, points]);
+  }, [map, points, selectedSeason]);
 
   // 고른 픽셀 강조
-  const selectedKey = selected?.anchor?.key ?? null;
+  const selectedKey = activeSelection?.anchor?.key ?? null;
   useEffect(() => {
     if (!selectedKey) return;
     const element = pixelElementsRef.current.get(selectedKey);
@@ -287,7 +298,7 @@ export function DongPage() {
   }, [selectedKey, points]);
 
   // 데스크톱: 고른 픽셀 위에 말풍선 (카카오 CustomOverlay 안에 React로 그림)
-  const anchor = isDesktop ? (selected?.anchor ?? null) : null;
+  const anchor = isDesktop ? (activeSelection?.anchor ?? null) : null;
   // 카카오 오버레이는 처음 크기로만 위치를 잡아서, 크기 0인 점(host)을 픽셀에 놓고
   // 그 안에서 말풍선(inner)을 픽셀 오른쪽 위로 펼침 → 사진을 받아 커져도 항상 같은 자리
   const bubble = useMemo(() => {
@@ -343,6 +354,17 @@ export function DongPage() {
     };
   }, [map, anchor, bubble]);
 
+  function changeSeason(value: SeasonType) {
+    setSelected(null);
+    rememberSeason(value);
+    navigate({
+      to: "/dong/$dongCode",
+      params: { dongCode },
+      search: { timeBand, mode, season: value },
+      replace: true,
+    });
+  }
+
   function changeTimeBand(value: TimeBand) {
     setSelected(null);
     navigate({
@@ -387,7 +409,7 @@ export function DongPage() {
           <p className="text-xs leading-[18px] text-ink-muted">
             <Link
               to="/map"
-              search={{ timeBand, mode, region: Number(regionCode) }}
+              search={{ timeBand, mode, region: Number(regionCode), season: selectedSeason }}
               // 지도가 이 동에서 줄어들며 시작 (뒤로 가기도 같음: 아래 markReturnFrom)
               viewTransition={canUseDongTransition()}
               onClick={() => prepareDongTransition()}
@@ -420,7 +442,7 @@ export function DongPage() {
           {mine && unlocated.length > 0 && (
             <button
               type="button"
-              onClick={() => setSelected({ points: unlocated, anchor: null })}
+              onClick={() => setSelected({ points: unlocated, anchor: null, season: selectedSeason })}
               className="mt-1.5 text-xs font-bold text-brand-strong underline underline-offset-4"
             >
               위치 없는 사진 {unlocated.length}장 보기
@@ -432,16 +454,16 @@ export function DongPage() {
 
       {/* 지도 화면과 같은 계절 + 시간대 바 (아래 가운데) */}
       <div className="absolute bottom-6 left-1/2 z-10 w-max -translate-x-1/2">
-        <TimeBandBar season={season} timeBand={timeBand} onChange={changeTimeBand} />
+        <TimeBandBar season={selectedSeason} timeBand={timeBand} onChange={changeTimeBand} onSeasonChange={changeSeason} />
       </div>
 
-      {selected &&
+      {activeSelection &&
         (bubbleHost ? (
           // 데스크톱 + 위치 있는 사진: 픽셀 위 말풍선
           createPortal(
             <PhotoCard
-              key={selected.points[0].photoId}
-              points={selected.points}
+              key={activeSelection.points[0].photoId}
+              points={activeSelection.points}
               mine={mine}
               variant="bubble"
               onClose={() => setSelected(null)}
@@ -452,8 +474,8 @@ export function DongPage() {
           // 모바일, 또는 위치 없는 사진: 화면에 고정된 카드
           <div className="absolute inset-x-4 bottom-4 z-20 sm:inset-x-auto sm:top-4 sm:right-4 sm:bottom-auto">
             <PhotoCard
-              key={selected.points[0].photoId}
-              points={selected.points}
+              key={activeSelection.points[0].photoId}
+              points={activeSelection.points}
               mine={mine}
               onClose={() => setSelected(null)}
             />

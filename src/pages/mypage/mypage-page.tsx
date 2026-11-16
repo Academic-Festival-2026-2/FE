@@ -9,7 +9,8 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { useUserStore } from "../../stores/user-store";
 import { BadgeSection } from "./badge-section";
 import { LikedPhotosSection } from "./liked-photos-section";
-import { DEFAULT_REGION, DEFAULT_SEASON } from "./my-map-filters";
+import { DEFAULT_REGION } from "./my-map-filters";
+import { parseSeason, preferredSeason, rememberSeason } from "../../utils/season";
 import { summarizeMyMap } from "./my-map-stats";
 import { MyMapProgressSection } from "./my-map-progress-section";
 import { ProfileSummary } from "./profile-summary";
@@ -23,9 +24,9 @@ export function MyPage() {
   const [info, setInfo] = useState<MyInfoResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // 요약 카드 숫자(칠한 동·배지)와 아래 영역이 같이 쓰는 데이터
-  // 나의 지도 현황에서 고른 지역·계절 (지금은 부천·가을만)
+  // 나의 지도 현황에서 고른 지역·계절
   const [region, setRegion] = useState(DEFAULT_REGION);
-  const [season, setSeason] = useState(DEFAULT_SEASON);
+  const [season, setSeason] = useState(preferredSeason);
   const [myMap, setMyMap] = useState<{ key: string; data: MyMap } | null>(null);
   const [myMapErrorKey, setMyMapErrorKey] = useState<string | null>(null);
   const [badges, setBadges] = useState<MyBadges | null>(null);
@@ -89,6 +90,13 @@ export function MyPage() {
     ? badges.badges.filter((badge) => badge.earned && isKnownBadge(badge.type)).length
     : null;
 
+  function changeSeason(value: string) {
+    const next = parseSeason(value);
+    if (!next) return;
+    rememberSeason(next);
+    setSeason(next);
+  }
+
   // 수정 API는 결과를 돌려주지 않아서 보낸 값으로 화면을 갱신
   function handleUpdated(changes: Partial<MyInfoResponse>) {
     setInfo((prev) => (prev ? { ...prev, ...changes } : prev));
@@ -128,7 +136,7 @@ export function MyPage() {
                 region={region}
                 season={season}
                 onRegionChange={setRegion}
-                onSeasonChange={setSeason}
+                onSeasonChange={changeSeason}
               />
               <BadgeSection data={badges} error={badgesError} />
             </div>

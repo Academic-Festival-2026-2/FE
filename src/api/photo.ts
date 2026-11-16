@@ -1,8 +1,8 @@
 import type { BadgeType } from "./badge";
 import { authRequest, optionalAuthRequest } from "./client";
-import type { TimeBand } from "./map";
+import type { SeasonType, TimeBand } from "./map";
+export type { SeasonType } from "./map";
 
-export type SeasonType = "SPRING" | "SUMMER" | "AUTUMN" | "WINTER";
 
 export type PhotoUploadData = {
   dongCode: string;
