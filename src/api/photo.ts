@@ -112,7 +112,7 @@ export function getLikedPhotos(page = 0, size = 12) {
   );
 }
 
-// BE: GET /api/users/me/photos?page=0&size=12 (최신 순)
+// BE: GET /api/users/me/photos?page=0&size=12&season=SPRING (계절 선택, 최신 순)
 export type MyPhotoItem = {
   photoId: number;
   thumbnailUrl: string | null;
@@ -134,8 +134,10 @@ export type MyPhotosResponse = {
   hasNext: boolean;
 };
 
-export function getMyPhotos(page = 0, size = 12) {
-  return authRequest<MyPhotosResponse>(`/api/users/me/photos?page=${page}&size=${size}`);
+export function getMyPhotos(page = 0, size = 12, season?: SeasonType) {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (season) params.set("season", season);
+  return authRequest<MyPhotosResponse>(`/api/users/me/photos?${params.toString()}`);
 }
 
 export function deletePhoto(photoId: number) {
