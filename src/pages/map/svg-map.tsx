@@ -213,7 +213,13 @@ export function SvgMap({
     return () => window.clearTimeout(timer);
   }, [view, onViewChange]);
   const frameRef = useRef(0);
-  const dragRef = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    view: View;
+    moved: boolean;
+  } | null>(null);
   const movedRef = useRef(false);
   // 화면에 닿아 있는 손가락(포인터)들의 위치. 두 손가락이면 확대·축소(핀치)
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
@@ -269,6 +275,19 @@ export function SvgMap({
       dist: Math.hypot(a.x - b.x, a.y - b.y),
       midX: (a.x + b.x) / 2,
       midY: (a.y + b.y) / 2,
+    };
+  }
+
+  // 지금 닿아 있는 두 손가락으로 핀치를 (다시) 시작.
+  // 손가락 수가 바뀔 때마다 그 자리에서 기준을 새로 잡아야 지도가 튀지 않음
+  function startPinch(svg: SVGSVGElement) {
+    const { dist, midX, midY } = pinchState();
+    pinchRef.current = {
+      dist,
+      midX,
+      midY,
+      anchor: toSvgPoint(svg, midX, midY),
+      view: viewRef.current,
     };
   }
 
@@ -549,23 +568,18 @@ export function SvgMap({
           const svg = svgRef.current;
           // 두 번째 손가락이 닿으면 끌기를 멈추고 확대·축소 시작
           if (pointersRef.current.size === 2 && svg) {
-            const { dist, midX, midY } = pinchState();
             cancelAnimationFrame(frameRef.current);
             dragRef.current = null;
             // 손가락을 떼도 동이 눌리지 않게
             movedRef.current = true;
-            pinchRef.current = {
-              dist,
-              midX,
-              midY,
-              anchor: toSvgPoint(svg, midX, midY),
-              view: viewRef.current,
-            };
+            startPinch(svg);
             return;
           }
+
           if (!event.isPrimary) return;
           movedRef.current = false;
           dragRef.current = {
+            pointerId: event.pointerId,
             x: event.clientX,
             y: event.clientY,
             view: viewRef.current,
@@ -594,9 +608,8 @@ export function SvgMap({
             }, maxSize));
             return;
           }
-          if (!event.isPrimary) return;
           const drag = dragRef.current;
-          if (!drag || !svg) return;
+          if (!drag || drag.pointerId !== event.pointerId || !svg) return;
           const dx = event.clientX - drag.x;
           const dy = event.clientY - drag.y;
           if (!drag.moved) {
@@ -613,9 +626,22 @@ export function SvgMap({
         }}
         onPointerUp={(event) => {
           pointersRef.current.delete(event.pointerId);
-          // 손가락 하나라도 떼면 핀치 끝. 남은 손가락으로 바로 끌지는 않음 (지도가 튀지 않게)
-          if (pointersRef.current.size < 2) pinchRef.current = null;
-          if (event.isPrimary) dragRef.current = null;
+          const svg = svgRef.current;
+          if (pinchRef.current && svg) {
+            if (pointersRef.current.size >= 2) {
+              // 세 손가락 중 하나를 떼면 남은 두 손가락으로 기준을 다시 잡음 (지도가 튀지 않게)
+              startPinch(svg);
+            } else {
+              pinchRef.current = null;
+              // 한 손가락만 남으면 그 손가락으로 바로 이어서 끌기 (지금 위치·지금 view에서 시작해서 튀지 않음)
+              const rest = [...pointersRef.current.entries()][0];
+              if (rest) {
+                const [pointerId, { x, y }] = rest;
+                dragRef.current = { pointerId, x, y, view: viewRef.current, moved: true };
+              }
+            }
+          }
+          if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
         }}
         onPointerCancel={(event) => {
           pointersRef.current.delete(event.pointerId);
