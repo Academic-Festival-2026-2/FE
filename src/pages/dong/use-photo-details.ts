@@ -1,37 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPhotoDetail, type PhotoDetail } from "../../api/photo";
-
-// 원본 주소(imageUrl)는 S3 서명 주소라 정해진 시간(X-Amz-Expires, 지금 BE는 300초) 뒤 만료되고 받을 때마다 바뀜
-// → 기억한 상세는 만료 1분 전까지만 씀. 주소에 만료 시간이 없으면(사진 파일 없음 등) 4분
-const DEFAULT_DETAIL_TTL_MS = 4 * 60 * 1000;
-const EXPIRY_MARGIN_MS = 60 * 1000;
-
-// X-Amz-Date 형식(20261115T091500Z) → 시각(ms). 형식이 다르면 null
-function amzDateMs(value: string | null) {
-  const match = value?.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
-  if (!match) return null;
-  const [, y, mo, d, h, mi, s] = match.map(Number);
-  return Date.UTC(y, mo - 1, d, h, mi, s);
-}
-
-// 받은 때부터 X-Amz-Expires만큼과, 서명한 때(X-Amz-Date)부터 X-Amz-Expires만큼 중 더 짧은 쪽
-// (지금 BE는 요청마다 새로 서명해서 둘이 거의 같음. 서명한 주소를 BE가 재사용해도 만료된 주소를 쓰지 않게 같이 봄)
-// 서명 시각 기준은 이 기기 시계가 틀리면 어긋나므로 받은 때 기준보다 길게는 쓰지 않음
-function detailTtl(detail: PhotoDetail) {
-  if (!detail.imageUrl) return DEFAULT_DETAIL_TTL_MS;
-  try {
-    const params = new URL(detail.imageUrl).searchParams;
-    const expires = Number(params.get("X-Amz-Expires"));
-    if (!(expires > 0)) return DEFAULT_DETAIL_TTL_MS;
-    const fromReceipt = expires * 1000 - EXPIRY_MARGIN_MS;
-    const signedAt = amzDateMs(params.get("X-Amz-Date"));
-    const fromSigned =
-      signedAt === null ? fromReceipt : signedAt + expires * 1000 - EXPIRY_MARGIN_MS - Date.now();
-    return Math.max(0, Math.min(fromReceipt, fromSigned));
-  } catch {
-    return DEFAULT_DETAIL_TTL_MS;
-  }
-}
+import { detailTtl } from "./photo-detail-ttl";
 
 // 내 사진 상세(authRequest)와 공유 지도 상세(optionalAuthRequest)는 따로 기억
 function cacheKey(photoId: number, mine: boolean) {
