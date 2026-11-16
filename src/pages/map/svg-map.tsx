@@ -12,7 +12,7 @@ import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
 import {
-  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel, regionOutline,
+  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel, regionOutline, dropOverlappingLabels,
   type DongShape, type View, MAX_VIEW_SCALE
 } from "./map-geometry";
 
@@ -25,6 +25,8 @@ const MIN_VIEW = 90;
 // 동 이름은 화면(view) 넓이의 이 비율보다 크게 보이는 동에만 띄움
 // (시 하나가 화면에 꽉 차면 대부분 동에 뜨고, 축소하면 사라져서 시 이름만 남음)
 const DONG_LABEL_MIN_SHARE = 0.005;
+// 동 이름 글자 크기 = 화면(view) 한 변 × 이 비율
+const DONG_LABEL_FONT = 0.019;
 // 가운데 지역이 화면(view) 한 변의 이 비율 이상으로 크게 보이면 "그 지역에 들어왔다"고 봄
 // (부천 첫 화면 0.92, 한 번 축소 0.61, 두 번 축소 0.41 → 두 번 축소하면 시 이름으로 돌아감)
 const REGION_ARRIVE_SHARE = 0.5;
@@ -204,9 +206,13 @@ export function SvgMap({
   // 가운데 지역이 화면에 충분히 크게 보일 때(그 지역에 들어왔을 때)만 그 지역 동 이름 표시.
   // 그중에서도 화면에서 너무 작은 동은 글자가 겹쳐서 뺌
   const arrived = Boolean(focusRegion) && focusSize / view.size > REGION_ARRIVE_SHARE;
+  // 남은 동끼리도 이름이 겹치면 큰 동 이름만 남김 (확대하면 글자가 상대적으로 작아져 다시 나타남)
   const dongLabels = arrived
-    ? shapes.filter((shape) => shape.dongCode.startsWith(focusRegion!)
-      && shape.area / (view.size * view.size) > DONG_LABEL_MIN_SHARE)
+    ? dropOverlappingLabels(
+      shapes.filter((shape) => shape.dongCode.startsWith(focusRegion!)
+        && shape.area / (view.size * view.size) > DONG_LABEL_MIN_SHARE),
+      view.size * DONG_LABEL_FONT,
+    )
     : [];
   const viewRef = useRef<View>(homeView);
   // 화면 이동이 0.2초 멈추면 한 번만 알림 (드래그 중 매 프레임 알리지 않게)
@@ -702,13 +708,13 @@ export function SvgMap({
                 y={shape.label[1]}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fontSize={view.size * 0.022}
+                fontSize={view.size * DONG_LABEL_FONT}
                 fontWeight={700}
                 fill="#2b3245"
                 fillOpacity={0.75}
                 stroke="#ffffff"
-                strokeOpacity={0.85}
-                strokeWidth={view.size * 0.005}
+                strokeOpacity={0.75}
+                strokeWidth={view.size * 0.003}
                 strokeLinejoin="round"
                 paintOrder="stroke"
               >
