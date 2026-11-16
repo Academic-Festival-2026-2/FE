@@ -17,7 +17,7 @@ import { LocationDialog } from "./location-dialog";
 import { UploadPixels } from "./upload-pixels";
 import { UploadConfirmDialog } from "./upload-confirm-dialog";
 import { readPhoto, type PhotoMetadata } from "./photo-metadata";
-import { findDong, parseLocalTime, photoSeasonError, timeBand, validateColors } from "./photo-validation";
+import { findDong, parseLocalTime, timeBand, validateColors } from "./photo-validation";
 import { photoUploadTimeFields } from "./photo-upload-time";
 
 import { analyzePhoto, chooseRepresentative, COLOR_HEX, COLOR_NAMES, type ColorAnalysis as Colors } from "./color-analysis";
@@ -175,11 +175,6 @@ export function PhotoUploadPage() {
       if (!alive.current) break;
       try {
         const metadata = await readPhoto(item.file);
-        const seasonError = metadata.takenAt ? photoSeasonError(metadata.takenAt) : undefined;
-        if (seasonError) {
-          update(item.id, { metadata, takenAt: metadata.takenAt, latitude: metadata.latitude, longitude: metadata.longitude, status: "invalid", error: seasonError });
-          continue;
-        }
         const colors = await analyzePhoto(item.file);
         update(item.id, { analysis: colors, colors, metadata, takenAt: metadata.takenAt ?? "", latitude: metadata.latitude, longitude: metadata.longitude, status: "ready" });
       } catch (error) {
@@ -240,17 +235,14 @@ export function PhotoUploadPage() {
     if (!photo || sending.current || !photo.colors || !selectedFeature || locationMismatch || outside) return;
     const hasExifTime = Boolean(photo.metadata.takenAt);
     const takenAt = hasExifTime ? parseLocalTime(photo.takenAt) : undefined;
-    const seasonError = hasExifTime ? photoSeasonError(photo.takenAt) : undefined;
     const timeFields = photoUploadTimeFields(
       photo.metadata.takenAt, takenAt, photo.season, photo.selectedBand,
     );
-    if (!timeFields || seasonError || !validateColors(photo.colors.palette, photo.colors.bins)) {
+    if (!timeFields || !validateColors(photo.colors.palette, photo.colors.bins)) {
       update(photo.id, {
-        error: seasonError ?? (
-          !hasExifTime && (!photo.season || !photo.selectedBand)
-            ? "촬영 계절과 시간대를 모두 선택해 주세요."
-            : "촬영 정보 또는 색상 분석 결과를 확인해 주세요."
-        ),
+        error: !hasExifTime && (!photo.season || !photo.selectedBand)
+          ? "촬영 계절과 시간대를 모두 선택해 주세요."
+          : "촬영 정보 또는 색상 분석 결과를 확인해 주세요.",
       });
       setConfirmOpen(false);
       return;
@@ -478,7 +470,7 @@ export function PhotoUploadPage() {
               </div>
               <div className="flex flex-col gap-3 border-t border-divider px-6 pt-6 pb-3">
                 <p className="text-center text-xs text-ink-muted">누르면 사진 공개 여부를 고를 수 있어요</p>
-                <button type="button" onClick={() => { setUploadPhase("choose"); setConfirmOpen(true); }} disabled={!photo.colors || (!photoUploadTimeFields(photo.metadata.takenAt, parseLocalTime(photo.takenAt), photo.season, photo.selectedBand) || Boolean(photo.metadata.takenAt && photoSeasonError(photo.takenAt))) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
+                <button type="button" onClick={() => { setUploadPhase("choose"); setConfirmOpen(true); }} disabled={!photo.colors || (!photoUploadTimeFields(photo.metadata.takenAt, parseLocalTime(photo.takenAt), photo.season, photo.selectedBand)) || !selectedFeature || outside || locationMismatch} className={primary}>{photo.status === "uploading" ? "지도에 더하는 중…" : photo.status === "success" ? "업로드 완료" : photo.status === "error" ? "다시 시도" : index < photos.length - 1 ? "지도에 더하고 다음 사진" : "지도에 더하기"}</button>
               </div>
             </fieldset>
             <div className="flex flex-wrap justify-between gap-3 px-6 pt-3 pb-6 text-sm"><button type="button" disabled={uploading} onClick={removeCurrent} className="text-ink-sub underline underline-offset-4 disabled:opacity-40">이 사진 목록에서 빼기</button><button type="button" disabled={uploading} onClick={() => input.current?.click()} className="font-bold text-brand-strong underline underline-offset-4 disabled:opacity-40">사진 추가</button></div>
