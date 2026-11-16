@@ -236,7 +236,7 @@ export function MapPage() {
                         dong={hoveredDong}
                         guName={hoveredGu ?? null}
                         bandLabel={`${mine ? "내 " : ""}${bandLabel(timeBand)}`}
-                        hint="눌러서 확대 →"
+                        hint="눌러서 확대"
                       />
                     )
                   }
