@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PhotoDetail } from "../../api/photo";
 import { cn } from "../../utils/cn";
-import { EMPTY_FILL } from "../map/map-data";
 import { Chevron, CloseIcon } from "./photo-icons";
 import { photoImageUrl } from "./photo-image-url";
 import { paletteShares } from "./photo-info";
@@ -54,6 +53,8 @@ export function PhotoLightbox({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // 받은 사진의 가로÷세로 비율. 작은 사진도 화면에 꽉 차게 키우려면 비율을 알아야 함
+  const [natural, setNatural] = useState<{ url: string; ratio: number } | null>(null);
   // 다른 사진으로 넘기면 이미지 실패 표시를 지움 (기억한 상세라 주소가 같아도, 돌아오면 이미지를 다시 받아 봄)
   const [shownIndex, setShownIndex] = useState(index);
   if (shownIndex !== index) {
@@ -111,6 +112,7 @@ export function PhotoLightbox({
   const shownUrl = photo ? photoImageUrl(photo) : null;
   const imageUrl = shownUrl && shownUrl !== failedUrl ? shownUrl : null;
   const imageReady = imageUrl !== null && (loadedUrl === imageUrl || readyImageUrls?.has(imageUrl));
+  const ratio = natural && natural.url === imageUrl ? natural.ratio : null;
 
   return createPortal(
     <div
@@ -147,11 +149,12 @@ export function PhotoLightbox({
         </button>
       </div>
 
-      {/* 가운데: 사진 (원래 비율 그대로, 화면에 맞게) */}
+      {/* 가운데: 사진 (원래 비율 그대로, 화면에 맞게. 작은 사진도 키워서 꽉 차게) */}
       <div {...BACKDROP} className="relative min-h-0 flex-1">
         <div
           {...BACKDROP}
-          className="absolute inset-x-4 inset-y-3 flex items-center justify-center sm:inset-x-20"
+          // container-type: size → 사진 크기를 이 영역의 가로·세로(cqw·cqh) 기준으로 계산
+          className="absolute inset-x-4 inset-y-3 flex items-center justify-center [container-type:size] sm:inset-x-20"
         >
           {failed ? (
             <p className="text-sm text-ink-sub">사진을 불러오지 못했어요.</p>
@@ -164,11 +167,26 @@ export function PhotoLightbox({
                 key={imageUrl}
                 src={imageUrl}
                 alt={`${photo.name}에서 찍은 사진`}
-                onLoad={() => setLoadedUrl(imageUrl)}
+                onLoad={(event) => {
+                  const { naturalWidth, naturalHeight } = event.currentTarget;
+                  if (naturalWidth && naturalHeight)
+                    setNatural({ url: imageUrl, ratio: naturalWidth / naturalHeight });
+                  setLoadedUrl(imageUrl);
+                }}
                 onError={() => setFailedUrl(imageUrl)}
+                // 영역에 비율대로 꽉 차는 크기: 가로는 영역 가로와 (영역 세로 × 비율) 중 작은 쪽
+                // (원래 크기보다 작은 사진도 키움. 상자가 사진과 같은 비율이라 흰 배경이 사진 밖으로 나오지 않음)
+                style={
+                  ratio
+                    ? { width: `min(100cqw, ${ratio} * 100cqh)`, aspectRatio: String(ratio) }
+                    : undefined
+                }
                 className={cn(
-                  "max-h-full max-w-full min-w-0 rounded-[6px] bg-white object-contain shadow-[0_16px_40px_rgba(0,0,0,0.18)] transition-opacity duration-300",
-                  imageReady ? "opacity-100" : "opacity-0",
+                  "max-h-full max-w-full min-w-0 rounded-[6px] bg-white object-contain shadow-[0_16px_40px_rgba(0,0,0,0.18)]",
+                  // 미리 받은 사진은 페이드 없이 바로, 새로 받은 사진만 서서히
+                  !readyImageUrls?.has(imageUrl) && "transition-opacity duration-300",
+                  // 비율을 알기 전에는 숨김 (원래 크기로 잠깐 보였다가 커지지 않게)
+                  imageReady && ratio ? "opacity-100" : "opacity-0",
                 )}
               />
               {/* 이미지를 받는 동안 빈 화면 대신 로딩 표시 (미리 받기가 덜 끝났거나 느린 망, 축소 이미지가 없어 원본을 받을 때) */}
@@ -211,11 +229,7 @@ export function PhotoLightbox({
         {...BACKDROP}
         className="mx-auto w-full max-w-[560px] px-4 pt-1 pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
-        {/* 정보 박스는 지도의 사진 없는 동 색과 같게 */}
-        <div
-          className="min-h-[104px] rounded-[18px] px-4 py-3.5"
-          style={{ backgroundColor: EMPTY_FILL }}
-        >
+        <div className="min-h-[104px] rounded-[18px] border border-line bg-white px-4 py-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
           <PhotoMeta photo={photo} failed={failed} tone="lightbox" />
         </div>
       </div>
