@@ -17,7 +17,7 @@ import { LocationDialog } from "./location-dialog";
 import { UploadPixels } from "./upload-pixels";
 import { UploadConfirmDialog } from "./upload-confirm-dialog";
 import { readPhoto, type PhotoMetadata } from "./photo-metadata";
-import { findDong, parseLocalTime, timeBand, validateColors } from "./photo-validation";
+import { findDong, futureTakenAtError, parseLocalTime, timeBand, validateColors } from "./photo-validation";
 import { photoUploadTimeFields } from "./photo-upload-time";
 
 import { analyzePhoto, chooseRepresentative, COLOR_HEX, COLOR_NAMES, type ColorAnalysis as Colors } from "./color-analysis";
@@ -65,7 +65,8 @@ const steps = [
 
 function uploadErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    if (error.code === "PHOTO400_12") return "이 사진의 촬영 날짜에 등록된 시즌이 없어요. 촬영 날짜를 확인해 주세요.";
+    if (error.code === "PHOTO400_12") return "사진의 계절 정보를 찾지 못했어요. 잠시 후 다시 시도해 주세요.";
+    if (error.code === "PHOTO400_25") return "미래 촬영 시각의 사진은 올릴 수 없어요. 카메라 날짜와 시간을 확인해 주세요.";
     if (error.code === "PHOTO409_1") return "이미 등록된 사진입니다. 다른 사진을 선택해 주세요.";
     // AI 검수에서 거절된 사진 (BE ClaudeImageModerator 기준: 선정적·폭력적·혐오감을 주는 사진)
     if (error.code === "PHOTO422_1") return "지도에 올릴 수 없는 사진이에요. 선정적이거나 폭력적인 사진, 혐오감을 주는 사진은 올릴 수 없어요.";
@@ -175,6 +176,16 @@ export function PhotoUploadPage() {
       if (!alive.current) break;
       try {
         const metadata = await readPhoto(item.file);
+        const dateError = metadata.takenAt ? futureTakenAtError(metadata.takenAt) : undefined;
+        if (dateError) {
+          update(item.id, {
+            metadata,
+            takenAt: metadata.takenAt ?? "",
+            status: "invalid",
+            error: dateError,
+          });
+          continue;
+        }
         const colors = await analyzePhoto(item.file);
         update(item.id, { analysis: colors, colors, metadata, takenAt: metadata.takenAt ?? "", latitude: metadata.latitude, longitude: metadata.longitude, status: "ready" });
       } catch (error) {
@@ -300,7 +311,7 @@ export function PhotoUploadPage() {
   const previewStatus = photo
     ? photo.status === "reading" ? { dot: "bg-brand", text: "text-brand-strong", label: "사진 정보 확인 중…" }
       : photo.status === "success" ? { dot: "bg-ok-dot", text: "text-ok", label: "업로드 완료" }
-        : photo.status === "invalid" ? { dot: "bg-danger", text: "text-danger", label: "지원하지 않는 사진" }
+        : photo.status === "invalid" ? { dot: "bg-danger", text: "text-danger", label: "업로드할 수 없는 사진" }
           : { dot: "bg-ok-dot", text: "text-ok", label: "사진 미리보기" }
     : null;
 
@@ -439,7 +450,7 @@ export function PhotoUploadPage() {
                     </div>
                     <p className="mt-3 text-xs leading-5 text-ink-muted">
                       정확한 날짜는 기록되지 않으며 나의 지도에만 반영돼요.
-                      현재는 가을 사진만 등록할 수 있어요. 봄·여름·겨울 사진 업로드는 추후 지원할 예정이에요.
+
                     </p>
                   </>
                 )}

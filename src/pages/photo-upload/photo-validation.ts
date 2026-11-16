@@ -21,7 +21,15 @@ export function parseLocalTime(value: string): string | undefined {
   return `${y}-${m}-${d}T${h}:${min}:${sec}`;
 }
 
-// 촬영 연도 제한 없음. 날짜/시각 형식 검증은 parseLocalTime()에서 처리한다.
+// 촬영 연도는 제한하지 않으며, KST 기준 미래 촬영 시각만 거부한다.
+// now를 주입할 수 있어 시간 경계 테스트를 고정된 시각으로 실행한다.
+export function futureTakenAtError(value: string, now: Date = new Date()): string | undefined {
+  const parsed = parseLocalTime(value);
+  if (!parsed) return;
+  if (Date.parse(`${parsed}+09:00`) > now.getTime()) {
+    return "현재보다 미래에 촬영된 사진은 올릴 수 없어요. 카메라 날짜와 시간을 확인해 주세요.";
+  }
+}
 
 export function timeBand(value: string): TimeBand | undefined {
   const valid = parseLocalTime(value);
