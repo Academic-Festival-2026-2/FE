@@ -2,11 +2,15 @@ import type { BadgeType } from "./badge";
 import { authRequest, optionalAuthRequest } from "./client";
 import type { TimeBand } from "./map";
 
+export type SeasonType = "SPRING" | "SUMMER" | "AUTUMN" | "WINTER";
+
 export type PhotoUploadData = {
   dongCode: string;
   latitude?: number;
   longitude?: number;
-  takenAt: string;
+  takenAt?: string;
+  season?: SeasonType;
+  timeBand?: TimeBand;
   isPublic: boolean;
   palette: string[];
   bins: number[];
@@ -48,7 +52,8 @@ export type PhotoDetail = {
   displayUrl?: string | null;
   nickname: string;
   name: string;
-  takenAt: string;
+  takenAt: string | null;
+  season: SeasonType;
   timeBand: TimeBand;
   palette: string[];
   // 업로드 때 보낸 40칸 색 비율. 없거나 이상하면 5색 같은 폭으로 표시 (photo-color-ratios.ts)
@@ -113,7 +118,8 @@ export type MyPhotoItem = {
   dongCode: string;
   name: string;
   timeBand: TimeBand;
-  takenAt: string;
+  takenAt: string | null;
+  season: SeasonType;
   color: string;
   isPublic: boolean;
   aiVerdict: "PUBLIC" | "PERSONAL_ONLY" | "UNCHECKED";
