@@ -93,7 +93,8 @@ export type LikedPhotoItem = {
   name: string;
   nickname: string;
   timeBand: TimeBand;
-  takenAt: string;
+  // 촬영 시각 없이 올린 사진(#111)은 null. 이 응답에는 계절이 없음
+  takenAt: string | null;
   color: string;
 };
 

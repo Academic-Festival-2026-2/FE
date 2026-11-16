@@ -22,6 +22,11 @@ import { usePhotoDetails } from "../dong/use-photo-details";
 
 const PAGE_SIZE = 12;
 
+// 촬영 시각 없이 올린 사진(#111)은 날짜 대신 "촬영 시기 미상" (좋아요 목록 응답에는 계절이 없음, 크게 보기에서는 계절이 보임)
+function formatLikedDate(takenAt: string | null) {
+  return takenAt ? formatDate(takenAt) : "촬영 시기 미상";
+}
+
 function PhotoThumbnail({ photo }: { photo: LikedPhotoItem }) {
   const [failed, setFailed] = useState(false);
   return (
@@ -280,7 +285,7 @@ export function LikedPhotosPage() {
                       }}
                       type="button"
                       onClick={() => openPhoto(index)}
-                      aria-label={`${photo.nickname}님이 ${photo.name}에서 ${formatDate(photo.takenAt)}에 찍은 사진 크게 보기`}
+                      aria-label={`${photo.nickname}님이 ${photo.name}에서 찍은 사진 크게 보기 (${formatLikedDate(photo.takenAt)})`}
                       className="block w-full overflow-hidden rounded-2xl border border-card-line bg-white text-left transition group-hover:shadow-[0_8px_24px_rgba(26,36,64,0.10)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
                       <PhotoThumbnail photo={photo} />
@@ -289,7 +294,7 @@ export function LikedPhotosPage() {
                           <p className="truncate text-sm font-bold text-ink sm:text-base">{photo.name}</p>
                           <p className="mt-1 truncate text-xs text-ink-sub">{photo.nickname}</p>
                           <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">
-                            {formatDate(photo.takenAt)} · {bandLabel(photo.timeBand)}
+                            {formatLikedDate(photo.takenAt)} · {bandLabel(photo.timeBand)}
                           </p>
                         </div>
                         <span
