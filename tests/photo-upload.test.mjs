@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 import { analyzePixels, chooseRepresentative, dominantIndex, COLOR_HEX, COLOR_NAMES } from '../src/pages/photo-upload/color-analysis.ts';
-import { parseLocalTime, photoSeasonError, timeBand, validateColors, validateImage, findDong, MAX_IMAGE_BYTES } from '../src/pages/photo-upload/photo-validation.ts';
+import { futureTakenAtError, parseLocalTime, timeBand, validateColors, validateImage, findDong, MAX_IMAGE_BYTES } from '../src/pages/photo-upload/photo-validation.ts';
 import { photoUploadTimeFields } from '../src/pages/photo-upload/photo-upload-time.ts';
 
 const pixel = (hex, alpha = 255) => [...[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)), alpha];
@@ -118,14 +118,22 @@ test('KST 로컬 시각 검증과 시간대 경계', () => {
   for (const value of ['2026-02-29T12:00', '2026-11-07T24:00', '2026-11-07T12:00:00Z', '2026-11-07T12:00:00+09:00']) assert.equal(parseLocalTime(value), undefined);
   for (const [hour, band] of [[4,'NIGHT'],[5,'DAWN'],[8,'DAY'],[16,'SUNSET'],[19,'NIGHT']]) assert.equal(timeBand(`2026-11-07T${String(hour).padStart(2,'0')}:00`), band);
 });
-test('등록된 시즌에 해당하지 않는 촬영 날짜를 업로드 전에 안내한다', () => {
-  assert.equal(photoSeasonError('2026-09-01T00:00'), undefined);
-  assert.equal(photoSeasonError('2026-11-30T23:59'), undefined);
-  assert.match(photoSeasonError('2026-08-31T23:59'), /등록된 시즌/);
-  assert.match(photoSeasonError('2026-12-01T00:00'), /등록된 시즌/);
-  assert.match(photoSeasonError('2026-12-01T00:00'), /2026\.09\.01~2026\.11\.30/);
-  assert.equal(photoSeasonError('invalid'), undefined);
+test('과거·미래 연도의 촬영 시각을 형식에 따라 파싱한다', () => {
+  for (const value of ['2024-03-01T00:00', '2025-08-31T23:59', '2026-12-01T00:00', '2028-02-29T12:00', '2030-03-01T09:00']) {
+    assert.ok(parseLocalTime(value), value);
+  }
+  assert.equal(parseLocalTime('2025-02-29T12:00'), undefined);
 });
+test('KST 현재 시각 이후 촬영된 사진만 거부한다', () => {
+  const now = new Date('2026-11-16T12:00:00Z');
+  assert.equal(futureTakenAtError('2024-02-29T08:00', now), undefined);
+  assert.equal(futureTakenAtError('2026-11-16T20:59:59', now), undefined);
+  assert.equal(futureTakenAtError('2026-11-16T21:00:00', now), undefined);
+  assert.match(futureTakenAtError('2026-11-16T21:00:01', now), /미래/);
+  assert.match(futureTakenAtError('2030-03-01T09:00', now), /미래/);
+  assert.equal(futureTakenAtError('invalid', now), undefined);
+});
+
 test('파일 확장자가 아니라 JPEG/PNG 시그니처와 크기를 검사한다', async () => {
   await validateImage(new File([new Uint8Array([255,216,255,0])], 'x.jpg'));
   await validateImage(new File([new Uint8Array([137,80,78,71,13,10,26,10])], 'x.png'));
@@ -243,11 +251,13 @@ test('EXIF 촬영 시각이 있으면 날짜만 전송한다', () => {
   );
 });
 
-test('EXIF 촬영 시각이 없으면 계절과 시간대만 전송한다', () => {
-  assert.deepEqual(
-    photoUploadTimeFields(undefined, undefined, 'AUTUMN', 'SUNSET'),
-    { season: 'AUTUMN', timeBand: 'SUNSET' },
-  );
+test('EXIF 촬영 시각이 없으면 선택한 사계절과 시간대만 전송한다', () => {
+  for (const season of ['SPRING', 'SUMMER', 'AUTUMN', 'WINTER']) {
+    assert.deepEqual(
+      photoUploadTimeFields(undefined, undefined, season, 'SUNSET'),
+      { season, timeBand: 'SUNSET' },
+    );
+  }
 });
 
 test('필수 촬영 정보가 누락되면 업로드 요청을 생성하지 않는다', () => {
