@@ -18,14 +18,15 @@ import { UploadConfirmDialog } from "./upload-confirm-dialog";
 import { readPhoto, type PhotoMetadata } from "./photo-metadata";
 import { findDong, parseLocalTime, photoSeasonError, timeBand, validateColors } from "./photo-validation";
 
-import { analyzePhoto, type ColorAnalysis as Colors } from "./color-analysis";
+import { analyzePhoto, chooseRepresentative, COLOR_HEX, COLOR_NAMES, type ColorAnalysis as Colors } from "./color-analysis";
 type Photo = {
   id: string; file: File; url: string; metadata: PhotoMetadata;
   takenAt: string; dongCode: string; latitude?: number; longitude?: number;
   // 직접 고른 시(지역 코드)·구. undefined면 아직 손대지 않은 것 → GPS로 찾은 동을 그대로 씀
   regionCode?: string; guName?: string;
   isPublic: boolean; status: "reading" | "ready" | "invalid" | "uploading" | "success" | "error";
-  error?: string; needsLogin?: boolean; colors?: Colors; result?: PhotoUploadResult;
+  // analysis: 처음 분석한 결과(후보 포함), colors: 사용자가 고른 대표색까지 반영해 서버로 보낼 값
+  error?: string; needsLogin?: boolean; analysis?: Colors; colors?: Colors; result?: PhotoUploadResult;
 };
 const navButton = "h-11 rounded-[10px] border border-brand bg-white px-4 text-sm text-brand-strong transition-colors hover:bg-brand-soft disabled:cursor-not-allowed disabled:border-line disabled:text-ink-faint disabled:hover:bg-white";
 const field = "h-11 w-full rounded-[10px] border border-field-line bg-white px-3.5 text-sm text-ink outline-none transition-colors focus:border-brand";
@@ -35,20 +36,23 @@ const bands = [ ["DAWN", "새벽", "05–08"], ["DAY", "낮", "08–16"], ["SUNS
 const PREVIEW_MAX_HEIGHT = 560;
 // 시·구·동 목록 가나다순 (숫자는 크기 순: 중1동 < 중2동 < 중10동)
 const byName = (a: string, b: string) => a.localeCompare(b, "ko", { numeric: true });
-const MIN_BAR_SHARE = 0.04;
 
-// 대표색 바 표시용: ratios는 사진 전체 대비 비율이라 5색 합이 100%보다 작음 → 5색 합 100%로 다시 계산
-// share: 5색 안에서의 비율(범례 %), width: 바 폭(아주 작은 색도 보이게 최소 4%). 색이 5개보다 적어 채운 칸(0%)은 뺌
-// 화면 표시만 바꾸고, 서버로 보내는 palette·bins는 그대로
-function paletteShares({ palette, ratios }: Colors) {
-  const items = palette.map((color, i) => ({ color, ratio: ratios[i] ?? 0 })).filter((item) => item.ratio > 0);
-  const total = items.reduce((sum, item) => sum + item.ratio, 0) || 1;
-  const lifted = items.map((item) => Math.max(item.ratio / total, MIN_BAR_SHARE));
-  const liftedTotal = lifted.reduce((sum, value) => sum + value, 0);
-  return items.map((item, i) => ({ color: item.color, share: item.ratio / total, width: lifted[i] / liftedTotal }));
+// 대표색 후보 3개(첫 후보 = 자동 대표색, 처음에 선택됨). 고르면 그 색이 지도에 칠해질 대표색이 됨
+function RepresentativePicker({ analysis, selected, disabled, onSelect }: { analysis: Colors; selected: string; disabled: boolean; onSelect: (hex: string) => void }) {
+  return <div role="radiogroup" aria-label="픽셀에 찍힐 색 고르기" className="grid grid-cols-3 gap-2.5">
+    {analysis.candidates.map((hex) => {
+      const checked = hex === selected;
+      // 칸 전체를 후보 색으로 채우고 색상 코드는 칸 아래에.
+      // 선택된 칸은 검정 테두리(배경색 틈을 두고)로 강조. 선택 안 된 칸도 원래 색 그대로 보여 줌(비교해서 고를 수 있게)
+      return <button key={hex} type="button" role="radio" aria-checked={checked} aria-label={`${COLOR_NAMES[COLOR_HEX.findIndex((c) => c === hex)] ?? hex} (${hex})`} disabled={disabled} onClick={() => onSelect(hex)} className="group flex min-w-0 flex-col gap-2 text-left disabled:cursor-not-allowed">
+        <span className={`block h-14 w-full rounded-[10px] transition ${checked ? "ring-2 ring-ink ring-offset-2 ring-offset-page" : "ring-1 ring-black/10 group-hover:ring-2 group-hover:ring-black/20 group-disabled:group-hover:ring-1 group-disabled:group-hover:ring-black/10"}`} style={{ background: hex }} aria-hidden />
+        <span className={`truncate font-mono text-[13px] ${checked ? "font-bold text-ink" : "text-ink-muted"}`}>{hex}</span>
+      </button>;
+    })}
+  </div>;
 }
 const steps = [
-  ["대표색 뽑기", "사진마다 많이 쓰인 색 5개를 비율과 함께 뽑아요."],
+  ["대표색 뽑기", "사진의 주인공 색을 뽑고, 후보 중에서 바꿀 수 있어요."],
   ["한 장씩 확인", "시간대와 동이 비어 있으면 직접 골라 주세요."],
   ["지도에 더하기", "공유 지도 또는 나의 지도에만 칠해요."],
 ];
@@ -171,7 +175,7 @@ export function PhotoUploadPage() {
           continue;
         }
         const colors = await analyzePhoto(item.file);
-        update(item.id, { colors, metadata, takenAt: metadata.takenAt ?? "", latitude: metadata.latitude, longitude: metadata.longitude, status: "ready" });
+        update(item.id, { analysis: colors, colors, metadata, takenAt: metadata.takenAt ?? "", latitude: metadata.latitude, longitude: metadata.longitude, status: "ready" });
       } catch (error) {
         update(item.id, { status: "invalid", error: error instanceof Error ? error.message : "사진을 읽지 못했어요. 다른 사진을 선택해 주세요." });
       }
@@ -330,9 +334,9 @@ export function PhotoUploadPage() {
               {previewStatus && <span className="absolute top-4 right-4 flex h-[30px] items-center gap-1.5 rounded-lg bg-white px-2.5 text-[13px] font-bold"><span className={`size-2 rounded-full ${previewStatus.dot}`} aria-hidden /><span className={previewStatus.text}>{previewStatus.label}</span></span>}
               <span className="absolute bottom-4 left-4 flex h-[29px] max-w-[90%] items-center rounded-lg bg-white px-2.5 font-mono text-[13px]"><span className="truncate">{photo.file.name} · {(photo.file.size / 1024 / 1024).toFixed(1)}MB</span></span>
             </div>
-            <div className="mt-[18px] mb-3 flex items-baseline justify-between"><h2 className="text-base font-bold">대표색</h2><span className="text-[13px] text-ink-muted">많이 쓰인 순서</span></div>
-            {photo.colors ? <><div className="flex h-10 overflow-hidden rounded-[10px]">{paletteShares(photo.colors).map(({ color, width }, i) => <span key={i} style={{ background: color, width: `${width * 100}%` }} />)}</div><div className="mt-4 flex flex-wrap justify-between gap-x-4 gap-y-2 font-mono text-[13px]">{paletteShares(photo.colors).map(({ color, share }, i) => <span key={i} className="flex items-center gap-2"><span className="size-3.5 rounded-[3px]" style={{ background: color }} aria-hidden />{color} <span className="text-ink-muted">{Math.round(share * 100)}%</span></span>)}</div></>
-              : photo.status === "reading" ? <><div className="flex h-10 animate-pulse overflow-hidden rounded-[10px] bg-preview" aria-hidden><span className="flex-[31]" /><span className="flex-[24] bg-[#dbe0e9]" /><span className="flex-[18]" /><span className="flex-[16] bg-[#dbe0e9]" /><span className="flex-[11]" /></div><p role="status" className="mt-4 text-[13px] text-ink-muted">사진 정보와 대표색을 분석 중이에요…</p></>
+            <div className="mt-[18px] mb-3 flex items-baseline justify-between"><h2 className="text-base font-bold">픽셀에 찍힐 색</h2>{photo.colors && <span className="text-[13px] text-ink-muted">후보 중에서 선택할 수 있어요</span>}</div>
+            {photo.colors && photo.analysis ? <RepresentativePicker analysis={photo.analysis} selected={photo.colors.palette[0]} disabled={uploading || photo.status === "success"} onSelect={(hex) => { const analysis = photo.analysis; if (analysis) update(photo.id, { colors: chooseRepresentative(analysis, hex) }); }} />
+              : photo.status === "reading" ? <><div className="grid animate-pulse grid-cols-3 gap-2.5" aria-hidden>{[0, 1, 2].map((i) => <span key={i} className="flex flex-col gap-2"><span className="h-14 rounded-[10px] bg-preview" /><span className="h-4 w-16 rounded bg-preview" /></span>)}</div><p role="status" className="mt-4 text-[13px] text-ink-muted">사진 정보와 대표색을 분석 중이에요…</p></>
               : <p role="status" className="rounded-xl border border-card-line bg-white p-4 text-sm text-ink-muted">대표색을 표시할 수 없어요. 사진 정보 입력의 오류 안내를 확인해 주세요.</p>}
           </section>
           <section className="overflow-hidden rounded-2xl border border-card-line bg-white" aria-label="사진 정보 입력">
