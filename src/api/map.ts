@@ -30,6 +30,8 @@ export type DongColor = {
   name: string;
   dominantColor: string | null;
   photoCount: number;
+  // 동 상세에 픽셀로 보이는 사진 수 (공개 + 위치 있음). 공유 지도 응답에만 있음 (BE #156)
+  pointCount?: number;
   status: CellStatus;
   colorRatio: ColorRatio[];
 };

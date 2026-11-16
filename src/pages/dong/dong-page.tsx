@@ -15,7 +15,6 @@ import {
   PAGE_BG,
   seasonOf,
   useRegionList,
-  STATUS_LABEL,
   toKakaoPath,
   useBoundaries,
   useDongColors,
@@ -28,6 +27,7 @@ import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
 import { MapLoading } from "../map/map-loading";
 import { canUseDongTransition, markReturnFrom, prepareDongTransition } from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
+import { PixelCount } from "./pixel-count";
 import { labelPoint } from "../map/map-geometry";
 
 const SELECTED_STROKE = "#1a1a1a";
@@ -391,7 +391,6 @@ export function DongPage() {
     : notFound
       ? "없는 동이에요."
       : (boundaryError ?? (mine ? myMap.error : colorError) ?? detailError);
-  const statusLabel = dong ? STATUS_LABEL[dong.status] : "";
 
   return (
     <div className="relative h-screen w-full">
@@ -432,11 +431,18 @@ export function DongPage() {
                 className="size-3 shrink-0 rounded-[3px] border border-white/80 shadow-[0_0_0_1px_rgba(26,36,64,0.12)]"
                 style={{ backgroundColor: dong.dominantColor ?? EMPTY_FILL }}
               />
-              <span>
-                {mine ? "내 사진" : seasonName ? `${seasonName} · 사진` : "사진"}{" "}
-                <b className="text-ink">{dong.photoCount}</b>장
-                {statusLabel && ` · ${statusLabel}`}
-              </span>
+              {/* 공유 지도는 "픽셀 2/4"(픽셀로 보이는 사진 / 색에 쓰인 사진), 나의 지도(pointCount 없음)는 내 사진 수 */}
+              {mine || dong.pointCount === undefined ? (
+                <span>
+                  {mine ? "내 사진" : seasonName ? `${seasonName} · 사진` : "사진"}{" "}
+                  <b className="text-ink">{dong.photoCount}</b>장
+                </span>
+              ) : (
+                <span>
+                  {seasonName && `${seasonName} · `}
+                  <PixelCount pointCount={dong.pointCount} photoCount={dong.photoCount} />
+                </span>
+              )}
             </p>
           )}
           {mine && unlocated.length > 0 && (

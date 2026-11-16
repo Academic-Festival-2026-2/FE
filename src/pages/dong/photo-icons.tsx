@@ -37,3 +37,14 @@ export function CloseIcon({ size = 11 }: { size?: number }) {
     </svg>
   );
 }
+
+// 동그라미 안 i (설명 보기)
+export function InfoIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" aria-hidden>
+      <circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M7 6.2v3.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="7" cy="4.2" r="0.85" fill="currentColor" />
+    </svg>
+  );
+}
