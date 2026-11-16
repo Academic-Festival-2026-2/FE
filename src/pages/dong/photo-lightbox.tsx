@@ -158,6 +158,7 @@ export function PhotoLightbox({
             <LoadingSpinner />
           ) : imageUrl ? (
             <>
+              {/* 흰 배경: 투명 PNG(축소 이미지가 없는 옛 사진은 원본 PNG)의 투명한 부분이 검은 배경에 묻혀 검게 보이지 않게 */}
               <img
                 key={imageUrl}
                 src={imageUrl}
@@ -165,7 +166,7 @@ export function PhotoLightbox({
                 onLoad={() => setLoadedUrl(imageUrl)}
                 onError={() => setFailedUrl(imageUrl)}
                 className={cn(
-                  "max-h-full max-w-full min-w-0 rounded-[6px] object-contain shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-opacity duration-300",
+                  "max-h-full max-w-full min-w-0 rounded-[6px] bg-white object-contain shadow-[0_24px_60px_rgba(0,0,0,0.45)] transition-opacity duration-300",
                   imageReady ? "opacity-100" : "opacity-0",
                 )}
               />
