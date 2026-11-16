@@ -17,7 +17,7 @@ import { getPhotoColorRatios } from "../dong/photo-color-ratios";
 import { photoImageUrl } from "../dong/photo-image-url";
 import { useUserStore } from "../../stores/user-store";
 import { formatDate } from "../../utils/date";
-import { seasonOf } from "../map/map-data";
+import { SEASON_OPTIONS, seasonOf } from "../map/map-data";
 
 const PAGE_SIZE = 12;
 const timeBandLabel = {
@@ -347,10 +347,9 @@ export function MyPhotosPage() {
               className="h-9 rounded-[10px] border border-field-line bg-white px-3 text-sm font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               <option value="ALL">전체 계절</option>
-              <option value="SPRING">봄</option>
-              <option value="SUMMER">여름</option>
-              <option value="AUTUMN">가을</option>
-              <option value="WINTER">겨울</option>
+              {SEASON_OPTIONS.map(({ value, name }) => (
+                <option key={value} value={value}>{name}</option>
+              ))}
             </select>
             <span className="text-[13px] text-ink-muted">최신순</span>
           </div>
@@ -371,7 +370,10 @@ export function MyPhotosPage() {
                 <Link to="/upload" className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">첫 사진 업로드</Link>
               </>
             ) : (
-              <p className="font-bold text-ink">이 계절에 등록한 사진이 없어요.</p>
+              <>
+                <p className="font-bold text-ink">이 계절에 찍은 사진이 없어요.</p>
+                <button type="button" onClick={() => changeSeasonFilter("ALL")} className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">전체 계절 보기</button>
+              </>
             )}
           </div>
         ) : (
