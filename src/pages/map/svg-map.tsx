@@ -16,8 +16,11 @@ import {
   type DongShape, type View, MAX_VIEW_SCALE
 } from "./map-geometry";
 
-// 동 색을 지도 전체에서 흐리게 섞는 세기 (viewBox 단위, 부천 한 시 ≈ 550단위). 시안 "그라데이션 중"
+// 동 색을 흐리게 섞는 세기 (viewBox 단위). 시안 "그라데이션 중" = 부천 첫 화면(view ≈ 625)에서 10.
+// 확대할 때는 이 값 그대로라 화면에서는 점점 세지고(의도), 축소할 때는 화면(view) 한 변 × FILL_BLUR_SHARE로
+// 키워서 화면에서 같은 세기로 보이게 (고정값이면 축소할수록 그라데이션이 사라짐)
 const FILL_BLUR = 10;
+const FILL_BLUR_SHARE = 0.016;
 // 동 경계선: 얇고 흐리게 (화면 px, 투명도)
 const DONG_LINE_WIDTH = 0.4;
 const DONG_LINE_OPACITY = 0.3;
@@ -198,7 +201,7 @@ export function SvgMap({
   }, [shapes, fillWave]);
   const svgRef = useRef<SVGSVGElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (가장자리 흐림, 부천 모양 자르기)
+  // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (동 색 흐림 층, 부천 모양 자르기)
   const blurGroupRef = useRef<SVGGElement>(null);
   const clipGroupRef = useRef<SVGGElement>(null);
   const focusOverlayRef = useRef<SVGPathElement>(null);
@@ -320,7 +323,7 @@ export function SvgMap({
     root.style.zIndex = "50";
     root.style.overflow = "hidden";
     root.style.backgroundColor = "#ffffff";
-    // 렉 줄이기: 가장자리 흐림(가우시안 블러 + 마스크)과 부천 모양 자르기(clip-path)는 viewBox가 바뀔 때마다
+    // 렉 줄이기: 동 색 흐림 층(지도 전체 가우시안 블러)과 부천 모양 자르기(clip-path)는 viewBox가 바뀔 때마다
     // 지도 전체를 다시 계산해서 가장 무거움. 움직이는 동안에는 차이가 거의 안 보이므로 꺼 두고 끝나면 되돌림
     blurGroupRef.current?.style.setProperty("display", "none");
     clipGroupRef.current?.removeAttribute("clip-path");
@@ -504,11 +507,15 @@ export function SvgMap({
     return () => svg.removeEventListener("wheel", handleWheel);
   }, [maxSize]);
 
+  // 흐린 층: 빈 동은 투명으로 빼서 옆 동 색이 빈 동을 덮어 칠한 것처럼 보이지 않게 (빈 동은 아래 선명한 회색이 보임)
   const fills = shapes.map((shape) => (
     <path
       key={shape.dongCode}
       d={shape.path}
-      style={{ fill: fillOf(shape.dongCode), transitionDelay: fillDelays.get(shape.dongCode) }}
+      style={{
+        fill: colorOf(shape.dongCode) ? fillOf(shape.dongCode) : "transparent",
+        transitionDelay: fillDelays.get(shape.dongCode),
+      }}
       fillRule="evenodd"
       className={FILL_TRANSITION}
     />
@@ -578,7 +585,7 @@ export function SvgMap({
             ))}
           </clipPath>
           <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation={FILL_BLUR} />
+            <feGaussianBlur stdDeviation={Math.max(FILL_BLUR, view.size * FILL_BLUR_SHARE)} />
           </filter>
         </defs>
 
@@ -609,7 +616,7 @@ export function SvgMap({
               />
             ))}
           </g>
-          {/* 선명한 동 색 위에 흐린 동 색을 덮어 동 사이 색이 이어지게. 시 바깥은 clipPath가 자름 */}
+          {/* 선명한 동 색 위에 흐린 동 색을 덮어 칠한 동 사이 색이 이어지게. 시 바깥은 clipPath가 자름 */}
           <g ref={blurGroupRef} pointerEvents="none">
             <g filter={`url(#${blurId})`}>{fills}</g>
           </g>
