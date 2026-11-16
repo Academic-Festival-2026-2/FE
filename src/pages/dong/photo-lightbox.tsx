@@ -52,6 +52,12 @@ export function PhotoLightbox({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // 다른 사진으로 넘기면 원본 실패 표시를 지움 (기억한 상세라 주소가 같아도, 돌아오면 원본을 다시 받아 봄)
+  const [shownIndex, setShownIndex] = useState(index);
+  if (shownIndex !== index) {
+    setShownIndex(index);
+    setFailedUrl(null);
+  }
   const hasPrev = index > 0;
   const hasNext = index < total - 1;
 

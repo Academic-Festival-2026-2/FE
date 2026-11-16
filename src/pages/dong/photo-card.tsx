@@ -100,6 +100,12 @@ export function PhotoCard({
   const bubble = variant === "bubble";
   const [index, setIndex] = useState(0);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // 다른 사진으로 넘기면 사진 실패 표시를 지움 (기억한 상세라 주소가 같아도, 돌아오면 사진을 다시 받아 봄)
+  const [shownIndex, setShownIndex] = useState(index);
+  if (shownIndex !== index) {
+    setShownIndex(index);
+    setFailedUrl(null);
+  }
   // 다 받은 사진의 원래 크기 (말풍선 카드 폭을 사진 비율에 맞출 때 씀)
   const [loaded, setLoaded] = useState<{ url: string; width: number; height: number } | null>(
     null,

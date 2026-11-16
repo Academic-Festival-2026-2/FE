@@ -165,6 +165,13 @@ function usePreloadedImages(
   const [readyUrls, setReadyUrls] = useState<ReadonlySet<string>>(() => new Set());
   const [firstNeighbor = null, secondNeighbor = null] = neighborUrls;
 
+  // 놓아줄 이미지(지금·옆 사진이 아닌 주소)는 다 받았다고 보지 않음
+  // 브라우저 캐시에서 빠졌을 수 있어서, 그 사진으로 돌아오면 다시 받는 동안 로딩으로 보이게 (아래 effect가 Image도 놓아줌)
+  const keepUrls = [currentUrl, firstNeighbor, secondNeighbor];
+  if ([...readyUrls].some((url) => !keepUrls.includes(url))) {
+    setReadyUrls(new Set([...readyUrls].filter((url) => keepUrls.includes(url))));
+  }
+
   // 같은 주소는 한 번만 받음 (effect가 다시 돌아도 Image·이벤트를 새로 만들지 않음)
   const preloadImage = useCallback((url: string) => {
     const existing = imagesRef.current.get(url);
