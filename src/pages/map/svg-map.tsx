@@ -16,8 +16,11 @@ import {
   type DongShape, type View, MAX_VIEW_SCALE
 } from "./map-geometry";
 
-const EDGE_WIDTH = 6;
-const EDGE_BLUR = 5;
+// 동 색을 지도 전체에서 흐리게 섞는 세기 (viewBox 단위, 부천 한 시 ≈ 550단위). 시안 "그라데이션 중"
+const FILL_BLUR = 10;
+// 동 경계선: 얇고 흐리게 (화면 px, 투명도)
+const DONG_LINE_WIDTH = 0.4;
+const DONG_LINE_OPACITY = 0.3;
 const MIN_VIEW = 90;
 // 동 이름은 화면(view) 넓이의 이 비율보다 크게 보이는 동에만 띄움
 // (시 하나가 화면에 꽉 차면 대부분 동에 뜨고, 축소하면 사라져서 시 이름만 남음)
@@ -194,7 +197,7 @@ export function SvgMap({
   const svgRef = useRef<SVGSVGElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (가장자리 흐림, 부천 모양 자르기)
-  const edgeGroupRef = useRef<SVGGElement>(null);
+  const blurGroupRef = useRef<SVGGElement>(null);
   const clipGroupRef = useRef<SVGGElement>(null);
   const focusOverlayRef = useRef<SVGPathElement>(null);
   const [view, setView] = useState<View>(homeView);
@@ -232,8 +235,6 @@ export function SvgMap({
   const uid = useId();
   const clipId = `${uid}-clip`;
   const blurId = `${uid}-blur`;
-  const featherId = `${uid}-feather`;
-  const edgesId = `${uid}-edges`;
 
   function moveTooltip(event: React.PointerEvent<HTMLDivElement>) {
     const tip = tooltipRef.current;
@@ -315,7 +316,7 @@ export function SvgMap({
     root.style.backgroundColor = "#ffffff";
     // 렉 줄이기: 가장자리 흐림(가우시안 블러 + 마스크)과 부천 모양 자르기(clip-path)는 viewBox가 바뀔 때마다
     // 지도 전체를 다시 계산해서 가장 무거움. 움직이는 동안에는 차이가 거의 안 보이므로 꺼 두고 끝나면 되돌림
-    edgeGroupRef.current?.style.setProperty("display", "none");
+    blurGroupRef.current?.style.setProperty("display", "none");
     clipGroupRef.current?.removeAttribute("clip-path");
 
     const draw = (e: number) => {
@@ -365,7 +366,7 @@ export function SvgMap({
         root.style[name] = "";
       }
     }
-    edgeGroupRef.current?.style.removeProperty("display");
+    blurGroupRef.current?.style.removeProperty("display");
     clipGroupRef.current?.setAttribute("clip-path", `url(#${clipId})`);
     viewRef.current = homeView;
     svgRef.current?.setAttribute("viewBox", `${homeView.x} ${homeView.y} ${homeView.size} ${homeView.size}`);
@@ -571,31 +572,8 @@ export function SvgMap({
             ))}
           </clipPath>
           <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation={EDGE_BLUR} />
+            <feGaussianBlur stdDeviation={FILL_BLUR} />
           </filter>
-          <filter id={featherId} x="-10%" y="-10%" width="120%" height="120%">
-            <feGaussianBlur stdDeviation={EDGE_WIDTH / 4} />
-          </filter>
-          <mask
-            id={edgesId}
-            maskUnits="userSpaceOnUse"
-            x={-100}
-            y={-100}
-            width={WORLD_WIDTH + 200}
-            height={WORLD_HEIGHT + 200}
-          >
-            <g
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth={EDGE_WIDTH}
-              strokeLinejoin="round"
-              filter={`url(#${featherId})`}
-            >
-              {shapes.map((shape) => (
-                <path key={shape.dongCode} d={shape.path} />
-              ))}
-            </g>
-          </mask>
         </defs>
 
         <g ref={clipGroupRef} clipPath={`url(#${clipId})`}>
@@ -625,7 +603,8 @@ export function SvgMap({
               />
             ))}
           </g>
-          <g ref={edgeGroupRef} mask={`url(#${edgesId})`} pointerEvents="none">
+          {/* 선명한 동 색 위에 흐린 동 색을 덮어 동 사이 색이 이어지게. 시 바깥은 clipPath가 자름 */}
+          <g ref={blurGroupRef} pointerEvents="none">
             <g filter={`url(#${blurId})`}>{fills}</g>
           </g>
         </g>
@@ -637,8 +616,8 @@ export function SvgMap({
               d={shape.path}
               fill="none"
               stroke="#ffffff"
-              strokeOpacity={0.45}
-              strokeWidth={0.8}
+              strokeOpacity={DONG_LINE_OPACITY}
+              strokeWidth={DONG_LINE_WIDTH}
               vectorEffect="non-scaling-stroke"
             />
           ))}
