@@ -16,7 +16,7 @@ function useCanHover() {
 type Props = {
   // 픽셀로 보이는 사진 수 (공개 + 위치 있음)
   pointCount: number;
-  // 색 집계에 쓰인 사진 수 (나만 보기·위치 없는 사진 포함)
+  // 색 집계에 쓰인 사진 수 (나만 보기 사진 포함. 칸에 들어가는 EXIF 확인 사진은 위치가 항상 있음)
   photoCount: number;
 };
 
@@ -56,7 +56,7 @@ export function PixelCount({ pointCount, photoCount }: Props) {
           사진 {photoCount}장 중 {pointCount}장이 지도에 픽셀로 보여요.
           {photoCount > pointCount && (
             <span className="block text-ink-muted">
-              나머지는 나만 보기거나 위치가 없는 사진이에요. 동 색에는 모두 쓰여요.
+              나머지는 나만 보기 사진이에요. 동 색에는 모두 쓰여요.
             </span>
           )}
         </>
