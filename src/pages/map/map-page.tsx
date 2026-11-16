@@ -274,7 +274,7 @@ export function MapPage() {
             {/* 피그마처럼 카드 정중앙보다 30px 아래 (지도 가운데 근처) */}
             {myMapEmpty && (
               <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:top-[calc(50%+30px)] ${leaveFade}`}>
-                <EmptyMyMapCard season={seasonInfo?.name ?? ""} />
+                <EmptyMyMapCard season={seasonInfo?.name ?? ""} canUpload={selectedSeason === "AUTUMN"} />
               </div>
             )}
 
