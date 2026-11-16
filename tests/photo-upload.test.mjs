@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import ts from 'typescript';
 import { analyzePixels, chooseRepresentative, dominantIndex, COLOR_HEX, COLOR_NAMES } from '../src/pages/photo-upload/color-analysis.ts';
 import { parseLocalTime, photoSeasonError, timeBand, validateColors, validateImage, findDong, MAX_IMAGE_BYTES } from '../src/pages/photo-upload/photo-validation.ts';
+import { photoUploadTimeFields } from '../src/pages/photo-upload/photo-upload-time.ts';
 
 const pixel = (hex, alpha = 255) => [...[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)), alpha];
 
@@ -164,6 +165,25 @@ test('실제 업로드 함수의 image/data 파트·JWT·응답·409 오류', as
   } finally { globalThis.fetch = original; }
 });
 
+test('촬영 시각 없는 사진은 season/timeBand만 보내고 takenAt을 만들지 않는다', async () => {
+  const client = moduleUrl((await readFile(new URL('../src/api/client.ts',import.meta.url),'utf8')).replace('import.meta.env.VITE_API_BASE_URL', '""').replace('import { useAuthStore } from "../stores/auth-store";', 'const useAuthStore = { getState: () => ({ tokens: { accessToken: "test-token" } }) };'));
+  const photoModule = moduleUrl((await readFile(new URL('../src/api/photo.ts',import.meta.url),'utf8')).replace('"./client"',JSON.stringify(client)));
+  const { uploadPhoto } = await import(photoModule);
+  const original = globalThis.fetch;
+  const data = { dongCode:'31050110', season:'AUTUMN', timeBand:'SUNSET', isPublic:false,
+    ...analyzePixels(new Uint8ClampedArray(pixel(COLOR_HEX[0]))) };
+  try {
+    globalThis.fetch = async (_url, init) => {
+      const payload = JSON.parse(await init.body.get('data').text());
+      assert.equal(payload.takenAt, undefined);
+      assert.equal(payload.season, 'AUTUMN');
+      assert.equal(payload.timeBand, 'SUNSET');
+      return Response.json({isSuccess:true,code:'PHOTO201_1',result:{photoId:2}},{status:201});
+    };
+    assert.deepEqual(await uploadPhoto(new File(['fixture'],'test.jpg'),data),{photoId:2});
+  } finally { globalThis.fetch = original; }
+});
+
 // 실제 EXIF 바이너리를 구성합니다. 이미지 디코더는 Node에 없어 이 테스트에서만 대체합니다.
 function exifJpeg(withTime, withGps) {
   const tiff = Buffer.alloc(256);
@@ -209,4 +229,29 @@ test('실제 EXIF 파서로 위치·시각 네 가지 조합을 추출한다', a
       assert.equal(result.longitude,gps ? 126.8 : undefined);
     }
   } finally { globalThis.createImageBitmap = original; }
+});
+
+test('EXIF 촬영 시각이 있으면 날짜만 전송한다', () => {
+  assert.deepEqual(
+    photoUploadTimeFields(
+      '2026-10-20T15:30:00',
+      '2026-10-20T15:30:00',
+      'SPRING',
+      'NIGHT',
+    ),
+    { takenAt: '2026-10-20T15:30:00' },
+  );
+});
+
+test('EXIF 촬영 시각이 없으면 계절과 시간대만 전송한다', () => {
+  assert.deepEqual(
+    photoUploadTimeFields(undefined, undefined, 'AUTUMN', 'SUNSET'),
+    { season: 'AUTUMN', timeBand: 'SUNSET' },
+  );
+});
+
+test('필수 촬영 정보가 누락되면 업로드 요청을 생성하지 않는다', () => {
+  assert.equal(photoUploadTimeFields(undefined, undefined, '', 'DAY'), null);
+  assert.equal(photoUploadTimeFields(undefined, undefined, 'AUTUMN', ''), null);
+  assert.equal(photoUploadTimeFields('invalid', undefined, '', ''), null);
 });

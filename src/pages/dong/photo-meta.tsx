@@ -61,7 +61,7 @@ export function PhotoMeta({
           {bandLabel(photo.timeBand)}
         </span>
       </div>
-      <p className={cn("mt-1 font-mono text-xs", colors.takenAt)}>{formatTakenAt(photo.takenAt)}</p>
+      <p className={cn("mt-1 font-mono text-xs", colors.takenAt)}>{formatTakenAt(photo.takenAt, photo.season)}</p>
       {/* 업로드 화면 대표색 바와 같은 한 줄 막대 */}
       <div className="mt-3 flex h-6 overflow-hidden rounded-[8px]">
         {paletteShares(photo).map(({ color, share }) => (
