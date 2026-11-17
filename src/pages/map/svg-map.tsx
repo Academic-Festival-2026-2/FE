@@ -42,11 +42,11 @@ const DONG_LABEL_FONT = 0.019;
 // 가운데 지역이 화면(view) 한 변의 이 비율 이상으로 크게 보이면 "그 지역에 들어왔다"고 봄
 // (부천 첫 화면 0.92, 한 번 축소 0.61, 두 번 축소 0.41 → 두 번 축소하면 시 이름으로 돌아감)
 const REGION_ARRIVE_SHARE = 0.5;
-// 확대·축소 버튼 (지도 화면의 유리 패널과 같은 톤)
 // 시간대·계절·지도 종류를 바꿀 때 동 색이 서서히 바뀌게 (fill을 CSS로 줘야 전환됨, 동작 줄이기면 즉시)
 const FILL_TRANSITION = "transition-[fill] duration-500 ease-out motion-reduce:transition-none";
 // 색이 왼쪽 동부터 오른쪽 동으로 번져 나가듯 바뀌게, 가장 오른쪽 동이 늦게 시작하는 시간(ms)
-const FILL_WAVE_MS = 220;
+// 지도 전체에 흐림 층(FILL_BLUR)을 덮은 뒤로 220ms는 옆 동 색과 섞여 한꺼번에 바뀌는 것처럼 보여서 늘림
+const FILL_WAVE_MS = 450;
 
 // 동을 눌렀을 때 지도가 화면 전체로 커지며 그 동으로 확대되는 시간 (끝나면 바로 동 상세).
 // 동 상세에서 돌아올 때 화면 전체에서 카드로 줄어드는 시간도 같음
