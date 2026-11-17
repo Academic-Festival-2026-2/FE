@@ -184,7 +184,8 @@ export function bboxOf(boundaries: Boundaries): [number, number, number, number]
   return [minLng, minLat, maxLng, maxLat];
 }
 
-function inRing(ring: number[][], x: number, y: number) {
+// 점 (x, y)가 링(닫힌 다각형) 안에 있는지. 좌표 순서는 링과 같게 [경도, 위도] (업로드 동 찾기도 같이 씀)
+export function inRing(ring: number[][], x: number, y: number) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const [xi, yi] = ring[i];

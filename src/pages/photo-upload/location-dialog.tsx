@@ -1,26 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { BoundaryFeature } from "../../api/map";
-import { MASK_FRAME_POINTS, toKakaoPath } from "../map/map-data";
+import { CloseIcon } from "../../components/icons";
+import { maskPath, toKakaoPath } from "../map/map-data";
 import { labelPoint } from "../map/map-geometry";
 import { findDong } from "./photo-validation";
-
-// 흐리게 덮을 바깥 영역 (map-data.ts MASK_FRAME_POINTS, 동 상세 지도와 같은 값)
-let maskFrame: kakao.maps.LatLng[] | null = null;
-function getMaskFrame() {
-  maskFrame ??= MASK_FRAME_POINTS.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
-  return maskFrame;
-}
-
-// 구멍(동) 방향을 바깥 사각형과 반대로 맞추기 위한 부호 있는 넓이
-function signedArea(path: kakao.maps.LatLng[]) {
-  let area = 0;
-  for (let i = 0; i < path.length; i++) {
-    const a = path[i];
-    const b = path[(i + 1) % path.length];
-    area += a.getLng() * b.getLat() - b.getLng() * a.getLat();
-  }
-  return area;
-}
 
 type Props = {
   feature: BoundaryFeature;
@@ -71,12 +54,9 @@ export function LocationDialog({ feature, onClose, onConfirm, initialPoint }: Pr
         return polygon;
       });
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
-      const frameSign = Math.sign(signedArea(getMaskFrame()));
-      const holes = outlines.map((outline) =>
-        Math.sign(signedArea(outline)) === frameSign ? [...outline].reverse() : outline,
-      );
       const mask = new kakao.maps.Polygon({
-        path: [getMaskFrame(), ...holes],
+        // 동 바깥 덮개 (map-data.ts maskPath, 동 상세 지도와 같은 모양)
+        path: maskPath(outlines),
         strokeWeight: 0,
         fillColor: "#F5F7FA",
         fillOpacity: 0.7,
@@ -151,14 +131,7 @@ export function LocationDialog({ feature, onClose, onConfirm, initialPoint }: Pr
               aria-label="닫기"
               className="flex size-9 items-center justify-center rounded-lg border border-field-line text-ink-sub hover:bg-field"
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-                <path
-                  d="M2 2l10 10M12 2L2 12"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <CloseIcon size={14} strokeWidth={1.6} />
             </button>
           </div>
           <h2 id="location-title" className="mt-2 text-xl font-extrabold tracking-[-0.4px]">

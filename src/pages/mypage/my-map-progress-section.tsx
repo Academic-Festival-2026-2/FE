@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { BAND_PIXEL, TIME_BANDS, useRegionList } from "../map/map-data";
-import { currentTimeBand } from "../../utils/time-band";
+import { useRegionList } from "../map/map-data";
+import { BAND_PIXEL, currentTimeBand, TIME_BANDS } from "../../utils/time-band";
 import { parseSeason } from "../../utils/season";
 import { FilterSelect } from "./filter-select";
 import { SEASON_FILTER_OPTIONS, toRegionOptions } from "./my-map-filters";

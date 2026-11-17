@@ -2,8 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { Link } from "@tanstack/react-router";
 import type { ColorRatio, SeasonType, TimeBand } from "../../api/map";
 import chevronDown from "../../assets/icons/chevron-down-navy.svg";
+import { MaskIcon } from "../../components/icons";
+import { useDismiss } from "../../hooks/use-dismiss";
 import { cn } from "../../utils/cn";
-import { BAND_PIXEL, SEASON_OPTIONS, TIME_BANDS } from "./map-data";
+import { prefersReducedMotion } from "../../utils/motion";
+import { SEASON_OPTIONS } from "../../utils/season";
+import { BAND_PIXEL, TIME_BANDS } from "../../utils/time-band";
 
 // 지도 위에 띄우는 유리 패널 (리퀴드 글라스 느낌). 값은 index.css의 liquid-glass에서 조정
 export const GLASS = "liquid-glass";
@@ -52,7 +56,7 @@ function LiquidIndicator({ activeIndex, className }: { activeIndex: number; clas
     placeRef.current = place;
 
     const previous = prevIndexRef.current;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = prefersReducedMotion();
     const moving = previous !== null && previous !== activeIndex && !reduceMotion;
     place(moving);
     if (moving) {
@@ -148,21 +152,7 @@ function SeasonSelect({
   const current = SEASON_OPTIONS.find((option) => option.value === season);
 
   // 바깥 클릭·Esc로 닫기
-  useEffect(() => {
-    if (!open) return;
-    const handleMouseDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  useDismiss(ref, open, setOpen);
 
   return (
     <div ref={ref} className="relative">
@@ -178,15 +168,9 @@ function SeasonSelect({
       >
         {current?.name ?? "계절"}
         {/* 피그마 화살표 모양 그대로, 색만 흰색으로. 위로 펼치니 닫혀 있을 때 ▲, 열리면 ▼ */}
-        <span
-          aria-hidden
+        <MaskIcon
+          src={chevronDown}
           className={cn("size-4 bg-white transition-transform", !open && "rotate-180")}
-          style={{
-            maskImage: `url("${chevronDown}")`,
-            WebkitMaskImage: `url("${chevronDown}")`,
-            maskSize: "100% 100%",
-            WebkitMaskSize: "100% 100%",
-          }}
         />
       </button>
       {open && (
@@ -206,7 +190,7 @@ function SeasonSelect({
                   type="button"
                   aria-pressed={selected}
                   onClick={() => {
-                    onChange(option.value as SeasonType);
+                    onChange(option.value);
                     setOpen(false);
                   }}
                   className={cn(
@@ -404,6 +388,60 @@ export function MyMapGuidePanel({
         ))}
       </ol>
     </section>
+  );
+}
+
+const ZOOM_BUTTON =
+  "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
+
+// 지도 위 확대·축소·전체 버튼 (지도 화면·동 상세 공용). 터치 기기는 두 손가락으로 확대하므로 숨김
+// className: 놓을 자리(right-·bottom- 등)와 화면별 추가 모양
+export function ZoomControls({
+  onZoomIn,
+  onZoomOut,
+  onReset,
+  resetLabel,
+  className,
+}: {
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onReset: () => void;
+  // "전체" 버튼의 화면 낭독기 이름
+  resetLabel: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "liquid-glass absolute flex flex-col gap-0.5 rounded-xl p-1 pointer-coarse:hidden",
+        className,
+      )}
+    >
+      <button
+        type="button"
+        aria-label="확대"
+        onClick={onZoomIn}
+        className={`${ZOOM_BUTTON} text-lg leading-none`}
+      >
+        +
+      </button>
+      <button
+        type="button"
+        aria-label="축소"
+        onClick={onZoomOut}
+        className={`${ZOOM_BUTTON} text-lg leading-none`}
+      >
+        −
+      </button>
+      <button
+        type="button"
+        aria-label={resetLabel}
+        onClick={onReset}
+        className={`${ZOOM_BUTTON} text-[11px] font-bold`}
+      >
+        전체
+      </button>
+    </div>
   );
 }
 

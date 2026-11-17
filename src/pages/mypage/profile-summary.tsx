@@ -47,7 +47,7 @@ function Stat({
       type="button"
       onClick={() => scrollToSection(target)}
       aria-label={`${label} ${value}${unit}, ${targetName}(으)로 이동`}
-      className="rounded-[10px] bg-field px-3.5 py-2.5 text-left transition-colors hover:bg-[#e9edf4] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      className="rounded-[10px] bg-field px-3.5 py-2.5 text-left transition-colors hover:bg-field-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
     >
       <span className="block text-[11px] leading-4 text-ink-muted">{label}</span>
       <span className="mt-0.5 block text-xl font-bold tracking-[-0.4px] text-ink">

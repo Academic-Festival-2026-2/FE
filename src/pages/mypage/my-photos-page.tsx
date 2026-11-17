@@ -15,49 +15,14 @@ import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { getPhotoColorRatios } from "../dong/photo-color-ratios";
 import { photoImageUrl } from "../dong/photo-image-url";
+import { CloseIcon } from "../../components/icons";
 import { useUserStore } from "../../stores/user-store";
-import { formatDate } from "../../utils/date";
-import { SEASON_OPTIONS, seasonOf } from "../map/map-data";
+import { formatTakenAt, formatTakenDate } from "../../utils/date";
+import { SEASON_OPTIONS } from "../../utils/season";
+import { bandLabel } from "../../utils/time-band";
+import { PhotoListTitle, PhotoThumbnail } from "./photo-list-parts";
 
 const PAGE_SIZE = 12;
-const timeBandLabel = {
-  DAWN: "새벽",
-  DAY: "낮",
-  SUNSET: "노을",
-  NIGHT: "밤",
-} as const;
-
-function formatPhotoDate(value: string | null, season: SeasonType) {
-  return value ? formatDate(value) : (seasonOf(season)?.name ?? "촬영 시기 미상");
-}
-function formatDateTime(value: string | null, season: SeasonType) {
-  return value
-    ? `${formatDate(value)} ${value.slice(11, 16)}`
-    : (seasonOf(season)?.name ?? "촬영 시기 미상");
-}
-
-function PhotoThumbnail({ photo }: { photo: MyPhotoItem }) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <div className="relative aspect-[4/3] overflow-hidden bg-preview">
-      {photo.thumbnailUrl && !failed ? (
-        <img
-          src={photo.thumbnailUrl}
-          alt={`${photo.name}에서 촬영한 사진`}
-          loading="lazy"
-          onError={() => setFailed(true)}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="grid h-full place-items-center" style={{ backgroundColor: photo.color }}>
-          <span className="rounded-lg bg-white/80 px-3 py-1 text-xs font-bold text-ink-sub">
-            미리보기 없음
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // 상세 팝업 사진 크기 한도. 팝업 폭이 사진 폭에 맞게 바뀜 (좌우 여백 px-6 = 48px)
 const DIALOG_PADDING = 48;
@@ -172,14 +137,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
             onClick={onClose}
             className="flex size-9 items-center justify-center rounded-[10px] border border-line text-ink-sub hover:bg-field"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-              <path
-                d="M2 2l10 10M12 2L2 12"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-            </svg>
+            <CloseIcon size={14} strokeWidth={1.6} />
           </button>
         </div>
         <div className="max-h-[calc(100dvh-140px)] overflow-y-auto px-6 pb-6">
@@ -236,7 +194,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
                     {detail.takenAt ? "촬영 일시" : "촬영 시기"}
                   </dt>
                   <dd className="font-bold text-ink">
-                    {formatDateTime(detail.takenAt, detail.season)}
+                    {formatTakenAt(detail.takenAt, detail.season)}
                   </dd>
                 </div>
                 <div className="flex gap-4">
@@ -245,7 +203,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
                 </div>
                 <div className="flex gap-4">
                   <dt className="w-24 shrink-0 text-ink-muted">시간대</dt>
-                  <dd className="font-bold text-ink">{timeBandLabel[detail.timeBand]}</dd>
+                  <dd className="font-bold text-ink">{bandLabel(detail.timeBand)}</dd>
                 </div>
               </dl>
             </>
@@ -393,32 +351,11 @@ export function MyPhotosPage() {
       </AuthHeader>
       {/* 마이페이지와 같은 본문 폭 1160px(양옆 여백 16px 포함 1192px)·제목 크기 */}
       <main className="mx-auto w-full max-w-[1192px] px-4 pt-4 pb-12">
-        <p className="mt-2 font-mono text-[13px] tracking-[1.04px] text-brand-strong">MY PHOTOS</p>
-        {/* 제목 왼쪽 뒤로가기: 마이페이지로 */}
-        <div className="mt-3 flex items-center gap-3">
-          <Link
-            to="/mypage"
-            aria-label="마이페이지로 돌아가기"
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink-sub transition-colors hover:bg-field hover:text-ink"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-              <path
-                d="M10 3L5 8l5 5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
-          <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">
-            내 사진 모아보기
-          </h1>
-        </div>
-        <p className="mt-2 text-base text-ink-sub">
-          내가 올린 사진을 모아 보고, 사진을 누르면 촬영 정보를 보거나 삭제할 수 있어요.
-        </p>
+        <PhotoListTitle
+          eyebrow="MY PHOTOS"
+          title="내 사진 모아보기"
+          description="내가 올린 사진을 모아 보고, 사진을 누르면 촬영 정보를 보거나 삭제할 수 있어요."
+        />
         <div className="mt-6 mb-3 flex items-center justify-between gap-4">
           {/* 올린 사진 수는 제목 옆에 작게 */}
           <h2 className="flex items-baseline gap-2 text-[17px] leading-[25px] font-bold text-ink">
@@ -510,7 +447,7 @@ export function MyPhotosPage() {
                   key={photo.photoId}
                   type="button"
                   onClick={() => setSelected(photo)}
-                  aria-label={`${photo.name} ${formatPhotoDate(photo.takenAt, photo.season)} 사진 상세 보기`}
+                  aria-label={`${photo.name} ${formatTakenDate(photo.takenAt, photo.season)} 사진 상세 보기`}
                   className="overflow-hidden rounded-2xl border border-card-line bg-white text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(26,36,64,0.10)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <PhotoThumbnail photo={photo} />
@@ -520,8 +457,7 @@ export function MyPhotosPage() {
                         {photo.name}
                       </p>
                       <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">
-                        {formatPhotoDate(photo.takenAt, photo.season)} ·{" "}
-                        {timeBandLabel[photo.timeBand]}
+                        {formatTakenDate(photo.takenAt, photo.season)} · {bandLabel(photo.timeBand)}
                       </p>
                     </div>
                     <span

@@ -1,28 +1,28 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams, useRouter, useSearch } from "@tanstack/react-router";
 import { getDongDetail, type DongPoint } from "../../api/dong";
 import type { SeasonType, TimeBand } from "../../api/map";
 import { getMyDongPhotos } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { useMediaQuery } from "../../hooks/use-media-query";
 import { useAuthStore } from "../../stores/auth-store";
 import {
-  bandLabel,
   EMPTY_FILL,
   KAKAO_ERROR,
   KAKAO_UNAVAILABLE,
-  MASK_FRAME_POINTS,
+  maskPath,
   PAGE_BG,
-  seasonOf,
   useRegionList,
   toKakaoPath,
   useBoundaries,
   useDongColors,
   useMyMap,
 } from "../map/map-data";
-import { ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
+import { ErrorBanner, GLASS, TimeBandBar, ZoomControls } from "../map/map-ui";
 import { cn } from "../../utils/cn";
-import { preferredSeason, rememberSeason } from "../../utils/season";
+import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
+import { bandLabel } from "../../utils/time-band";
 import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
 import { MapLoading } from "../map/map-loading";
 import {
@@ -36,19 +36,6 @@ import { labelPoint } from "../map/map-geometry";
 
 const SELECTED_STROKE = "#1a1a1a";
 const DONG_TINT_OPACITY = 0.14;
-// 지도 화면(svg-map)의 확대·축소 버튼과 같은 모양
-const ZOOM_BUTTON =
-  "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
-
-function signedArea(path: kakao.maps.LatLng[]) {
-  let area = 0;
-  for (let i = 0; i < path.length; i++) {
-    const a = path[i];
-    const b = path[(i + 1) % path.length];
-    area += a.getLng() * b.getLat() - b.getLng() * a.getLat();
-  }
-  return area;
-}
 
 type LocatedPoint = DongPoint & { lat: number; lng: number };
 // 고른 사진 묶음. anchor가 있으면 데스크톱에서 그 픽셀 위에 말풍선으로 띄움 (위치 없는 사진은 null)
@@ -66,14 +53,6 @@ const PIXEL_SELECTED = ["scale-150", "ring-2", "ring-navy", "z-10"];
 
 // 데스크톱(sm 이상)인지. 말풍선은 데스크톱에서만, 모바일은 아래 카드
 const DESKTOP_QUERY = "(min-width: 640px)";
-function subscribeDesktop(onChange: () => void) {
-  const media = window.matchMedia(DESKTOP_QUERY);
-  media.addEventListener("change", onChange);
-  return () => media.removeEventListener("change", onChange);
-}
-function useIsDesktop() {
-  return useSyncExternalStore(subscribeDesktop, () => window.matchMedia(DESKTOP_QUERY).matches);
-}
 
 function pixelElement(color: string, count: number) {
   const pixel = document.createElement("div");
@@ -151,7 +130,7 @@ export function DongPage() {
   const [selected, setSelected] = useState<Selection | null>(null);
   const activeSelection = selected?.season === selectedSeason ? selected : null;
 
-  const isDesktop = useIsDesktop();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   // 지도에 찍은 픽셀 요소 (위치 키 → 요소). 고른 픽셀 강조용
   const pixelElementsRef = useRef(new Map<string, HTMLElement>());
 
@@ -204,17 +183,11 @@ export function DongPage() {
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
       outlines.forEach((outline) => outline.forEach((point) => bounds.extend(point)));
 
-      // 동 바깥 덮개 사각형 (map-data.ts, 업로드 위치 선택 창과 같은 값)
-      const frame = MASK_FRAME_POINTS.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
-      const frameSign = Math.sign(signedArea(frame));
-      const holes = outlines.map((outline) =>
-        Math.sign(signedArea(outline)) === frameSign ? [...outline].reverse() : outline,
-      );
-
       overlays.push(
         new kakao.maps.Polygon({
           map,
-          path: [frame, ...holes],
+          // 동 바깥 덮개 (map-data.ts maskPath, 업로드 위치 선택 창과 같은 모양)
+          path: maskPath(outlines),
           strokeWeight: 0,
           fillColor: PAGE_BG,
           fillOpacity: 0.7,
@@ -511,32 +484,13 @@ export function DongPage() {
         ))}
       {/* 확대·축소 (지도 화면과 같은 유리 버튼). 터치 기기는 두 손가락으로 확대하므로 숨김 */}
       {map && (
-        <div className="liquid-glass absolute right-4 bottom-6 z-10 flex flex-col gap-0.5 rounded-xl p-1 pointer-coarse:hidden">
-          <button
-            type="button"
-            aria-label="확대"
-            onClick={() => zoomBy(-1)}
-            className={`${ZOOM_BUTTON} text-lg leading-none`}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            aria-label="축소"
-            onClick={() => zoomBy(1)}
-            className={`${ZOOM_BUTTON} text-lg leading-none`}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            aria-label="동 전체 보기"
-            onClick={resetView}
-            className={`${ZOOM_BUTTON} text-[11px] font-bold`}
-          >
-            전체
-          </button>
-        </div>
+        <ZoomControls
+          onZoomIn={() => zoomBy(-1)}
+          onZoomOut={() => zoomBy(1)}
+          onReset={resetView}
+          resetLabel="동 전체 보기"
+          className="right-4 bottom-6 z-10"
+        />
       )}
     </div>
   );

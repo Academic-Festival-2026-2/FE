@@ -2,20 +2,15 @@ import { useCallback, useMemo, useState } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import type { SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
-import {
-  bandLabel,
-  seasonOf,
-  useRegionBoundaries,
-  useRegionList,
-  useSharedMap,
-} from "../map/map-data";
+import { useRegionBoundaries, useRegionList, useSharedMap } from "../map/map-data";
 import { fitView, regionAt, regionsInView, unproject, type View } from "../map/map-geometry";
 import { MapLoading } from "../map/map-loading";
 import { MapTooltip } from "../map/map-tooltip";
 import { ErrorBanner, MapTitlePanel, TimeBandBar } from "../map/map-ui";
 import { SvgMap } from "../map/svg-map";
 import { Avatar } from "../../components/avatar";
-import { preferredSeason, rememberSeason } from "../../utils/season";
+import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
+import { bandLabel } from "../../utils/time-band";
 
 const route = getRouteApi("/shared/$shareKey");
 

@@ -6,7 +6,7 @@ import { TextField } from "../../components/form/text-field";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from "../../utils/validation";
-import { DialogActions, DialogShell } from "./dialog-shell";
+import { DialogActions, DialogShell } from "../../components/dialog/dialog-shell";
 
 const FIELDS = ["currentPassword", "newPassword", "newPasswordConfirm"] as const;
 type Field = (typeof FIELDS)[number];

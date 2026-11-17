@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import lock from "../../assets/icons/lock.svg";
 import radioFilled from "../../assets/icons/radio-filled.svg";
+import { CloseIcon } from "../../components/icons";
 import { PixelLoader } from "../map/map-loading";
 
 type Props = {
@@ -144,14 +145,7 @@ export function UploadConfirmDialog({
           aria-label="닫기"
           className="flex size-9 items-center justify-center rounded-[10px] border border-line text-ink-sub hover:bg-field"
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-            <path
-              d="M2 2l10 10M12 2L2 12"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-          </svg>
+          <CloseIcon size={14} strokeWidth={1.6} />
         </button>
       </div>
       <p className="pt-2 text-sm leading-[17px] text-ink-sub">

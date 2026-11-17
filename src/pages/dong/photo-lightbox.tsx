@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PhotoDetail } from "../../api/photo";
 import { cn } from "../../utils/cn";
-import { Chevron, CloseIcon } from "./photo-icons";
+import { Chevron, CloseIcon } from "../../components/icons";
 import { photoImageUrl } from "./photo-image-url";
 import { paletteShares } from "./photo-info";
 import { PhotoMeta } from "./photo-meta";

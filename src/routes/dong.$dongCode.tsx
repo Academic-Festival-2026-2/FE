@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { SeasonType, TimeBand } from "../api/map";
 import { parseSeason } from "../utils/season";
 import { DongPage } from "../pages/dong/dong-page";
-import { parseTimeBand } from "../pages/map/map-data";
+import { parseTimeBand } from "../utils/time-band";
 
 type DongSearch = {
   timeBand: TimeBand;

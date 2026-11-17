@@ -9,7 +9,7 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { useUserStore } from "../../stores/user-store";
 import { BadgeSection } from "./badge-section";
 import { LikedPhotosSection } from "./liked-photos-section";
-import { DEFAULT_REGION } from "./my-map-filters";
+import { DEFAULT_REGION_CODE } from "../map/map-data";
 import { parseSeason, preferredSeason, rememberSeason } from "../../utils/season";
 import { summarizeMyMap } from "./my-map-stats";
 import { MyMapProgressSection } from "./my-map-progress-section";
@@ -25,7 +25,7 @@ export function MyPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   // 요약 카드 숫자(칠한 동·배지)와 아래 영역이 같이 쓰는 데이터
   // 나의 지도 현황에서 고른 지역·계절
-  const [region, setRegion] = useState(DEFAULT_REGION);
+  const [region, setRegion] = useState(DEFAULT_REGION_CODE);
   const [season, setSeason] = useState(preferredSeason);
   const [myMap, setMyMap] = useState<{ key: string; data: MyMap } | null>(null);
   const [myMapErrorKey, setMyMapErrorKey] = useState<string | null>(null);

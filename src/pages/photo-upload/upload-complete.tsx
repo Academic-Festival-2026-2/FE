@@ -3,10 +3,10 @@ import type { Boundaries } from "../../api/map";
 import type { PhotoUploadResult } from "../../api/photo";
 import { BadgeIcon } from "../../components/badge-icon";
 import { BADGES, badgeEarnedText, isKnownBadge, sortByBadgeOrder } from "../../constants/badges";
+import { bandLabel } from "../../utils/time-band";
 import { labelPoint } from "../map/map-geometry";
 
 type CompletedPhoto = { id: string; filename: string; color: string; result: PhotoUploadResult };
-const labels = { DAWN: "새벽", DAY: "낮", SUNSET: "노을", NIGHT: "밤" };
 
 // regions: 이번에 올린 사진들이 속한 시의 동 경계 (개략도·시 이름 표시용)
 export function UploadComplete({
@@ -188,7 +188,7 @@ export function UploadComplete({
                     {[regionName(photo.result.dongCode), photo.result.name]
                       .filter(Boolean)
                       .join(" ")}{" "}
-                    · {labels[photo.result.timeBand]}
+                    · {bandLabel(photo.result.timeBand)}
                   </p>
                   <p className="truncate font-mono text-xs text-ink-muted">{photo.filename}</p>
                   <p className="mt-1 text-xs text-ink-sub">

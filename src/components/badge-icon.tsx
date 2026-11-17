@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { BadgeType } from "../api/badge";
 import { cn } from "../utils/cn";
+import { BAND_PIXEL } from "../utils/time-band";
 
 const INK = "#3a3631";
 const line = {
@@ -70,10 +71,10 @@ const GLYPHS: Record<BadgeType, ReactNode> = {
   // (왼쪽 위 새벽 라벤더, 오른쪽 위 낮 하늘, 왼쪽 아래 노을 주황, 오른쪽 아래 밤 남색)
   ALL_TIME_BANDS: (
     <>
-      <path d="M32 32V14a18 18 0 0 1 18 18z" fill="#8ab4e9" />
-      <path d="M32 32h18a18 18 0 0 1-18 18z" fill="#2d2670" />
-      <path d="M32 32v18a18 18 0 0 1-18-18z" fill="#ee8156" />
-      <path d="M32 32H14a18 18 0 0 1 18-18z" fill="#c4b7e9" />
+      <path d="M32 32V14a18 18 0 0 1 18 18z" fill={BAND_PIXEL.DAY} />
+      <path d="M32 32h18a18 18 0 0 1-18 18z" fill={BAND_PIXEL.NIGHT} />
+      <path d="M32 32v18a18 18 0 0 1-18-18z" fill={BAND_PIXEL.SUNSET} />
+      <path d="M32 32H14a18 18 0 0 1 18-18z" fill={BAND_PIXEL.DAWN} />
       <circle cx="32" cy="32" r="18" fill="none" {...line} />
       <path d="M32 14v36M14 32h36" {...line} />
       <Sparkle x={53} y={12} />

@@ -5,7 +5,7 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { useAuthStore } from "../../stores/auth-store";
 import { cn } from "../../utils/cn";
 import { LoginPromptDialog } from "../map/login-prompt-dialog";
-import { Chevron, CloseIcon, HeartIcon } from "./photo-icons";
+import { Chevron, CloseIcon, HeartIcon } from "../../components/icons";
 import { photoImageUrl } from "./photo-image-url";
 import { paletteShares } from "./photo-info";
 import { PhotoLightbox } from "./photo-lightbox";
@@ -183,7 +183,7 @@ export function PhotoCard({
         {failed ? (
           <p className="px-4 py-16 text-sm text-danger">사진을 불러오지 못했어요.</p>
         ) : !current ? (
-          <div className="aspect-[4/3] w-full animate-pulse bg-[#e9ecf2]" />
+          <div className="aspect-[4/3] w-full animate-pulse bg-divider" />
         ) : showImage ? (
           // 누르면 크게 보기 (사진을 다 받은 뒤부터)
           <button

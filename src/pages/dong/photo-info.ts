@@ -1,13 +1,7 @@
 import type { PhotoDetail } from "../../api/photo";
 import { getPhotoColorRatios } from "./photo-color-ratios";
-import { seasonOf } from "../map/map-data";
 
-// 사진 카드·크게 보기(라이트박스)가 같이 쓰는 표시 도우미
-
-export function formatTakenAt(value: string | null, season?: PhotoDetail["season"]) {
-  if (!value) return seasonOf(season ?? null)?.name ?? "촬영 시기 미상";
-  return `${value.slice(0, 10).replaceAll("-", ".")} ${value.slice(11, 16)}`;
-}
+// 사진 카드·크게 보기(라이트박스)가 같이 쓰는 표시 도우미 (촬영 시각 표시는 utils/date.ts formatTakenAt)
 
 // 대표색 막대: 비율 계산은 getPhotoColorRatios (bins 검증, 없으면 같은 폭)
 // 5색을 채우려고 반복한 같은 색은 한 칸으로 합침

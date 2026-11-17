@@ -1,5 +1,6 @@
 import type { RegionList } from "../../api/map";
-import { SEASON_OPTIONS } from "../map/map-data";
+import { DEFAULT_REGION_CODE } from "../map/map-data";
+import { SEASON_OPTIONS } from "../../utils/season";
 
 export type FilterOption = {
   value: string;
@@ -8,13 +9,10 @@ export type FilterOption = {
   disabled?: boolean;
 };
 
-// 나의 지도 현황 처음 지역 (BE 나의 지도 기본 지역과 같음: 부천 3105)
-export const DEFAULT_REGION = "3105";
-
 // 나의 지도 현황 지역 선택: BE 지역 목록(경기도 시·군)을 가나다순으로.
-// 목록을 받기 전이나 못 받았을 때는 기본 지역 하나만
+// 목록을 받기 전이나 못 받았을 때는 기본 지역(부천) 하나만
 export function toRegionOptions(regionList: RegionList | null): FilterOption[] {
-  if (!regionList?.regions.length) return [{ value: DEFAULT_REGION, label: "부천시" }];
+  if (!regionList?.regions.length) return [{ value: DEFAULT_REGION_CODE, label: "부천시" }];
   return regionList.regions
     .map((region) => ({ value: region.regionCode, label: region.name }))
     .sort((a, b) => a.label.localeCompare(b.label, "ko"));

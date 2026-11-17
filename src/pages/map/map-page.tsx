@@ -6,14 +6,7 @@ import type { DongColor, SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { UploadButton } from "../../components/layout/upload-button";
-import {
-  bandLabel,
-  seasonOf,
-  useDongColors,
-  useMyMap,
-  useRegionBoundaries,
-  useRegionList,
-} from "./map-data";
+import { useDongColors, useMyMap, useRegionBoundaries, useRegionList } from "./map-data";
 import { MapTooltip } from "./map-tooltip";
 import { fitView, regionsInView, regionAt, unproject, type View } from "./map-geometry";
 import { LoginPromptDialog } from "./login-prompt-dialog";
@@ -29,10 +22,8 @@ import {
 } from "./map-ui";
 import { MapLoading } from "./map-loading";
 import { SvgMap } from "./svg-map";
-import { preferredSeason, rememberSeason } from "../../utils/season";
-
-// 시간대 탭 순서 (지도 아래 바 왼쪽부터)
-const BAND_ORDER: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
+import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
+import { bandLabel, TIME_BAND_VALUES } from "../../utils/time-band";
 
 export function MapPage() {
   const { timeBand, mode, region: regionParam, season: urlSeason } = useSearch({ from: "/map" });
@@ -49,7 +40,7 @@ export function MapPage() {
   if (wave.timeBand !== timeBand || wave.mine !== mine) {
     const forward =
       wave.timeBand !== timeBand
-        ? BAND_ORDER.indexOf(timeBand) > BAND_ORDER.indexOf(wave.timeBand)
+        ? TIME_BAND_VALUES.indexOf(timeBand) > TIME_BAND_VALUES.indexOf(wave.timeBand)
         : mine;
     setWave({ timeBand, mine, direction: forward ? "ltr" : "rtl" });
   }

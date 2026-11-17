@@ -3,7 +3,7 @@ import { getMyMap, getSharedMap, type MyMapCell } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { ApiError } from "../../api/client";
-import { currentTimeBand } from "../../utils/time-band";
+import { TIME_BAND_VALUES } from "../../utils/time-band";
 import {
   getBoundaries,
   getMapDongs,
@@ -21,7 +21,7 @@ export const DEFAULT_REGION_CODE = "3105";
 
 // 동 상세·업로드 위치 선택 지도에서 고른 동 바깥을 덮는 큰 사각형 [위도, 경도].
 // 경기도 전체를 덮는 범위 (map-geometry.ts의 원점·끝과 같음)
-export const MASK_FRAME_POINTS: [number, number][] = [
+const MASK_FRAME_POINTS: [number, number][] = [
   [36.5, 125.8],
   [36.5, 128.2],
   [38.6, 128.2],
@@ -35,12 +35,6 @@ export const EMPTY_FILL = "#e2e6ed";
 
 export const KAKAO_UNAVAILABLE = typeof kakao === "undefined";
 export const KAKAO_ERROR = "지도를 불러오지 못했어요.";
-
-const TIME_BAND_VALUES: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
-
-export function parseTimeBand(value: unknown): TimeBand {
-  return TIME_BAND_VALUES.includes(value as TimeBand) ? (value as TimeBand) : currentTimeBand();
-}
 
 // 지역 목록(약 3.5KB)은 탭이 열려 있는 동안 한 번만 받는다
 let regionListCache: RegionList | null = null;
@@ -234,6 +228,45 @@ export function toKakaoPath(rings: number[][][]) {
   return rings.map((ring) => ring.map(([lng, lat]) => new kakao.maps.LatLng(lat, lng)));
 }
 
+// 구멍(동) 방향을 바깥 사각형과 반대로 맞추기 위한 부호 있는 넓이
+function signedArea(path: kakao.maps.LatLng[]) {
+  let area = 0;
+  for (let i = 0; i < path.length; i++) {
+    const a = path[i];
+    const b = path[(i + 1) % path.length];
+    area += a.getLng() * b.getLat() - b.getLng() * a.getLat();
+  }
+  return area;
+}
+
+// 고른 동 바깥을 덮는 카카오 다각형 경로: 큰 사각형(MASK_FRAME_POINTS)에 동 외곽선을 구멍으로 뚫음
+// (동 상세 지도·업로드 위치 선택 창). outlines: 동 조각마다 바깥 링
+export function maskPath(outlines: kakao.maps.LatLng[][]) {
+  const frame = MASK_FRAME_POINTS.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
+  const frameSign = Math.sign(signedArea(frame));
+  const holes = outlines.map((outline) =>
+    Math.sign(signedArea(outline)) === frameSign ? [...outline].reverse() : outline,
+  );
+  return [frame, ...holes];
+}
+
+// 나의 지도·공유받은 지도 칸 목록에서 한 시간대 칸만 골라 지도용 동 색으로 바꿈
+function cellsToDongs(cells: MyMapCell[] | undefined, timeBand: TimeBand) {
+  const result = new Map<string, DongColor>();
+  for (const cell of cells ?? []) {
+    if (cell.timeBand !== timeBand) continue;
+    result.set(cell.dongCode, {
+      dongCode: cell.dongCode,
+      name: cell.name,
+      dominantColor: cell.filled ? cell.myColor : null,
+      photoCount: cell.myPhotoCount,
+      status: cell.filled ? "OK" : "EMPTY",
+      colorRatio: cell.myColor ? [{ hex: cell.myColor, ratio: 1 }] : [],
+    });
+  }
+  return result;
+}
+
 // 나의 지도: 보이는 지역마다 내 칸을 받음 (지역 하나에 4개 시간대가 한 번에 옴).
 // 로그인한 사람(토큰)이 바뀌면 받은 것을 버리고 새로 받음
 export function useMyMap(
@@ -308,19 +341,10 @@ export function useMyMap(
 
   // 지역 하나의 내 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
   function dongsOf(regionCode: string | null) {
-    const result = new Map<string, DongColor>();
-    for (const cell of (regionCode && cellsByRegion?.get(`${season}:${regionCode}`)) || []) {
-      if (cell.timeBand !== timeBand) continue;
-      result.set(cell.dongCode, {
-        dongCode: cell.dongCode,
-        name: cell.name,
-        dominantColor: cell.filled ? cell.myColor : null,
-        photoCount: cell.myPhotoCount,
-        status: cell.filled ? "OK" : "EMPTY",
-        colorRatio: cell.myColor ? [{ hex: cell.myColor, ratio: 1 }] : [],
-      });
-    }
-    return result;
+    return cellsToDongs(
+      regionCode ? cellsByRegion?.get(`${season}:${regionCode}`) : undefined,
+      timeBand,
+    );
   }
 
   const codes = key ? key.split(",") : [];
@@ -397,19 +421,7 @@ export function useSharedMap(
 
   // 지역 하나의 칸을 지도용 동 색으로 바꿈 (시간대 하나만)
   function dongsOf(regionCode: string | null) {
-    const result = new Map<string, DongColor>();
-    for (const cell of (regionCode && cells.get(`${season}:${regionCode}`)) || []) {
-      if (cell.timeBand !== timeBand) continue;
-      result.set(cell.dongCode, {
-        dongCode: cell.dongCode,
-        name: cell.name,
-        dominantColor: cell.filled ? cell.myColor : null,
-        photoCount: cell.myPhotoCount,
-        status: cell.filled ? "OK" : "EMPTY",
-        colorRatio: cell.myColor ? [{ hex: cell.myColor, ratio: 1 }] : [],
-      });
-    }
-    return result;
+    return cellsToDongs(regionCode ? cells.get(`${season}:${regionCode}`) : undefined, timeBand);
   }
   const codes = key ? key.split(",") : [];
   // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
@@ -427,39 +439,6 @@ export function useSharedMap(
     error,
     loading: Boolean(first) && !cells.has(`${season}:${first}`) && !error && !notFound,
   };
-}
-
-export const TIME_BANDS: { value: TimeBand; label: string; swatch: string[] }[] = [
-  { value: "DAWN", label: "새벽", swatch: ["#8a86c8", "#a9a3d6", "#6f7fbf", "#c3b3dc"] },
-  { value: "DAY", label: "낮", swatch: ["#8fb5d9", "#9cc28c", "#d6c58a", "#e6cf8f"] },
-  { value: "SUNSET", label: "노을", swatch: ["#f28b4b", "#f5a96a", "#e07a5f", "#f2a38a"] },
-  { value: "NIGHT", label: "밤", swatch: ["#3d4a80", "#2e3558", "#5a4f8c", "#6b64a8"] },
-];
-
-const SEASONS: Record<string, { name: string; months: string }> = {
-  SPRING: { name: "봄", months: "3–5월" },
-  SUMMER: { name: "여름", months: "6–8월" },
-  AUTUMN: { name: "가을", months: "9–11월" },
-  WINTER: { name: "겨울", months: "12–2월" },
-};
-
-// 시간대를 나타내는 작은 색 칸 (로고 4색과 같음: logo-mark.tsx). 지도 아래 시간대 바, 사진 카드 시간대 표시
-export const BAND_PIXEL: Record<TimeBand, string> = {
-  DAWN: "#c4b7e9",
-  DAY: "#8ab4e9",
-  SUNSET: "#ee8156",
-  NIGHT: "#2d2670",
-};
-
-export function bandLabel(value: TimeBand) {
-  return TIME_BANDS.find((band) => band.value === value)?.label ?? "";
-}
-
-// 계절 선택 목록 (봄 → 겨울 순서)
-export const SEASON_OPTIONS = Object.entries(SEASONS).map(([value, info]) => ({ value, ...info }));
-
-export function seasonOf(season: string | null) {
-  return season ? SEASONS[season] : undefined;
 }
 
 const TONE_MAX_SATURATION = 0.55;

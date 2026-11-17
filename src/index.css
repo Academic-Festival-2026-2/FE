@@ -8,8 +8,12 @@
   --color-brand-soft: #eaf0fb;
   --color-page: #f5f7fa;
   --color-line: #e2e6ee;
+  /* 진한 선: 점선 테두리(사진 올리기 칸), 꺼진 스위치 바탕 */
+  --color-line-strong: #c5ccda;
   --color-card-line: #e4e8ef;
   --color-field: #f3f5f9;
+  /* field 바탕 버튼에 마우스를 올렸을 때 */
+  --color-field-hover: #e9edf4;
   --color-field-line: #dce1ea;
   --color-divider: #e9ecf2;
   --color-check-line: #8b93a3;
