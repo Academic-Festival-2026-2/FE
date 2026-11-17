@@ -3,16 +3,18 @@ import type { SeasonType } from "../api/map";
 export const LAST_SEASON_KEY = "pixel:last-season";
 
 export function parseSeason(value: unknown): SeasonType | undefined {
-  if (value === "SPRING" || value === "SUMMER" ||
-      value === "AUTUMN" || value === "WINTER") return value;
+  if (value === "SPRING" || value === "SUMMER" || value === "AUTUMN" || value === "WINTER")
+    return value;
   return undefined;
 }
 
 export function currentSeason(date: Date = new Date()): SeasonType {
-  const month = Number(new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Seoul",
-    month: "numeric",
-  }).format(date));
+  const month = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      month: "numeric",
+    }).format(date),
+  );
   if (month >= 3 && month <= 5) return "SPRING";
   if (month >= 6 && month <= 8) return "SUMMER";
   if (month >= 9 && month <= 11) return "AUTUMN";
@@ -30,9 +32,8 @@ export function chooseSeason(
 export function preferredSeason(urlSeason?: unknown): SeasonType {
   let savedSeason: unknown;
   try {
-    savedSeason = typeof window === "undefined"
-      ? undefined
-      : window.localStorage.getItem(LAST_SEASON_KEY);
+    savedSeason =
+      typeof window === "undefined" ? undefined : window.localStorage.getItem(LAST_SEASON_KEY);
   } catch {
     savedSeason = undefined;
   }

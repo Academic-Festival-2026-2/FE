@@ -27,7 +27,12 @@ const TERMS: { key: Term; label: string; required: boolean; content?: TermConten
   { key: "age", label: "만 14세 이상입니다", required: true },
   { key: "service", label: "서비스 이용약관", required: true, content: SERVICE_TERMS },
   { key: "privacy", label: "개인정보 수집·이용", required: true, content: PRIVACY_TERMS },
-  { key: "location", label: "위치정보 이용 (사진 촬영 위치)", required: false, content: LOCATION_TERMS },
+  {
+    key: "location",
+    label: "위치정보 이용 (사진 촬영 위치)",
+    required: false,
+    content: LOCATION_TERMS,
+  },
   // 저장할 BE 필드가 아직 없어 화면에만 표시
   { key: "notification", label: "색 알림 수신", required: false },
 ];
@@ -36,11 +41,11 @@ function validate(values: FormValues): Partial<Record<Field, string>> {
   const errors: Partial<Record<Field, string>> = {};
 
   if (values.email.trim() === "") errors.email = "이메일을 입력해 주세요.";
-  else if (!EMAIL_PATTERN.test(values.email.trim())) errors.email = "이메일 형식이 올바르지 않아요.";
+  else if (!EMAIL_PATTERN.test(values.email.trim()))
+    errors.email = "이메일 형식이 올바르지 않아요.";
 
   if (values.password === "") errors.password = "비밀번호를 입력해 주세요.";
-  else if (!PASSWORD_PATTERN.test(values.password))
-    errors.password = PASSWORD_RULE_MESSAGE;
+  else if (!PASSWORD_PATTERN.test(values.password)) errors.password = PASSWORD_RULE_MESSAGE;
 
   if (values.passwordConfirm === "") errors.passwordConfirm = "비밀번호를 한 번 더 입력해 주세요.";
   else if (values.passwordConfirm !== values.password)
@@ -95,7 +100,13 @@ export function SignUpPage() {
   }
 
   function toggleAll(checked: boolean) {
-    setAgreements({ age: checked, service: checked, privacy: checked, location: checked, notification: checked });
+    setAgreements({
+      age: checked,
+      service: checked,
+      privacy: checked,
+      location: checked,
+      notification: checked,
+    });
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -138,9 +149,7 @@ export function SignUpPage() {
   return (
     // 시안: 모바일 Signup-A, PC Signup-B
     <AuthLayout cardClassName="max-w-[1000px] rounded-[20px] px-5 pt-7 pb-6 sm:rounded-3xl sm:px-[46px] sm:pt-11 sm:pb-[34px]">
-      <h1 className="text-[26px] font-black tracking-[-0.5px] text-ink sm:text-[32px]">
-        회원가입
-      </h1>
+      <h1 className="text-[26px] font-black tracking-[-0.5px] text-ink sm:text-[32px]">회원가입</h1>
       <p className="mt-2 text-[15px] text-ink-sub sm:mt-2.5">
         내 사진이 동네의 색이 되도록,
         <br className="sm:hidden" /> 계정을 만들어 주세요.
@@ -266,7 +275,10 @@ export function SignUpPage() {
 
       <p className="mt-[26px] text-center text-sm text-ink-sub">
         이미 계정이 있으신가요?{" "}
-        <Link to="/login" className="font-bold text-brand-strong underline underline-offset-4 hover:text-brand">
+        <Link
+          to="/login"
+          className="font-bold text-brand-strong underline underline-offset-4 hover:text-brand"
+        >
           로그인
         </Link>
       </p>

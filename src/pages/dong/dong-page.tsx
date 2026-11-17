@@ -25,7 +25,11 @@ import { cn } from "../../utils/cn";
 import { preferredSeason, rememberSeason } from "../../utils/season";
 import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
 import { MapLoading } from "../map/map-loading";
-import { canUseDongTransition, markReturnFrom, prepareDongTransition } from "../../utils/view-transition";
+import {
+  canUseDongTransition,
+  markReturnFrom,
+  prepareDongTransition,
+} from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
 import { PixelCount } from "./pixel-count";
 import { labelPoint } from "../map/map-geometry";
@@ -94,7 +98,9 @@ function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean, seas
 
   useEffect(() => {
     let cancelled = false;
-    const request = mine ? getMyDongPhotos(dongCode, timeBand, season) : getDongDetail(dongCode, timeBand, season);
+    const request = mine
+      ? getMyDongPhotos(dongCode, timeBand, season)
+      : getDongDetail(dongCode, timeBand, season);
     request
       .then((data) => {
         if (cancelled) return;
@@ -271,7 +277,11 @@ export function DongPage() {
       const content = pixelElement(group[0].color, group.length);
       elements.set(key, content);
       content.addEventListener("click", () =>
-        setSelected({ points: group, anchor: { key, lat: group[0].lat, lng: group[0].lng }, season: selectedSeason }),
+        setSelected({
+          points: group,
+          anchor: { key, lat: group[0].lat, lng: group[0].lng },
+          season: selectedSeason,
+        }),
       );
       return new kakao.maps.CustomOverlay({
         map,
@@ -339,7 +349,8 @@ export function DongPage() {
       let dx = 0;
       let dy = 0;
       if (top < margin) dy = top - margin;
-      else if (point.y > container.clientHeight - margin) dy = point.y - (container.clientHeight - margin);
+      else if (point.y > container.clientHeight - margin)
+        dy = point.y - (container.clientHeight - margin);
       if (left < margin) dx = left - margin;
       else if (left + width > container.clientWidth - margin)
         dx = left + width - (container.clientWidth - margin);
@@ -382,7 +393,14 @@ export function DongPage() {
   }
 
   function resetView() {
-    if (map && dongBoundsRef.current) map.setBounds(dongBoundsRef.current, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING);
+    if (map && dongBoundsRef.current)
+      map.setBounds(
+        dongBoundsRef.current,
+        DONG_FIT_PADDING,
+        DONG_FIT_PADDING,
+        DONG_FIT_PADDING,
+        DONG_FIT_PADDING,
+      );
   }
 
   const notFound = boundaries !== null && !feature;
@@ -394,10 +412,7 @@ export function DongPage() {
 
   return (
     <div className="relative h-screen w-full">
-      <div
-        ref={containerRef}
-        className="h-full w-full [&_svg]:pointer-events-none"
-      />
+      <div ref={containerRef} className="h-full w-full [&_svg]:pointer-events-none" />
       {/* 지도(경계·카카오맵 타일)를 그리는 중. 오류가 있으면 오류 배너만 */}
       <MapLoading show={!errorMessage && tilesReadyFor !== dongCode} />
 
@@ -448,7 +463,9 @@ export function DongPage() {
           {mine && unlocated.length > 0 && (
             <button
               type="button"
-              onClick={() => setSelected({ points: unlocated, anchor: null, season: selectedSeason })}
+              onClick={() =>
+                setSelected({ points: unlocated, anchor: null, season: selectedSeason })
+              }
               className="mt-1.5 text-xs font-bold text-brand-strong underline underline-offset-4"
             >
               위치 없는 사진 {unlocated.length}장 보기
@@ -460,7 +477,12 @@ export function DongPage() {
 
       {/* 지도 화면과 같은 계절 + 시간대 바 (아래 가운데) */}
       <div className="absolute bottom-6 left-1/2 z-10 w-max -translate-x-1/2">
-        <TimeBandBar season={selectedSeason} timeBand={timeBand} onChange={changeTimeBand} onSeasonChange={changeSeason} />
+        <TimeBandBar
+          season={selectedSeason}
+          timeBand={timeBand}
+          onChange={changeTimeBand}
+          onSeasonChange={changeSeason}
+        />
       </div>
 
       {activeSelection &&

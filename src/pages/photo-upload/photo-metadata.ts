@@ -10,9 +10,18 @@ export async function readPhoto(file: File): Promise<PhotoMetadata> {
   bitmap.close();
   try {
     const exif = await exifr.parse(file, { reviveValues: false });
-    const takenAt = typeof exif?.DateTimeOriginal === "string" ? parseLocalTime(exif.DateTimeOriginal.trim()) : undefined;
-    const lat = exif?.latitude, lng = exif?.longitude;
-    const hasGps = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 && (lat !== 0 || lng !== 0);
+    const takenAt =
+      typeof exif?.DateTimeOriginal === "string"
+        ? parseLocalTime(exif.DateTimeOriginal.trim())
+        : undefined;
+    const lat = exif?.latitude,
+      lng = exif?.longitude;
+    const hasGps =
+      Number.isFinite(lat) &&
+      Number.isFinite(lng) &&
+      Math.abs(lat) <= 90 &&
+      Math.abs(lng) <= 180 &&
+      (lat !== 0 || lng !== 0);
     return { takenAt, ...(hasGps ? { latitude: lat, longitude: lng } : {}) };
   } catch {
     // EXIF가 없는 이미지는 수동 입력으로 진행합니다.

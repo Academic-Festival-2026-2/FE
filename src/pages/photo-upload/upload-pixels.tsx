@@ -21,7 +21,9 @@ const REST_STEPS = 2;
 const CYCLE = FILL_ORDER.length + HOLD_STEPS + REST_STEPS;
 
 function prefersReducedMotion() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
 // 지금 차 있는 칸 수 (0~8). 다 차면 잠깐 유지 → 비우고 → 다시 시작

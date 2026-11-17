@@ -13,7 +13,13 @@ type FilterSelectProps = {
 };
 
 // 나의 지도 현황의 지역·계절 선택 버튼 (아래로 펼치는 목록)
-export function FilterSelect({ label, value, options, onChange, disabledHint = "준비 중이에요" }: FilterSelectProps) {
+export function FilterSelect({
+  label,
+  value,
+  options,
+  onChange,
+  disabledHint = "준비 중이에요",
+}: FilterSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -92,7 +98,9 @@ export function FilterSelect({ label, value, options, onChange, disabledHint = "
                   }}
                   className={cn(
                     "flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-[7px] text-left text-sm whitespace-nowrap",
-                    selected ? "bg-brand-soft font-bold text-brand-strong" : "text-ink hover:bg-field",
+                    selected
+                      ? "bg-brand-soft font-bold text-brand-strong"
+                      : "text-ink hover:bg-field",
                     "disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-transparent",
                   )}
                 >

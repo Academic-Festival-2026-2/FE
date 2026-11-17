@@ -87,7 +87,16 @@ export function ProfileMenu() {
             onClick={logout}
             className="flex h-11 w-full items-center gap-2.5 px-4 text-sm text-danger hover:bg-danger-soft disabled:opacity-50"
           >
-            <span aria-hidden className="size-[18px] shrink-0 bg-danger" style={{ maskImage: `url("${logOutIcon}")`, WebkitMaskImage: `url("${logOutIcon}")`, maskSize: "100% 100%", WebkitMaskSize: "100% 100%" }} />
+            <span
+              aria-hidden
+              className="size-[18px] shrink-0 bg-danger"
+              style={{
+                maskImage: `url("${logOutIcon}")`,
+                WebkitMaskImage: `url("${logOutIcon}")`,
+                maskSize: "100% 100%",
+                WebkitMaskSize: "100% 100%",
+              }}
+            />
             {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
           </button>
         </div>

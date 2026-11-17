@@ -82,7 +82,16 @@ const GLYPHS: Record<BadgeType, ReactNode> = {
   // 겹쳐 쌓은 사진 위의 10
   PHOTO_TEN: (
     <>
-      <rect x="20" y="12" width="28" height="32" rx="4" fill="#f2efe8" {...line} transform="rotate(8 34 28)" />
+      <rect
+        x="20"
+        y="12"
+        width="28"
+        height="32"
+        rx="4"
+        fill="#f2efe8"
+        {...line}
+        transform="rotate(8 34 28)"
+      />
       <rect x="16" y="16" width="28" height="32" rx="4" fill="white" {...line} />
       <rect x="21" y="21" width="18" height="14" rx="2" fill="#a9c8f0" {...line} />
       <circle cx="44" cy="46" r="9" fill="#ff8a3d" {...line} />
@@ -121,7 +130,15 @@ export function BadgeIcon({ type, earned = true, size = 72 }: BadgeIconProps) {
       </svg>
       {!earned && (
         <span className="absolute right-0 bottom-0 grid size-6 place-items-center rounded-full border border-line bg-white text-ink-faint">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          >
             <rect x="5" y="11" width="14" height="10" rx="2" />
             <path d="M8 11V8a4 4 0 0 1 8 0v3" />
           </svg>

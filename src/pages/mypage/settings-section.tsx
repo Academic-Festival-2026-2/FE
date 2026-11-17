@@ -53,7 +53,10 @@ export function SettingsSection({ info, onUpdated }: SettingsSectionProps) {
       <button
         type="button"
         onClick={() => setIsPasswordOpen(true)}
-        className={cn(ROW, "mt-2 w-full text-left text-sm font-bold text-ink transition-colors hover:text-brand-strong")}
+        className={cn(
+          ROW,
+          "mt-2 w-full text-left text-sm font-bold text-ink transition-colors hover:text-brand-strong",
+        )}
       >
         비밀번호 변경
         <span aria-hidden className="text-lg leading-none font-normal text-ink-muted">

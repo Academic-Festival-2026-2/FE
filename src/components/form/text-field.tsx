@@ -40,7 +40,9 @@ export function TextField({
     <div className={cn("flex flex-col", isSmall ? "gap-1" : "gap-2")}>
       <label
         htmlFor={id}
-        className={isSmall ? "text-[13px] leading-[19px] font-bold text-ink" : "text-sm font-bold text-ink"}
+        className={
+          isSmall ? "text-[13px] leading-[19px] font-bold text-ink" : "text-sm font-bold text-ink"
+        }
       >
         {label}
       </label>
@@ -67,7 +69,10 @@ export function TextField({
         {action}
       </div>
       {message && (
-        <p id={messageId} className={cn("text-xs leading-[18px]", error ? "text-danger" : "text-ink-muted")}>
+        <p
+          id={messageId}
+          className={cn("text-xs leading-[18px]", error ? "text-danger" : "text-ink-muted")}
+        >
           {message}
         </p>
       )}

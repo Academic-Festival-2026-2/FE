@@ -81,7 +81,9 @@ export function ShareSection() {
     <SectionCard title="나의 지도 공유">
       <div className="mt-1 flex items-center justify-between gap-4">
         <p className="text-sm leading-[22px] text-ink-sub">
-          {sharing ? "링크가 있는 사람은 내 지도를 볼 수 있어요." : "켜면 내 지도를 볼 수 있는 링크가 만들어져요."}
+          {sharing
+            ? "링크가 있는 사람은 내 지도를 볼 수 있어요."
+            : "켜면 내 지도를 볼 수 있는 링크가 만들어져요."}
         </p>
         <button
           type="button"

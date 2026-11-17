@@ -44,7 +44,13 @@ export function NicknameDialog({ current, onClose, onUpdated }: NicknameDialogPr
   }
 
   return (
-    <DialogShell eyebrow="NICKNAME" title="닉네임 변경" titleId="nickname-dialog-title" busy={isSaving} onClose={onClose}>
+    <DialogShell
+      eyebrow="NICKNAME"
+      title="닉네임 변경"
+      titleId="nickname-dialog-title"
+      busy={isSaving}
+      onClose={onClose}
+    >
       <form className="mt-4" onSubmit={handleSubmit} noValidate>
         <TextField
           id="nickname"

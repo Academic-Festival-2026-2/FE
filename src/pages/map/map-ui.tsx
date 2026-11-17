@@ -135,9 +135,14 @@ export function MapModeToggle({
   );
 }
 
-
 // 계절 선택 (지도 아래 시간대 바 왼쪽, 목록은 위로 펼침)
-function SeasonSelect({ season, onChange }: { season: SeasonType; onChange: (value: SeasonType) => void }) {
+function SeasonSelect({
+  season,
+  onChange,
+}: {
+  season: SeasonType;
+  onChange: (value: SeasonType) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = SEASON_OPTIONS.find((option) => option.value === season);
@@ -166,7 +171,10 @@ function SeasonSelect({ season, onChange }: { season: SeasonType; onChange: (val
         aria-expanded={open}
         aria-label={`계절 선택: ${current?.name ?? "미선택"}`}
         onClick={() => setOpen((prev) => !prev)}
-        className={cn(SELECTED_PILL, "flex h-8 shrink-0 items-center gap-1 rounded-[9px] pr-2 pl-3 text-[13px] leading-none font-bold whitespace-nowrap text-white")}
+        className={cn(
+          SELECTED_PILL,
+          "flex h-8 shrink-0 items-center gap-1 rounded-[9px] pr-2 pl-3 text-[13px] leading-none font-bold whitespace-nowrap text-white",
+        )}
       >
         {current?.name ?? "계절"}
         {/* 피그마 화살표 모양 그대로, 색만 흰색으로. 위로 펼치니 닫혀 있을 때 ▲, 열리면 ▼ */}
@@ -185,7 +193,10 @@ function SeasonSelect({ season, onChange }: { season: SeasonType; onChange: (val
         <ul
           aria-label="계절"
           // 목록 글자가 지도 위에서도 잘 읽히게 패널보다 덜 비치게 (흰색 88%)
-          className={cn(GLASS_SOLID, "absolute bottom-full left-0 z-20 mb-3 flex w-[70px] flex-col gap-0.5 rounded-xl p-1")}
+          className={cn(
+            GLASS_SOLID,
+            "absolute bottom-full left-0 z-20 mb-3 flex w-[70px] flex-col gap-0.5 rounded-xl p-1",
+          )}
         >
           {SEASON_OPTIONS.map((option) => {
             const selected = option.value === season;
@@ -249,7 +260,10 @@ export function TimeBandBar({
               <span
                 aria-hidden
                 // 좁은 화면에서는 색 픽셀을 숨겨서 바 폭을 줄임
-                className={cn("hidden size-2.5 rounded-[2px] transition-[border-color] duration-300 sm:block border-[1.5px]", active ? "border-white" : "border-transparent")}
+                className={cn(
+                  "hidden size-2.5 rounded-[2px] transition-[border-color] duration-300 sm:block border-[1.5px]",
+                  active ? "border-white" : "border-transparent",
+                )}
                 style={{ backgroundColor: BAND_PIXEL[band.value] }}
               />
               {band.label}
@@ -349,7 +363,9 @@ export function EmptyMyMapCard({ season }: { season: string }) {
           ),
         )}
       </span>
-      <p className="mt-3.5 text-lg font-extrabold text-ink">이 지역의 {season} 지도는 아직 비어 있어요</p>
+      <p className="mt-3.5 text-lg font-extrabold text-ink">
+        이 지역의 {season} 지도는 아직 비어 있어요
+      </p>
       <p className="mt-1 text-sm text-ink-sub">사진 한 장이면 첫 동이 칠해져요.</p>
       <Link
         to="/upload"
@@ -362,7 +378,13 @@ export function EmptyMyMapCard({ season }: { season: string }) {
 }
 
 // 나의 지도가 비어 있을 때 오른쪽 패널: 어떻게 채워지는지 3단계 안내
-export function MyMapGuidePanel({ regionName, dongCount }: { regionName: string; dongCount: number }) {
+export function MyMapGuidePanel({
+  regionName,
+  dongCount,
+}: {
+  regionName: string;
+  dongCount: number;
+}) {
   const steps = [
     "사진을 올리면 찍은 동에 첫 색이 칠해져요",
     "새벽·낮·노을·밤마다 따로 칠해져요",

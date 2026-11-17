@@ -12,8 +12,15 @@ import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
 import {
-  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel, regionOutline, dropOverlappingLabels,
-  type DongShape, type View, MAX_VIEW_SCALE
+  WORLD_HEIGHT,
+  WORLD_WIDTH,
+  toShapes,
+  regionLabel,
+  regionOutline,
+  dropOverlappingLabels,
+  type DongShape,
+  type View,
+  MAX_VIEW_SCALE,
 } from "./map-geometry";
 
 // 동 색을 흐리게 섞는 세기 (viewBox 단위). 시안 "그라데이션 중" = 부천 첫 화면(view ≈ 625)에서 10.
@@ -166,7 +173,12 @@ export function SvgMap({
   const shapes = useMemo(() => regions.flatMap(shapesOf), [regions]);
   // 지역 이름과 띄울 자리
   const regionLabels = useMemo(
-    () => regions.map((b) => ({ code: b.regionCode, name: b.regionName, at: regionLabel(shapesOf(b)) })),
+    () =>
+      regions.map((b) => ({
+        code: b.regionCode,
+        name: b.regionName,
+        at: regionLabel(shapesOf(b)),
+      })),
     [regions],
   );
   // 지역(시·군) 테두리
@@ -212,10 +224,13 @@ export function SvgMap({
   // 남은 동끼리도 이름이 겹치면 큰 동 이름만 남김 (확대하면 글자가 상대적으로 작아져 다시 나타남)
   const dongLabels = arrived
     ? dropOverlappingLabels(
-      shapes.filter((shape) => shape.dongCode.startsWith(focusRegion!)
-        && shape.area / (view.size * view.size) > DONG_LABEL_MIN_SHARE),
-      view.size * DONG_LABEL_FONT,
-    )
+        shapes.filter(
+          (shape) =>
+            shape.dongCode.startsWith(focusRegion!) &&
+            shape.area / (view.size * view.size) > DONG_LABEL_MIN_SHARE,
+        ),
+        view.size * DONG_LABEL_FONT,
+      )
     : [];
   const viewRef = useRef<View>(homeView);
   // 화면 이동이 0.2초 멈추면 한 번만 알림 (드래그 중 매 프레임 알리지 않게)
@@ -384,8 +399,10 @@ export function SvgMap({
       const dongPx = from.dongPx * (to.dongPx / from.dongPx) ** e;
       const pxPerUnit = dongPx / dongHeight;
       const size = Math.min(box.width, box.height) / pxPerUnit;
-      const centerX = dongCenterX - (lerp(from.dongX, to.dongX, e) - (box.left + box.width / 2)) / pxPerUnit;
-      const centerY = dongCenterY - (lerp(from.dongY, to.dongY, e) - (box.top + box.height / 2)) / pxPerUnit;
+      const centerX =
+        dongCenterX - (lerp(from.dongX, to.dongX, e) - (box.left + box.width / 2)) / pxPerUnit;
+      const centerY =
+        dongCenterY - (lerp(from.dongY, to.dongY, e) - (box.top + box.height / 2)) / pxPerUnit;
       const next = { x: centerX - size / 2, y: centerY - size / 2, size };
       viewRef.current = next;
       svg.setAttribute("viewBox", `${next.x} ${next.y} ${next.size} ${next.size}`);
@@ -410,14 +427,27 @@ export function SvgMap({
   function clearStage() {
     const root = rootRef.current;
     if (root) {
-      for (const name of ["position", "zIndex", "overflow", "backgroundColor", "left", "top", "width", "height", "borderRadius"] as const) {
+      for (const name of [
+        "position",
+        "zIndex",
+        "overflow",
+        "backgroundColor",
+        "left",
+        "top",
+        "width",
+        "height",
+        "borderRadius",
+      ] as const) {
         root.style[name] = "";
       }
     }
     blurGroupRef.current?.style.removeProperty("display");
     clipGroupRef.current?.setAttribute("clip-path", `url(#${clipId})`);
     viewRef.current = homeView;
-    svgRef.current?.setAttribute("viewBox", `${homeView.x} ${homeView.y} ${homeView.size} ${homeView.size}`);
+    svgRef.current?.setAttribute(
+      "viewBox",
+      `${homeView.x} ${homeView.y} ${homeView.size} ${homeView.size}`,
+    );
   }
 
   // 화면 전체(동 상세와 같은 모습): 동이 화면 한가운데에 동 상세와 같은 크기 (kakao-fit.ts)
@@ -449,8 +479,14 @@ export function SvgMap({
       width: visible.width,
       height: visible.height,
       radius: root ? CARD_RADIUS : 0,
-      dongX: rootRect.left + rootRect.width / 2 + ((minX + maxX) / 2 - (current.x + current.size / 2)) * pxPerUnit,
-      dongY: rootRect.top + rootRect.height / 2 + ((minY + maxY) / 2 - (current.y + current.size / 2)) * pxPerUnit,
+      dongX:
+        rootRect.left +
+        rootRect.width / 2 +
+        ((minX + maxX) / 2 - (current.x + current.size / 2)) * pxPerUnit,
+      dongY:
+        rootRect.top +
+        rootRect.height / 2 +
+        ((minY + maxY) / 2 - (current.y + current.size / 2)) * pxPerUnit,
       dongPx: (maxY - minY) * pxPerUnit,
       dim,
     };
@@ -537,7 +573,7 @@ export function SvgMap({
         point.x,
         point.y,
         event.deltaY > 0 ? 1.15 : 1 / 1.15,
-        maxSize
+        maxSize,
       );
       viewRef.current = next;
       setView(next);
@@ -611,15 +647,25 @@ export function SvgMap({
             if (!dist) return;
             // 손가락을 벌리면(거리가 커지면) view가 작아짐 = 확대. 시작할 때 가운데 점을 기준으로
             const zoomed = zoomAround(
-              pinch.view, pinch.anchor.x, pinch.anchor.y, pinch.dist / dist, maxSize);
+              pinch.view,
+              pinch.anchor.x,
+              pinch.anchor.y,
+              pinch.dist / dist,
+              maxSize,
+            );
             // 두 손가락 가운데가 움직인 만큼 지도도 같이 옮김
             const rect = svg.getBoundingClientRect();
             const ratio = zoomed.size / Math.min(rect.width, rect.height);
-            applyView(clampView({
-              ...zoomed,
-              x: zoomed.x - (midX - pinch.midX) * ratio,
-              y: zoomed.y - (midY - pinch.midY) * ratio,
-            }, maxSize));
+            applyView(
+              clampView(
+                {
+                  ...zoomed,
+                  x: zoomed.x - (midX - pinch.midX) * ratio,
+                  y: zoomed.y - (midY - pinch.midY) * ratio,
+                },
+                maxSize,
+              ),
+            );
             return;
           }
           const drag = dragRef.current;
@@ -635,8 +681,12 @@ export function SvgMap({
           }
           const rect = svg.getBoundingClientRect();
           const ratio = drag.view.size / Math.min(rect.width, rect.height);
-          applyView(clampView(
-            { ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio }, maxSize));
+          applyView(
+            clampView(
+              { ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio },
+              maxSize,
+            ),
+          );
         }}
         onPointerUp={(event) => {
           pointersRef.current.delete(event.pointerId);
@@ -745,24 +795,24 @@ export function SvgMap({
             // 들어간 시라도 동 이름이 하나도 안 뜨면(동이 다 작음) 시 이름은 남김
             .filter(({ code }) => !(arrived && dongLabels.length > 0 && code === focusRegion))
             .map(({ code, name, at: [x, y] }) => (
-            <text
-              key={code}
-              x={x}
-              y={y}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={view.size * 0.04}
-              fontWeight={800}
-              fill="#2b3245"
-              fillOpacity={0.6}
-              stroke="#ffffff"
-              strokeOpacity={0.8}
-              strokeWidth={view.size * 0.008}
-              paintOrder="stroke"
-            >
-              {name}
-            </text>
-          ))}
+              <text
+                key={code}
+                x={x}
+                y={y}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={view.size * 0.04}
+                fontWeight={800}
+                fill="#2b3245"
+                fillOpacity={0.6}
+                stroke="#ffffff"
+                strokeOpacity={0.8}
+                strokeWidth={view.size * 0.008}
+                paintOrder="stroke"
+              >
+                {name}
+              </text>
+            ))}
         </g>
 
         {hovered && (
@@ -816,7 +866,6 @@ export function SvgMap({
             ))}
           </g>
         )}
-
       </svg>
 
       <div ref={tooltipRef} className="pointer-events-none absolute left-0 top-0 z-10">
