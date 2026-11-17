@@ -14,7 +14,12 @@ export const DONG_MAX_LEVEL = 8;
 
 // latSpan·lngSpan: 동의 위도·경도 범위(도), width·height: 동 상세 지도 크기(px)
 // 반환: 동 상세에서 동의 세로 길이(px)
-export function predictDongHeightPx(latSpan: number, lngSpan: number, width: number, height: number) {
+export function predictDongHeightPx(
+  latSpan: number,
+  lngSpan: number,
+  width: number,
+  height: number,
+) {
   const availableWidth = width - DONG_FIT_PADDING * 2;
   const availableHeight = height - DONG_FIT_PADDING * 2;
   let pxPerDegLat = PX_PER_DEG_LAT_LEVEL1;

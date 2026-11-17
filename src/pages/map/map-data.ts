@@ -125,9 +125,12 @@ export function useRegionBoundaries(regionCodes: string[]) {
   }, [key]);
 
   // 받은 지역만 골라 키로 만들고, 키가 같으면 같은 배열을 돌려줘서 지도가 모양을 다시 계산하지 않게
-  const loadedKey = (key ? key.split(",") : []).filter((code) => boundariesCache.has(code)).join(",");
+  const loadedKey = (key ? key.split(",") : [])
+    .filter((code) => boundariesCache.has(code))
+    .join(",");
   const regions = useMemo(
-    () => (loadedKey ? loadedKey.split(",").map((code) => boundariesCache.get(code) as Boundaries) : []),
+    () =>
+      loadedKey ? loadedKey.split(",").map((code) => boundariesCache.get(code) as Boundaries) : [],
     [loadedKey],
   );
   return { regions, error, failed };
@@ -142,7 +145,8 @@ type RegionColors = { dongs: Map<string, DongColor>; topDongs: TopDong[]; season
 
 // 마지막으로 받은 지역·시간대별 동 색. 화면을 다시 열면 이 값을 먼저 보여 주고 바로 새로 받아 바꿈
 const lastDongColors = new Map<string, RegionColors>();
-const colorKey = (regionCode: string, band: TimeBand, season: SeasonType) => `${regionCode}:${band}:${season}`;
+const colorKey = (regionCode: string, band: TimeBand, season: SeasonType) =>
+  `${regionCode}:${band}:${season}`;
 
 // 보이는 지역들의 동 색. 첫 지역(화면 가운데)은 나머지 시간대도 미리 받아 탭을 바꾸면 바로 바뀜
 export function useDongColors(timeBand: TimeBand, regionCodes: string[], season: SeasonType) {
@@ -232,7 +236,12 @@ export function toKakaoPath(rings: number[][][]) {
 
 // 나의 지도: 보이는 지역마다 내 칸을 받음 (지역 하나에 4개 시간대가 한 번에 옴).
 // 로그인한 사람(토큰)이 바뀌면 받은 것을 버리고 새로 받음
-export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: string[], season: SeasonType) {
+export function useMyMap(
+  enabled: boolean,
+  timeBand: TimeBand,
+  regionCodes: string[],
+  season: SeasonType,
+) {
   const accessToken = useAuthStore((state) => state.tokens?.accessToken);
   const activeTokenRef = useRef(accessToken);
 
@@ -242,7 +251,9 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
 
   const expireSession = useExpireSession();
   const key = regionCodes.join(",");
-  const [loaded, setLoaded] = useState<{ token: string; cells: Map<string, MyMapCell[]> } | null>(null);
+  const [loaded, setLoaded] = useState<{ token: string; cells: Map<string, MyMapCell[]> } | null>(
+    null,
+  );
   const [failedKeys, setFailedKeys] = useState<Set<string>>(() => new Set());
   // 이미 요청한 "토큰:지역" (받는 중에 같은 지역을 또 요청하지 않게)
   const requestedRef = useRef(new Set<string>());
@@ -270,8 +281,12 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
             throw new Error("나의 지도 응답 계절이 일치하지 않습니다.");
           }
           setLoaded((prev) => {
-            const base = prev && prev.token === accessToken ? prev.cells : new Map<string, MyMapCell[]>();
-            return { token: accessToken, cells: new Map(base).set(`${season}:${code}`, data.cells) };
+            const base =
+              prev && prev.token === accessToken ? prev.cells : new Map<string, MyMapCell[]>();
+            return {
+              token: accessToken,
+              cells: new Map(base).set(`${season}:${code}`, data.cells),
+            };
           });
           setFailedKeys((prev) => {
             if (!prev.has(k)) return prev;
@@ -313,8 +328,10 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
   const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
   const first = codes[0];
   const firstCells = first ? cellsByRegion?.get(`${season}:${first}`) : undefined;
-  const error = first && failedKeys.has(`${accessToken}:${season}:${first}`)
-    ? "나의 지도를 불러오지 못했어요." : null;
+  const error =
+    first && failedKeys.has(`${accessToken}:${season}:${first}`)
+      ? "나의 지도를 불러오지 못했어요."
+      : null;
 
   return {
     dongs,
@@ -327,7 +344,12 @@ export function useMyMap(enabled: boolean, timeBand: TimeBand, regionCodes: stri
 
 // 공유받은 지도 (로그인 없음). useMyMap과 같은 방식으로 보이는 지역마다 받고, 응답을 지역별로 모음
 // 공유가 꺼졌거나 없는 키(404)면 notFound
-export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: string[], season: SeasonType) {
+export function useSharedMap(
+  shareKey: string,
+  timeBand: TimeBand,
+  regionCodes: string[],
+  season: SeasonType,
+) {
   const key = regionCodes.join(",");
   const [cells, setCells] = useState<Map<string, MyMapCell[]>>(new Map());
   const [owner, setOwner] = useState<{ nickname: string; profileImage: string } | null>(null);
@@ -393,8 +415,8 @@ export function useSharedMap(shareKey: string, timeBand: TimeBand, regionCodes: 
   // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
   const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
   const first = codes[0];
-  const error = first && failedKeys.has(`${season}:${first}`)
-    ? "공유 지도를 불러오지 못했어요." : null;
+  const error =
+    first && failedKeys.has(`${season}:${first}`) ? "공유 지도를 불러오지 못했어요." : null;
 
   return {
     owner,

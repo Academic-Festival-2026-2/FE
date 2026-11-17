@@ -3,7 +3,10 @@ import { test } from "node:test";
 import { photoImageUrl } from "../src/pages/dong/photo-image-url.ts";
 
 test("축소 이미지(displayUrl)가 있으면 그 주소를 쓴다", () => {
-  assert.equal(photoImageUrl({ imageUrl: "original.jpg", displayUrl: "display.jpg" }), "display.jpg");
+  assert.equal(
+    photoImageUrl({ imageUrl: "original.jpg", displayUrl: "display.jpg" }),
+    "display.jpg",
+  );
 });
 
 test("축소 이미지가 없으면(null·없음) 원본 주소를 쓴다", () => {

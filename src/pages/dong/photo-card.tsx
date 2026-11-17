@@ -108,14 +108,16 @@ export function PhotoCard({
     setFailedUrl(null);
   }
   // 다 받은 사진의 원래 크기 (말풍선 카드 폭을 사진 비율에 맞출 때 씀)
-  const [loaded, setLoaded] = useState<{ url: string; width: number; height: number } | null>(
-    null,
-  );
+  const [loaded, setLoaded] = useState<{ url: string; width: number; height: number } | null>(null);
   // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
   // 뒤로 가기를 누르면 동 화면을 벗어나지 않고 크게 보기만 닫힘
   const { open: zoomed, openLightbox, closeLightbox } = useLightboxHistory();
   // 상세는 사진별로 기억. 크게 보기가 열려 있을 때만 옆 사진 상세·이미지를 미리 받음 (카드만 있을 때는 안 받음)
-  const { photo: current, failed, readyImageUrls } = usePhotoDetails(
+  const {
+    photo: current,
+    failed,
+    readyImageUrls,
+  } = usePhotoDetails(
     points.map((point) => point.photoId),
     index,
     { mine, preload: zoomed },

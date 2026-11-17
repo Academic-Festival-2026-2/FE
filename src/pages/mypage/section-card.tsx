@@ -18,7 +18,13 @@ export function SectionCard({ title, id, note, aside, className, children }: Sec
   return (
     // scroll-mt: 스크롤했을 때 카드가 화면 맨 위에 딱 붙지 않게 여백
     // flex-col: 옆 카드에 맞춰 높이가 늘어날 때 마지막 줄(mt-auto)을 카드 아래에 붙일 수 있게
-    <section id={id} className={cn("flex scroll-mt-4 flex-col rounded-2xl border border-card-line bg-white px-6 py-5", className)}>
+    <section
+      id={id}
+      className={cn(
+        "flex scroll-mt-4 flex-col rounded-2xl border border-card-line bg-white px-6 py-5",
+        className,
+      )}
+    >
       <div className="flex items-baseline justify-between gap-3">
         {/* tabIndex -1: 스크롤 후 제목으로 포커스를 옮겨 화면 낭독기·키보드 사용자도 이동한 곳을 알게 함 */}
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5">

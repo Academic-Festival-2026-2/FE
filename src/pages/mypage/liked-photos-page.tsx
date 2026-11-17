@@ -203,7 +203,9 @@ export function LikedPhotosPage() {
         <UploadButton />
       </AuthHeader>
       <main className="mx-auto w-full max-w-[1192px] px-4 pt-4 pb-12">
-        <p className="mt-2 font-mono text-[13px] tracking-[1.04px] text-brand-strong">LIKED PHOTOS</p>
+        <p className="mt-2 font-mono text-[13px] tracking-[1.04px] text-brand-strong">
+          LIKED PHOTOS
+        </p>
         <div className="mt-3 flex items-center gap-3">
           <Link
             to="/mypage"
@@ -221,10 +223,13 @@ export function LikedPhotosPage() {
               />
             </svg>
           </Link>
-          <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">좋아요 표시한 사진</h1>
+          <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">
+            좋아요 표시한 사진
+          </h1>
         </div>
         <p className="mt-2 text-base text-ink-sub">
-          지도에서 하트를 누른 사진을 모아 봐요. 사진을 누르면 크게 볼 수 있고, 하트를 누르면 좋아요를 취소해요.
+          지도에서 하트를 누른 사진을 모아 봐요. 사진을 누르면 크게 볼 수 있고, 하트를 누르면
+          좋아요를 취소해요.
         </p>
         <div className="mt-6 mb-3 flex items-center justify-between gap-4">
           <h2 className="flex items-baseline gap-2 text-[17px] leading-[25px] font-bold text-ink">
@@ -238,7 +243,10 @@ export function LikedPhotosPage() {
           <span className="text-[13px] text-ink-muted">최근에 누른 순</span>
         </div>
         {error ? (
-          <div role="alert" className="rounded-2xl border border-danger-line bg-white px-6 py-10 text-center">
+          <div
+            role="alert"
+            className="rounded-2xl border border-danger-line bg-white px-6 py-10 text-center"
+          >
             <p className="text-sm text-danger">{error}</p>
             <button
               type="button"
@@ -253,13 +261,18 @@ export function LikedPhotosPage() {
             </button>
           </div>
         ) : loading ? (
-          <p role="status" className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center text-sm text-ink-muted">
+          <p
+            role="status"
+            className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center text-sm text-ink-muted"
+          >
             좋아요한 사진을 불러오는 중...
           </p>
         ) : photos.length === 0 ? (
           <div className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center">
             <p className="font-bold text-ink">아직 좋아요한 사진이 없어요.</p>
-            <p className="mt-2 text-sm text-ink-muted">지도에서 마음에 드는 사진의 하트를 눌러 보세요.</p>
+            <p className="mt-2 text-sm text-ink-muted">
+              지도에서 마음에 드는 사진의 하트를 눌러 보세요.
+            </p>
             <Link
               to="/map"
               search={{ timeBand: currentTimeBand() }}
@@ -291,7 +304,9 @@ export function LikedPhotosPage() {
                       <PhotoThumbnail photo={photo} />
                       <div className="flex items-start justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-ink sm:text-base">{photo.name}</p>
+                          <p className="truncate text-sm font-bold text-ink sm:text-base">
+                            {photo.name}
+                          </p>
                           <p className="mt-1 truncate text-xs text-ink-sub">{photo.nickname}</p>
                           <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">
                             {formatLikedDate(photo.takenAt)} · {bandLabel(photo.timeBand)}

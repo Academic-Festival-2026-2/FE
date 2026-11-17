@@ -39,7 +39,10 @@ function useLitCount(active: boolean) {
       setStep(0);
     };
   }, [active]);
-  if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
     return 4;
   }
   return STEPS[step];
@@ -73,7 +76,10 @@ export function MapLoading({ show, className }: { show: boolean; className?: str
     <div
       role="status"
       aria-live="polite"
-      className={cn("pointer-events-none absolute inset-0 z-[5] grid place-items-center px-4", className)}
+      className={cn(
+        "pointer-events-none absolute inset-0 z-[5] grid place-items-center px-4",
+        className,
+      )}
     >
       <div className="flex items-center gap-3.5 rounded-[16px] border border-card-line bg-white px-5 py-3.5 shadow-[0_8px_24px_rgba(26,36,64,0.12)]">
         <PixelLoader />

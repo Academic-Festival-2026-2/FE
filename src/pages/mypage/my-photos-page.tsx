@@ -31,7 +31,9 @@ function formatPhotoDate(value: string | null, season: SeasonType) {
   return value ? formatDate(value) : (seasonOf(season)?.name ?? "촬영 시기 미상");
 }
 function formatDateTime(value: string | null, season: SeasonType) {
-  return value ? `${formatDate(value)} ${value.slice(11, 16)}` : (seasonOf(season)?.name ?? "촬영 시기 미상");
+  return value
+    ? `${formatDate(value)} ${value.slice(11, 16)}`
+    : (seasonOf(season)?.name ?? "촬영 시기 미상");
 }
 
 function PhotoThumbnail({ photo }: { photo: MyPhotoItem }) {
@@ -97,13 +99,20 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
   useEffect(() => {
     let ignore = false;
     getPhotoDetail(photo.photoId, true)
-      .then((result) => { if (!ignore) setDetail(result); })
+      .then((result) => {
+        if (!ignore) setDetail(result);
+      })
       .catch((error: unknown) => {
         if (ignore) return;
         if (isSessionExpired(error)) expireSession();
-        else setLoadError(error instanceof ApiError ? error.message : "사진 정보를 불러오지 못했어요.");
+        else
+          setLoadError(
+            error instanceof ApiError ? error.message : "사진 정보를 불러오지 못했어요.",
+          );
       });
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
   }, [photo.photoId, expireSession]);
 
   useEffect(() => {
@@ -139,7 +148,9 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 sm:p-6"
-      onMouseDown={(event) => { if (event.target === event.currentTarget && !deleting) onClose(); }}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !deleting) onClose();
+      }}
     >
       <section
         role="dialog"
@@ -154,11 +165,32 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-4">
           <p className="font-mono text-[13px] tracking-[1.04px] text-brand-strong">PHOTO DETAIL</p>
-          <button type="button" autoFocus aria-label="사진 상세 닫기" onClick={onClose} className="flex size-9 items-center justify-center rounded-[10px] border border-line text-ink-sub hover:bg-field"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg></button>
+          <button
+            type="button"
+            autoFocus
+            aria-label="사진 상세 닫기"
+            onClick={onClose}
+            className="flex size-9 items-center justify-center rounded-[10px] border border-line text-ink-sub hover:bg-field"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
+              <path
+                d="M2 2l10 10M12 2L2 12"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
         </div>
         <div className="max-h-[calc(100dvh-140px)] overflow-y-auto px-6 pb-6">
-          {loadError && <p role="alert" className="mb-3 text-sm text-danger">{loadError}</p>}
-          {!detail && !loadError && <p className="py-10 text-center text-sm text-ink-muted">사진을 불러오는 중...</p>}
+          {loadError && (
+            <p role="alert" className="mb-3 text-sm text-danger">
+              {loadError}
+            </p>
+          )}
+          {!detail && !loadError && (
+            <p className="py-10 text-center text-sm text-ink-muted">사진을 불러오는 중...</p>
+          )}
           {detail && (
             <>
               {imageUrl && !imageFailed ? (
@@ -175,7 +207,9 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
                     }
                     onError={() => setImageFailed(true)}
                     style={photoSize ?? undefined}
-                    className={photoSize ? "block" : "block aspect-[4/3] w-full object-contain opacity-0"}
+                    className={
+                      photoSize ? "block" : "block aspect-[4/3] w-full object-contain opacity-0"
+                    }
                   />
                 </div>
               ) : (
@@ -193,18 +227,38 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
               <p className="mt-4 inline-block rounded-full bg-brand-soft px-3 py-1 text-xs font-bold text-brand-strong">
                 {photo.isPublic ? "공개" : "나만 보기"}
               </p>
-              <h3 className="mt-7 border-b border-divider pb-3 text-sm font-bold text-ink">촬영 정보</h3>
+              <h3 className="mt-7 border-b border-divider pb-3 text-sm font-bold text-ink">
+                촬영 정보
+              </h3>
               <dl className="space-y-4 py-4 text-sm">
-                <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">{detail.takenAt ? "촬영 일시" : "촬영 시기"}</dt><dd className="font-bold text-ink">{formatDateTime(detail.takenAt, detail.season)}</dd></div>
-                <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">촬영 지역</dt><dd className="font-bold text-ink">{detail.name}</dd></div>
-                <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">시간대</dt><dd className="font-bold text-ink">{timeBandLabel[detail.timeBand]}</dd></div>
+                <div className="flex gap-4">
+                  <dt className="w-24 shrink-0 text-ink-muted">
+                    {detail.takenAt ? "촬영 일시" : "촬영 시기"}
+                  </dt>
+                  <dd className="font-bold text-ink">
+                    {formatDateTime(detail.takenAt, detail.season)}
+                  </dd>
+                </div>
+                <div className="flex gap-4">
+                  <dt className="w-24 shrink-0 text-ink-muted">촬영 지역</dt>
+                  <dd className="font-bold text-ink">{detail.name}</dd>
+                </div>
+                <div className="flex gap-4">
+                  <dt className="w-24 shrink-0 text-ink-muted">시간대</dt>
+                  <dd className="font-bold text-ink">{timeBandLabel[detail.timeBand]}</dd>
+                </div>
               </dl>
             </>
           )}
-          <p className="mt-3 border-t border-divider pt-4 text-xs leading-5 text-ink-muted">삭제하면 사진이 내 목록에서 사라지고 지도 집계도 갱신돼요.</p>
+          <p className="mt-3 border-t border-divider pt-4 text-xs leading-5 text-ink-muted">
+            삭제하면 사진이 내 목록에서 사라지고 지도 집계도 갱신돼요.
+          </p>
           <button
             type="button"
-            onClick={() => { setDeleteError(null); setConfirmDelete(true); }}
+            onClick={() => {
+              setDeleteError(null);
+              setConfirmDelete(true);
+            }}
             className="mt-4 w-full rounded-xl border border-danger-line bg-danger-soft py-3 text-sm font-bold text-danger transition-colors hover:bg-[#fbdcdc]"
           >
             이 사진 삭제하기
@@ -213,14 +267,45 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
       </section>
       {confirmDelete && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-          <section role="alertdialog" aria-modal="true" aria-labelledby="delete-photo-title" aria-describedby="delete-photo-description" className="w-full max-w-[440px] rounded-[20px] bg-white p-7 text-ink shadow-[0_8px_16px_rgba(0,0,0,0.12)]">
-            <div className="grid size-11 place-items-center rounded-full bg-danger-soft text-xl font-bold text-danger">!</div>
-            <h3 id="delete-photo-title" className="mt-5 text-[22px] leading-[26px] font-extrabold">이 사진을 삭제할까요?</h3>
-            <p id="delete-photo-description" className="mt-3 text-sm leading-6 text-ink-sub">삭제하면 사진이 목록에서 사라지며 되돌릴 수 없어요.</p>
-            {deleteError && <p role="alert" className="mt-3 text-sm text-danger">{deleteError}</p>}
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-photo-title"
+            aria-describedby="delete-photo-description"
+            className="w-full max-w-[440px] rounded-[20px] bg-white p-7 text-ink shadow-[0_8px_16px_rgba(0,0,0,0.12)]"
+          >
+            <div className="grid size-11 place-items-center rounded-full bg-danger-soft text-xl font-bold text-danger">
+              !
+            </div>
+            <h3 id="delete-photo-title" className="mt-5 text-[22px] leading-[26px] font-extrabold">
+              이 사진을 삭제할까요?
+            </h3>
+            <p id="delete-photo-description" className="mt-3 text-sm leading-6 text-ink-sub">
+              삭제하면 사진이 목록에서 사라지며 되돌릴 수 없어요.
+            </p>
+            {deleteError && (
+              <p role="alert" className="mt-3 text-sm text-danger">
+                {deleteError}
+              </p>
+            )}
             <div className="mt-7 grid grid-cols-2 gap-3">
-              <button type="button" autoFocus disabled={deleting} onClick={() => setConfirmDelete(false)} className="h-12 rounded-xl border border-line bg-white px-4 text-[15px] text-ink-sub hover:bg-field disabled:opacity-50">취소</button>
-              <button type="button" disabled={deleting} onClick={handleDelete} className="h-12 rounded-xl bg-danger px-4 text-[15px] font-extrabold text-white transition-colors hover:bg-[#8c1d17] disabled:opacity-50">{deleting ? "삭제 중..." : "삭제하기"}</button>
+              <button
+                type="button"
+                autoFocus
+                disabled={deleting}
+                onClick={() => setConfirmDelete(false)}
+                className="h-12 rounded-xl border border-line bg-white px-4 text-[15px] text-ink-sub hover:bg-field disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={handleDelete}
+                className="h-12 rounded-xl bg-danger px-4 text-[15px] font-extrabold text-white transition-colors hover:bg-[#8c1d17] disabled:opacity-50"
+              >
+                {deleting ? "삭제 중..." : "삭제하기"}
+              </button>
             </div>
           </section>
         </div>
@@ -256,7 +341,9 @@ export function MyPhotosPage() {
           setLoading(false);
         }
       });
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
   }, [page, seasonFilter, refreshKey, expireSession]);
 
   function changeSeasonFilter(value: SeasonType | "ALL") {
@@ -325,9 +412,13 @@ export function MyPhotosPage() {
               />
             </svg>
           </Link>
-          <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">내 사진 모아보기</h1>
+          <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">
+            내 사진 모아보기
+          </h1>
         </div>
-        <p className="mt-2 text-base text-ink-sub">내가 올린 사진을 모아 보고, 사진을 누르면 촬영 정보를 보거나 삭제할 수 있어요.</p>
+        <p className="mt-2 text-base text-ink-sub">
+          내가 올린 사진을 모아 보고, 사진을 누르면 촬영 정보를 보거나 삭제할 수 있어요.
+        </p>
         <div className="mt-6 mb-3 flex items-center justify-between gap-4">
           {/* 올린 사진 수는 제목 옆에 작게 */}
           <h2 className="flex items-baseline gap-2 text-[17px] leading-[25px] font-bold text-ink">
@@ -339,7 +430,9 @@ export function MyPhotosPage() {
             )}
           </h2>
           <div className="flex items-center gap-3">
-            <label htmlFor="my-photos-season" className="sr-only">사진 계절 필터</label>
+            <label htmlFor="my-photos-season" className="sr-only">
+              사진 계절 필터
+            </label>
             <select
               id="my-photos-season"
               value={seasonFilter}
@@ -348,31 +441,64 @@ export function MyPhotosPage() {
             >
               <option value="ALL">전체 계절</option>
               {SEASON_OPTIONS.map(({ value, name }) => (
-                <option key={value} value={value}>{name}</option>
+                <option key={value} value={value}>
+                  {name}
+                </option>
               ))}
             </select>
             <span className="text-[13px] text-ink-muted">최신순</span>
           </div>
         </div>
         {error ? (
-          <div role="alert" className="rounded-2xl border border-danger-line bg-white px-6 py-10 text-center">
+          <div
+            role="alert"
+            className="rounded-2xl border border-danger-line bg-white px-6 py-10 text-center"
+          >
             <p className="text-sm text-danger">{error}</p>
-            <button type="button" onClick={() => { setLoading(true); setError(null); setRefreshKey((value) => value + 1); }} className="mt-4 h-10 rounded-[10px] bg-brand px-4 text-sm font-bold text-white transition-colors hover:bg-brand-hover">다시 시도</button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                setError(null);
+                setRefreshKey((value) => value + 1);
+              }}
+              className="mt-4 h-10 rounded-[10px] bg-brand px-4 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
+            >
+              다시 시도
+            </button>
           </div>
         ) : loading ? (
-          <p role="status" className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center text-sm text-ink-muted">내 사진을 불러오는 중...</p>
+          <p
+            role="status"
+            className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center text-sm text-ink-muted"
+          >
+            내 사진을 불러오는 중...
+          </p>
         ) : photos.length === 0 ? (
           <div className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center">
             {seasonFilter === "ALL" ? (
               <>
                 <p className="font-bold text-ink">아직 업로드한 사진이 없어요.</p>
-                <p className="mt-2 text-sm text-ink-muted">사진을 업로드하고 동네의 색을 기록해 보세요.</p>
-                <Link to="/upload" className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">첫 사진 업로드</Link>
+                <p className="mt-2 text-sm text-ink-muted">
+                  사진을 업로드하고 동네의 색을 기록해 보세요.
+                </p>
+                <Link
+                  to="/upload"
+                  className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
+                >
+                  첫 사진 업로드
+                </Link>
               </>
             ) : (
               <>
                 <p className="font-bold text-ink">이 계절에 찍은 사진이 없어요.</p>
-                <button type="button" onClick={() => changeSeasonFilter("ALL")} className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">전체 계절 보기</button>
+                <button
+                  type="button"
+                  onClick={() => changeSeasonFilter("ALL")}
+                  className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover"
+                >
+                  전체 계절 보기
+                </button>
               </>
             )}
           </div>
@@ -390,26 +516,60 @@ export function MyPhotosPage() {
                   <PhotoThumbnail photo={photo} />
                   <div className="flex items-start justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-ink sm:text-base">{photo.name}</p>
-                      <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">{formatPhotoDate(photo.takenAt, photo.season)} · {timeBandLabel[photo.timeBand]}</p>
+                      <p className="truncate text-sm font-bold text-ink sm:text-base">
+                        {photo.name}
+                      </p>
+                      <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">
+                        {formatPhotoDate(photo.takenAt, photo.season)} ·{" "}
+                        {timeBandLabel[photo.timeBand]}
+                      </p>
                     </div>
-                    <span className="mt-1 size-3 shrink-0 rounded-[3px]" style={{ backgroundColor: photo.color }} aria-hidden="true" />
+                    <span
+                      className="mt-1 size-3 shrink-0 rounded-[3px]"
+                      style={{ backgroundColor: photo.color }}
+                      aria-hidden="true"
+                    />
                   </div>
                 </button>
               ))}
             </div>
             <div className="mt-6 grid grid-cols-1 items-center gap-3 text-[13px] text-ink-muted sm:grid-cols-3">
-              <p className="text-center sm:text-left">{firstNumber}–{lastNumber} / {data?.totalElements.toLocaleString()}장</p>
+              <p className="text-center sm:text-left">
+                {firstNumber}–{lastNumber} / {data?.totalElements.toLocaleString()}장
+              </p>
               <div className="flex items-center justify-center gap-2">
-                <button type="button" disabled={page === 0} onClick={() => changePage(page - 1)} className="h-9 rounded-[10px] border border-line bg-white px-4 font-bold text-ink-sub hover:bg-field disabled:opacity-40">이전</button>
-                <span aria-label="현재 페이지" className="min-w-7 text-center font-bold text-ink">{page + 1}</span>
-                <button type="button" disabled={!data?.hasNext} onClick={() => changePage(page + 1)} className="h-9 rounded-[10px] border border-line bg-white px-4 font-bold text-ink-sub hover:bg-field disabled:opacity-40">다음</button>
+                <button
+                  type="button"
+                  disabled={page === 0}
+                  onClick={() => changePage(page - 1)}
+                  className="h-9 rounded-[10px] border border-line bg-white px-4 font-bold text-ink-sub hover:bg-field disabled:opacity-40"
+                >
+                  이전
+                </button>
+                <span aria-label="현재 페이지" className="min-w-7 text-center font-bold text-ink">
+                  {page + 1}
+                </span>
+                <button
+                  type="button"
+                  disabled={!data?.hasNext}
+                  onClick={() => changePage(page + 1)}
+                  className="h-9 rounded-[10px] border border-line bg-white px-4 font-bold text-ink-sub hover:bg-field disabled:opacity-40"
+                >
+                  다음
+                </button>
               </div>
             </div>
           </>
         )}
       </main>
-      {selected && <PhotoDetailDialog key={selected.photoId} photo={selected} onClose={() => setSelected(null)} onDeleted={handleDeleted} />}
+      {selected && (
+        <PhotoDetailDialog
+          key={selected.photoId}
+          photo={selected}
+          onClose={() => setSelected(null)}
+          onDeleted={handleDeleted}
+        />
+      )}
     </div>
   );
 }

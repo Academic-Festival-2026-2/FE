@@ -7,7 +7,9 @@ export const PRIVACY_TERMS: TermContent = {
   sections: [
     {
       heading: "",
-      body: ["팀 CS24(이하 \"운영팀\")는 픽셀 서비스 제공을 위해 아래와 같이 개인정보를 수집·이용합니다."],
+      body: [
+        '팀 CS24(이하 "운영팀")는 픽셀 서비스 제공을 위해 아래와 같이 개인정보를 수집·이용합니다.',
+      ],
     },
     {
       heading: "1. 수집 항목과 목적",

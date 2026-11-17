@@ -52,7 +52,10 @@ export function RecentPhotosSection() {
       title="내 사진"
       aside={
         photos && photos.length > 0 ? (
-          <Link to="/mypage/photos" className="text-sm font-bold text-brand-strong hover:text-brand">
+          <Link
+            to="/mypage/photos"
+            className="text-sm font-bold text-brand-strong hover:text-brand"
+          >
             전체 보기 ›
           </Link>
         ) : null

@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-  DEFAULT_DETAIL_TTL_MS,
-  detailTtl,
-} from "../src/pages/dong/photo-detail-ttl.ts";
+import { DEFAULT_DETAIL_TTL_MS, detailTtl } from "../src/pages/dong/photo-detail-ttl.ts";
 
 const signedUrl = (params) =>
   `https://bucket.s3.ap-northeast-2.amazonaws.com/photos/original/a.jpg?${new URLSearchParams(params)}`;
@@ -48,7 +45,10 @@ test("사진 파일이 없거나 만료 시간을 알 수 없으면 기본값(4�
   assert.equal(DEFAULT_DETAIL_TTL_MS, 240_000);
   assert.equal(detailTtl({ imageUrl: null }), DEFAULT_DETAIL_TTL_MS);
   assert.equal(detailTtl({ imageUrl: signedUrl({}) }), DEFAULT_DETAIL_TTL_MS);
-  assert.equal(detailTtl({ imageUrl: signedUrl({ "X-Amz-Expires": "abc" }) }), DEFAULT_DETAIL_TTL_MS);
+  assert.equal(
+    detailTtl({ imageUrl: signedUrl({ "X-Amz-Expires": "abc" }) }),
+    DEFAULT_DETAIL_TTL_MS,
+  );
   assert.equal(detailTtl({ imageUrl: signedUrl({ "X-Amz-Expires": "0" }) }), DEFAULT_DETAIL_TTL_MS);
   assert.equal(detailTtl({ imageUrl: "/상대 주소.jpg" }), DEFAULT_DETAIL_TTL_MS);
 });

@@ -66,7 +66,12 @@ type ProfileSummaryProps = {
   onUpdated: (changes: Partial<MyInfoResponse>) => void;
 };
 
-export function ProfileSummary({ info, filledDongs, earnedBadges, onUpdated }: ProfileSummaryProps) {
+export function ProfileSummary({
+  info,
+  filledDongs,
+  earnedBadges,
+  onUpdated,
+}: ProfileSummaryProps) {
   const [isEditingImage, setIsEditingImage] = useState(false);
   const [isEditingNickname, setIsEditingNickname] = useState(false);
 
@@ -109,9 +114,27 @@ export function ProfileSummary({ info, filledDongs, earnedBadges, onUpdated }: P
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <Stat label="내 사진" value={(info.photoCount ?? 0).toLocaleString()} unit="장" target={MYPAGE_SECTION.photos} targetName="내 사진" />
-        <Stat label="칠한 동" value={filledDongs === null ? "-" : String(filledDongs)} unit="곳" target={MYPAGE_SECTION.myMap} targetName="나의 지도 현황" />
-        <Stat label="배지" value={earnedBadges === null ? "-" : String(earnedBadges)} unit="개" target={MYPAGE_SECTION.badges} targetName="활동 배지" />
+        <Stat
+          label="내 사진"
+          value={(info.photoCount ?? 0).toLocaleString()}
+          unit="장"
+          target={MYPAGE_SECTION.photos}
+          targetName="내 사진"
+        />
+        <Stat
+          label="칠한 동"
+          value={filledDongs === null ? "-" : String(filledDongs)}
+          unit="곳"
+          target={MYPAGE_SECTION.myMap}
+          targetName="나의 지도 현황"
+        />
+        <Stat
+          label="배지"
+          value={earnedBadges === null ? "-" : String(earnedBadges)}
+          unit="개"
+          target={MYPAGE_SECTION.badges}
+          targetName="활동 배지"
+        />
       </div>
 
       {isEditingImage && (

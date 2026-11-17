@@ -32,21 +32,31 @@ export function BadgeSection({ data, error }: { data: MyBadges | null; error: bo
         <ul className="mt-4 grid auto-rows-fr grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3">
           {badges.map((badge) => {
             const info = BADGES[badge.type];
-            const description = badge.earned ? badgeEarnedText(badge.type, badge.dongName) : info.condition;
+            const description = badge.earned
+              ? badgeEarnedText(badge.type, badge.dongName)
+              : info.condition;
             return (
               <li key={badge.type} className="flex flex-col items-center text-center">
                 <BadgeIcon type={badge.type} earned={badge.earned} size={64} />
-                <p className={badge.earned ? "mt-2 text-sm font-bold text-ink" : "mt-2 text-sm font-bold text-ink-faint"}>
+                <p
+                  className={
+                    badge.earned
+                      ? "mt-2 text-sm font-bold text-ink"
+                      : "mt-2 text-sm font-bold text-ink-faint"
+                  }
+                >
                   {info.name}
                   {/* 아이콘(잠금 표시)은 화면 낭독기에서 숨기므로 받은 여부를 글로 알림 */}
-                  <span className="sr-only">{badge.earned ? " (받은 배지)" : " (아직 받지 않은 배지)"}</span>
+                  <span className="sr-only">
+                    {badge.earned ? " (받은 배지)" : " (아직 받지 않은 배지)"}
+                  </span>
                 </p>
                 {/* 터치 화면은 마우스를 올릴 수 없어서 조건을 끝까지 보여 줌 (줄 높이는 auto-rows-fr로 맞춤) */}
-                <p className="mt-0.5 text-xs leading-snug text-ink-muted">
-                  {description}
-                </p>
+                <p className="mt-0.5 text-xs leading-snug text-ink-muted">{description}</p>
                 {badge.earned && badge.earnedAt && (
-                  <p className="mt-0.5 font-mono text-[11px] text-brand-strong">{formatDate(badge.earnedAt)}</p>
+                  <p className="mt-0.5 font-mono text-[11px] text-brand-strong">
+                    {formatDate(badge.earnedAt)}
+                  </p>
                 )}
               </li>
             );

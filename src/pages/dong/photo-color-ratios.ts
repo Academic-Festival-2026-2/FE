@@ -22,7 +22,8 @@ export function getPhotoColorRatios(palette: string[], bins?: number[] | null): 
 
   // 첫 색은 사용자가 고른 대표색(사진 점 색)이라, 분포에 거의 없는 색(예: 짝 후보)이어도 막대에 보이게 최소 폭을 줌
   const others = weights.slice(1).reduce((total, value) => total + value, 0);
-  if (others > 0 && weights[0] < others * FIRST_COLOR_MIN_SHARE) weights[0] = others * FIRST_COLOR_MIN_SHARE;
+  if (others > 0 && weights[0] < others * FIRST_COLOR_MIN_SHARE)
+    weights[0] = others * FIRST_COLOR_MIN_SHARE;
   const sum = weights.reduce((total, value) => total + value, 0);
   return sum > 0 ? weights.map((value) => value / sum) : equal;
 }

@@ -3,7 +3,6 @@ import { authRequest, optionalAuthRequest } from "./client";
 import type { SeasonType, TimeBand } from "./map";
 export type { SeasonType } from "./map";
 
-
 export type PhotoUploadData = {
   dongCode: string;
   latitude?: number;
@@ -107,9 +106,7 @@ export type LikedPhotosResponse = {
 };
 
 export function getLikedPhotos(page = 0, size = 12) {
-  return authRequest<LikedPhotosResponse>(
-    `/api/users/me/liked-photos?page=${page}&size=${size}`,
-  );
+  return authRequest<LikedPhotosResponse>(`/api/users/me/liked-photos?page=${page}&size=${size}`);
 }
 
 // BE: GET /api/users/me/photos?page=0&size=12&season=SPRING (계절 선택, 최신 순)

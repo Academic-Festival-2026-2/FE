@@ -26,13 +26,18 @@ export class ApiError extends Error {
 // (COMMON500은 result에 "Error Trace ID: ..." 문자열이 들어옴)
 function toFieldErrors(body: ApiResponse<unknown> | null): Record<string, string> | undefined {
   const result = body?.result;
-  if (body?.code !== "COMMON400" || !result || typeof result !== "object" || Array.isArray(result)) {
+  if (
+    body?.code !== "COMMON400" ||
+    !result ||
+    typeof result !== "object" ||
+    Array.isArray(result)
+  ) {
     return undefined;
   }
   return result as Record<string, string>;
 }
 
-const BASE_URL =import.meta.env.VITE_API_BASE_URL ?? "";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
@@ -72,7 +77,8 @@ function withAuth(init: RequestInit, accessToken: string): RequestInit {
 // 요청 중에 로그아웃·다른 계정 로그인을 한 경우의 오류 코드
 // 세션 만료로 보지 않음 (isSessionExpired) → 새로 로그인한 계정을 로그아웃시키지 않게
 export const SESSION_CHANGED = "SESSION_CHANGED";
-const sessionChanged = () => new ApiError(401, SESSION_CHANGED, "로그인 상태가 바뀌어 요청을 보내지 않았어요.");
+const sessionChanged = () =>
+  new ApiError(401, SESSION_CHANGED, "로그인 상태가 바뀌어 요청을 보내지 않았어요.");
 
 // 재발급 결과는 재발급을 시작한 세션이 그대로일 때만 저장소에 반영
 // (응답을 기다리는 사이 로그아웃·다른 계정 로그인을 했으면 이전 토큰을 되살리거나 새 세션을 끊지 않음)
@@ -178,7 +184,11 @@ export function optionalAuthRequest<T>(path: string, init: RequestInit = {}): Pr
   return optionalAuthRequestOnce<T>(path, init, false);
 }
 
-async function optionalAuthRequestOnce<T>(path: string, init: RequestInit, retried: boolean): Promise<T> {
+async function optionalAuthRequestOnce<T>(
+  path: string,
+  init: RequestInit,
+  retried: boolean,
+): Promise<T> {
   const accessToken = useAuthStore.getState().tokens?.accessToken;
   if (!accessToken) return request<T>(path, init);
   try {

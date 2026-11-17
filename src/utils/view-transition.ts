@@ -9,7 +9,9 @@ const DONG_CLASS = "vt-dong";
 const CLEANUP_MS = 500;
 
 function reducedMotion() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
 }
 
 // 전환을 쓸 수 있으면 true (부수 효과 없음). 미지원 브라우저이거나 OS "동작 줄이기"면 false
