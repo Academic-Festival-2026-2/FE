@@ -17,7 +17,7 @@ import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
 import { UploadPixels } from "./upload-pixels";
 import { UploadConfirmDialog } from "./upload-confirm-dialog";
-import { readPhoto, type PhotoMetadata } from "./photo-metadata";
+import { preloadPhotoReader, readPhoto, type PhotoMetadata } from "./photo-metadata";
 import {
   findDong,
   futureTakenAtError,
@@ -158,6 +158,11 @@ export function PhotoUploadPage() {
   useEffect(() => {
     loadMe().catch(() => {});
   }, [loadMe]);
+
+  // 사진 EXIF 읽기 라이브러리를 화면이 그려진 뒤 미리 받아 둠 (실패하면 사진을 고를 때 다시 받음)
+  useEffect(() => {
+    preloadPhotoReader().catch(() => {});
+  }, []);
 
   function update(id: string, changes: Partial<Photo>) {
     if (alive.current)

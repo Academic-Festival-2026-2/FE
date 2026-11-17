@@ -6,7 +6,13 @@ import type { DongColor, SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { UploadButton } from "../../components/layout/upload-button";
-import { useDongColors, useMyMap, useRegionBoundaries, useRegionList } from "./map-data";
+import {
+  KAKAO_UNAVAILABLE,
+  useDongColors,
+  useMyMap,
+  useRegionBoundaries,
+  useRegionList,
+} from "./map-data";
 import { MapTooltip } from "./map-tooltip";
 import { fitView, regionsInView, regionAt, unproject, type View } from "./map-geometry";
 import { LoginPromptDialog } from "./login-prompt-dialog";
@@ -24,6 +30,9 @@ import { MapLoading } from "./map-loading";
 import { SvgMap } from "./svg-map";
 import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
 import { bandLabel, TIME_BAND_VALUES } from "../../utils/time-band";
+
+// 카카오 지도 본체를 미리 받기 시작하는 시각 (지도 화면이 열린 뒤 ms)
+const KAKAO_PRELOAD_DELAY_MS = 1500;
 
 export function MapPage() {
   const { timeBand, mode, region: regionParam, season: urlSeason } = useSearch({ from: "/map" });
@@ -56,6 +65,15 @@ export function MapPage() {
     const timer = window.setTimeout(() => setLeaving(false), 1200);
     return () => window.clearTimeout(timer);
   }, [returnFrom]);
+
+  // 동 상세 첫 진입 때 카카오 지도가 늦게 뜨지 않게, 지도 화면에 있는 동안 카카오 지도 본체를 미리 받아 둠.
+  // index.html은 autoload=false라 작은 로더만 받고, 본체는 kakao.maps.load를 처음 부를 때 받음 (여러 번 불러도 한 번만 받음)
+  // 지도 경계·색을 먼저 받도록 조금 늦게 시작
+  useEffect(() => {
+    if (KAKAO_UNAVAILABLE) return;
+    const timer = window.setTimeout(() => kakao.maps.load(() => {}), KAKAO_PRELOAD_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
   // 지도 카드 (동을 누르면 svg-map이 이 크기에서 화면 전체로 커지며 확대)
   const stageRef = useRef<HTMLElement>(null);
   // 숨길 때는 바로 숨김(유리 패널의 backdrop-filter가 움직이는 지도 위에서 무거움), 다시 보일 때만 서서히

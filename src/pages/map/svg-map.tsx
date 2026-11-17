@@ -42,11 +42,11 @@ const DONG_LABEL_FONT = 0.019;
 // 가운데 지역이 화면(view) 한 변의 이 비율 이상으로 크게 보이면 "그 지역에 들어왔다"고 봄
 // (부천 첫 화면 0.92, 한 번 축소 0.61, 두 번 축소 0.41 → 두 번 축소하면 시 이름으로 돌아감)
 const REGION_ARRIVE_SHARE = 0.5;
-// 확대·축소 버튼 (지도 화면의 유리 패널과 같은 톤)
 // 시간대·계절·지도 종류를 바꿀 때 동 색이 서서히 바뀌게 (fill을 CSS로 줘야 전환됨, 동작 줄이기면 즉시)
 const FILL_TRANSITION = "transition-[fill] duration-500 ease-out motion-reduce:transition-none";
 // 색이 왼쪽 동부터 오른쪽 동으로 번져 나가듯 바뀌게, 가장 오른쪽 동이 늦게 시작하는 시간(ms)
-const FILL_WAVE_MS = 220;
+// 지도 전체에 흐림 층(FILL_BLUR)을 덮은 뒤로 220ms는 옆 동 색과 섞여 한꺼번에 바뀌는 것처럼 보여서 늘림
+const FILL_WAVE_MS = 450;
 
 // 동을 눌렀을 때 지도가 화면 전체로 커지며 그 동으로 확대되는 시간 (끝나면 바로 동 상세).
 // 동 상세에서 돌아올 때 화면 전체에서 카드로 줄어드는 시간도 같음
@@ -287,10 +287,6 @@ export function SvgMap({
   }
 
   const colorOf = (dongCode: string) => dongs.get(dongCode)?.dominantColor ?? null;
-  const fillOf = (dongCode: string) => {
-    const color = colorOf(dongCode);
-    return color ? toneColor(color) : EMPTY_FILL;
-  };
 
   // 닿아 있는 손가락 중 두 개의 거리와 가운데 점 (화면 좌표)
   function pinchState() {
@@ -318,6 +314,46 @@ export function SvgMap({
   function applyView(next: View) {
     viewRef.current = next;
     setView(next);
+  }
+
+  // 끌기·두 손가락 확대 중 화면 갱신은 한 프레임에 한 번만 (폰은 터치 이벤트가 화면 갱신보다 자주 들어옴).
+  // 계산에 쓰는 viewRef는 바로 바꾸고, 그리기(setView)만 다음 프레임에 한 번 함
+  const moveFrameRef = useRef(0);
+  function scheduleView(next: View) {
+    viewRef.current = next;
+    if (moveFrameRef.current) return;
+    moveFrameRef.current = requestAnimationFrame(() => {
+      moveFrameRef.current = 0;
+      setView(viewRef.current);
+    });
+  }
+  // 손을 뗄 때 아직 안 그린 마지막 화면을 바로 그림
+  function flushView() {
+    if (!moveFrameRef.current) return;
+    cancelAnimationFrame(moveFrameRef.current);
+    moveFrameRef.current = 0;
+    setView(viewRef.current);
+  }
+  useEffect(() => {
+    const frames = moveFrameRef;
+    return () => cancelAnimationFrame(frames.current);
+  }, []);
+
+  // 손가락으로 끌거나 확대하는 동안에는 가장 무거운 겹(흐림 층·시 모양 자르기)을 잠깐 꺼 둠.
+  // 둘 다 화면이 바뀔 때마다 지도 전체를 다시 계산해서 폰에서 버벅임 (동을 눌러 확대하는 runStage와 같은 방법)
+  // 폰에서 비교해 보니 자르기만 끄는 것보다 둘 다 끄는 쪽이 확실히 부드러웠음 (손을 떼면 바로 되돌림)
+  // 마우스(PC)는 충분히 빨라서 그대로 둠 → PC에서는 움직이는 동안에도 그라데이션이 보임
+  const touchLightRef = useRef(false);
+  function setTouchLight(on: boolean) {
+    if (touchLightRef.current === on) return;
+    touchLightRef.current = on;
+    if (on) {
+      blurGroupRef.current?.style.setProperty("display", "none");
+      clipGroupRef.current?.removeAttribute("clip-path");
+    } else {
+      blurGroupRef.current?.style.removeProperty("display");
+      clipGroupRef.current?.setAttribute("clip-path", `url(#${clipId})`);
+    }
   }
 
   function animateTo(target: View) {
@@ -521,6 +557,11 @@ export function SvgMap({
     const from = cardFrame(shape, rootRect, current, HOVER_DIM);
     runStage(shape, from, fullscreenFrame(shape), finish, easeZoomIn);
   }
+  // 아래에서 한 번만 만들어 두는(memo) 동 겹의 클릭·Enter가 늘 지금 select를 부르게 ref로 넘김
+  const selectRef = useRef(select);
+  useLayoutEffect(() => {
+    selectRef.current = select;
+  });
 
   // 동 상세에서 돌아왔으면: 동 상세와 같은 모습(화면 전체)에서 시작해 카드 안 전체 지도로 줄어듦.
   // 그리기 전에 시작 모습으로 맞춰야 하므로 useLayoutEffect
@@ -581,19 +622,97 @@ export function SvgMap({
     return () => svg.removeEventListener("wheel", handleWheel);
   }, [maxSize]);
 
+  // 지도를 끌거나 확대할 때(view만 바뀔 때)는 동 모양·색이 그대로라, 동마다 그리는 겹은 한 번만 만들어 두고 다시 씀
+  // (보이는 동이 수백 개라 움직일 때마다 새로 만들면 무거움). 동 모양·색·전환 순서가 바뀔 때만 새로 만듦
+  const selectable = Boolean(onSelect);
+  // 선명한 동 색 (마우스 올리기·누르기·키보드 포커스를 받는 겹)
+  const dongFills = useMemo(
+    () =>
+      shapes.map((shape) => {
+        const color = dongs.get(shape.dongCode)?.dominantColor;
+        return (
+          <path
+            key={shape.dongCode}
+            d={shape.path}
+            style={{
+              fill: color ? toneColor(color) : EMPTY_FILL,
+              transitionDelay: fillDelays.get(shape.dongCode),
+            }}
+            fillRule="evenodd"
+            className={`${selectable ? "cursor-pointer" : ""} outline-none ${FILL_TRANSITION}`}
+            // 보기 전용(onSelect 없음)이면 버튼이 아니므로 키보드 포커스·버튼 역할도 뺌
+            tabIndex={selectable ? 0 : undefined}
+            role={selectable ? "button" : undefined}
+            aria-label={shape.name}
+            onPointerEnter={() => onHover(shape.dongCode)}
+            onPointerLeave={() => onHover(null)}
+            onFocus={() => onHover(shape.dongCode)}
+            onBlur={() => onHover(null)}
+            onClick={() => selectRef.current(shape)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") selectRef.current(shape);
+            }}
+          />
+        );
+      }),
+    [shapes, dongs, fillDelays, selectable, onHover],
+  );
   // 흐린 층: 빈 동은 투명으로 빼서 옆 동 색이 빈 동을 덮어 칠한 것처럼 보이지 않게 (빈 동은 아래 선명한 회색이 보임)
-  const fills = shapes.map((shape) => (
-    <path
-      key={shape.dongCode}
-      d={shape.path}
-      style={{
-        fill: colorOf(shape.dongCode) ? fillOf(shape.dongCode) : "transparent",
-        transitionDelay: fillDelays.get(shape.dongCode),
-      }}
-      fillRule="evenodd"
-      className={FILL_TRANSITION}
-    />
-  ));
+  const blurFills = useMemo(
+    () =>
+      shapes.map((shape) => {
+        const color = dongs.get(shape.dongCode)?.dominantColor;
+        return (
+          <path
+            key={shape.dongCode}
+            d={shape.path}
+            style={{
+              fill: color ? toneColor(color) : "transparent",
+              transitionDelay: fillDelays.get(shape.dongCode),
+            }}
+            fillRule="evenodd"
+            className={FILL_TRANSITION}
+          />
+        );
+      }),
+    [shapes, dongs, fillDelays],
+  );
+  // 시 모양 자르기(clipPath)·동 경계선·시 경계선: 경계 데이터가 바뀔 때만 새로 만듦
+  const clipPaths = useMemo(
+    () => shapes.map((shape) => <path key={shape.dongCode} d={shape.path} />),
+    [shapes],
+  );
+  const dongLines = useMemo(
+    () =>
+      shapes.map((shape) => (
+        <path
+          key={shape.dongCode}
+          d={shape.path}
+          fill="none"
+          stroke="#ffffff"
+          strokeOpacity={DONG_LINE_OPACITY}
+          strokeWidth={DONG_LINE_WIDTH}
+          vectorEffect="non-scaling-stroke"
+        />
+      )),
+    [shapes],
+  );
+  const outlinePaths = useMemo(
+    () =>
+      outlines.map(({ code, path }) => (
+        <path
+          key={code}
+          d={path}
+          fill="none"
+          stroke="#8a93a5"
+          strokeWidth={1.6}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      )),
+    [outlines],
+  );
 
   return (
     <div
@@ -621,6 +740,7 @@ export function SvgMap({
             dragRef.current = null;
             // 손가락을 떼도 동이 눌리지 않게
             movedRef.current = true;
+            if (event.pointerType === "touch") setTouchLight(true);
             startPinch(svg);
             return;
           }
@@ -655,7 +775,7 @@ export function SvgMap({
             // 두 손가락 가운데가 움직인 만큼 지도도 같이 옮김
             const rect = svg.getBoundingClientRect();
             const ratio = zoomed.size / Math.min(rect.width, rect.height);
-            applyView(
+            scheduleView(
               clampView(
                 {
                   ...zoomed,
@@ -677,10 +797,11 @@ export function SvgMap({
             movedRef.current = true;
             svg.setPointerCapture(event.pointerId);
             cancelAnimationFrame(frameRef.current);
+            if (event.pointerType === "touch") setTouchLight(true);
           }
           const rect = svg.getBoundingClientRect();
           const ratio = drag.view.size / Math.min(rect.width, rect.height);
-          applyView(
+          scheduleView(
             clampView(
               { ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio },
               maxSize,
@@ -705,88 +826,42 @@ export function SvgMap({
             }
           }
           if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
+          if (pointersRef.current.size === 0) {
+            flushView();
+            setTouchLight(false);
+          }
         }}
         onPointerCancel={(event) => {
           pointersRef.current.delete(event.pointerId);
           if (pointersRef.current.size < 2) pinchRef.current = null;
           dragRef.current = null;
           movedRef.current = true;
+          if (pointersRef.current.size === 0) {
+            flushView();
+            setTouchLight(false);
+          }
         }}
       >
         <defs>
-          <clipPath id={clipId}>
-            {shapes.map((shape) => (
-              <path key={shape.dongCode} d={shape.path} />
-            ))}
-          </clipPath>
+          <clipPath id={clipId}>{clipPaths}</clipPath>
           <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation={Math.max(FILL_BLUR, view.size * FILL_BLUR_SHARE)} />
           </filter>
         </defs>
 
         <g ref={clipGroupRef} clipPath={`url(#${clipId})`}>
-          <g>
-            {shapes.map((shape) => (
-              <path
-                key={shape.dongCode}
-                d={shape.path}
-                style={{
-                  fill: fillOf(shape.dongCode),
-                  transitionDelay: fillDelays.get(shape.dongCode),
-                }}
-                fillRule="evenodd"
-                className={`${onSelect ? "cursor-pointer" : ""} outline-none ${FILL_TRANSITION}`}
-                // 보기 전용(onSelect 없음)이면 버튼이 아니므로 키보드 포커스·버튼 역할도 뺌
-                tabIndex={onSelect ? 0 : undefined}
-                role={onSelect ? "button" : undefined}
-                aria-label={shape.name}
-                onPointerEnter={() => onHover(shape.dongCode)}
-                onPointerLeave={() => onHover(null)}
-                onFocus={() => onHover(shape.dongCode)}
-                onBlur={() => onHover(null)}
-                onClick={() => select(shape)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") select(shape);
-                }}
-              />
-            ))}
-          </g>
+          <g>{dongFills}</g>
           {/* 선명한 동 색 위에 흐린 동 색을 덮어 칠한 동 사이 색이 이어지게. 시 바깥은 clipPath가 자름 */}
           <g ref={blurGroupRef} pointerEvents="none">
-            <g filter={`url(#${blurId})`}>{fills}</g>
+            <g filter={`url(#${blurId})`}>{blurFills}</g>
           </g>
         </g>
 
-        <g pointerEvents="none">
-          {shapes.map((shape) => (
-            <path
-              key={shape.dongCode}
-              d={shape.path}
-              fill="none"
-              stroke="#ffffff"
-              strokeOpacity={DONG_LINE_OPACITY}
-              strokeWidth={DONG_LINE_WIDTH}
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </g>
+        <g pointerEvents="none">{dongLines}</g>
 
         {/* 시·군 경계: 동 경계보다 진한 선. 이웃 시와 맞닿은 선은 두 지역에서 한 번씩 그려져 겹치므로
             반투명으로 하면 겹친 곳만 더 진해짐 → 불투명 색으로 */}
-        <g pointerEvents="none">
-          {outlines.map(({ code, path }) => (
-            <path
-              key={code}
-              d={path}
-              fill="none"
-              stroke="#8a93a5"
-              strokeWidth={1.6}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </g>
+        <g pointerEvents="none">{outlinePaths}</g>
 
         {/* 지역 이름. 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로 보이게 */}
         <g pointerEvents="none" aria-hidden="true">
