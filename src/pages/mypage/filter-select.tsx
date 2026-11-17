@@ -16,7 +16,17 @@ type FilterSelectProps = {
 export function FilterSelect({ label, value, options, onChange, disabledHint = "준비 중이에요" }: FilterSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const listId = useId();
+
+  // 목록을 열면 고른 항목이 보이게 목록 안에서만 스크롤 (scrollIntoView는 페이지까지 움직여서 안 씀)
+  useEffect(() => {
+    const list = listRef.current;
+    if (!open || !list) return;
+    const selected = list.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!selected) return;
+    list.scrollTop = selected.offsetTop - (list.clientHeight - selected.offsetHeight) / 2;
+  }, [open]);
   const current = options.find((option) => option.value === value);
 
   // 바깥 클릭·Esc로 닫기
@@ -61,7 +71,10 @@ export function FilterSelect({ label, value, options, onChange, disabledHint = "
           id={listId}
           role="listbox"
           aria-label={label}
-          className="absolute top-full right-0 z-20 mt-1.5 flex min-w-[112px] flex-col gap-0.5 rounded-xl border border-card-line bg-white p-1 shadow-[0_8px_24px_rgba(26,36,64,0.12)]"
+          ref={listRef}
+          // 지역(경기도 시·군)처럼 항목이 많으면 6개까지 보이고 목록 안에서 스크롤
+          // 250px = 항목 38px(줄 높이 24px + 위아래 7px) × 6 + 간격 2px × 5 + 안쪽 여백 4px × 2 + 테두리 1px × 2
+          className="absolute top-full right-0 z-20 mt-1.5 flex max-h-[250px] min-w-[112px] flex-col gap-0.5 overflow-y-auto overscroll-contain rounded-xl border border-card-line bg-white p-1 shadow-[0_8px_24px_rgba(26,36,64,0.12)]"
         >
           {options.map((option) => {
             const selected = option.value === value;

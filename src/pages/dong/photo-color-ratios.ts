@@ -1,5 +1,8 @@
 import { COLOR_HEX } from "../photo-upload/color-analysis.ts";
 
+// 첫 색(사용자가 고른 대표색)의 막대 최소 폭: 나머지 색 합의 이 비율
+const FIRST_COLOR_MIN_SHARE = 0.1;
+
 // bins는 전체 사진의 40개 색상 구간 비율입니다.
 // 팝업의 5색 막대는 그중 선택된 색상끼리의 상대 비율로 채웁니다.
 export function getPhotoColorRatios(palette: string[], bins?: number[] | null): number[] {
@@ -17,6 +20,9 @@ export function getPhotoColorRatios(palette: string[], bins?: number[] | null): 
     used.add(index);
   }
 
+  // 첫 색은 사용자가 고른 대표색(사진 점 색)이라, 분포에 거의 없는 색(예: 짝 후보)이어도 막대에 보이게 최소 폭을 줌
+  const others = weights.slice(1).reduce((total, value) => total + value, 0);
+  if (others > 0 && weights[0] < others * FIRST_COLOR_MIN_SHARE) weights[0] = others * FIRST_COLOR_MIN_SHARE;
   const sum = weights.reduce((total, value) => total + value, 0);
   return sum > 0 ? weights.map((value) => value / sum) : equal;
 }

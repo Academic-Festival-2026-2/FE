@@ -1,8 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { BAND_PIXEL, TIME_BANDS } from "../map/map-data";
+import { useMemo } from "react";
+import { BAND_PIXEL, TIME_BANDS, useRegionList } from "../map/map-data";
 import { currentTimeBand } from "../../utils/time-band";
+import { parseSeason } from "../../utils/season";
 import { FilterSelect } from "./filter-select";
-import { REGION_OPTIONS, SEASON_FILTER_OPTIONS } from "./my-map-filters";
+import { SEASON_FILTER_OPTIONS, toRegionOptions } from "./my-map-filters";
 import type { MyMapStats } from "./my-map-stats";
 import { MYPAGE_SECTION } from "./mypage-sections";
 import { SectionCard } from "./section-card";
@@ -25,14 +27,20 @@ export function MyMapProgressSection({
   onRegionChange,
   onSeasonChange,
 }: MyMapProgressSectionProps) {
+  // 지역 목록은 지도 화면과 같은 캐시를 씀 (탭이 열려 있는 동안 한 번만 받음)
+  const { regionList } = useRegionList();
+  const regionOptions = useMemo(() => toRegionOptions(regionList), [regionList]);
+  // 나의 지도로 갈 때 고른 지역으로 열리게
+  const regionParam = Number(region);
+
   return (
     <SectionCard
       id={MYPAGE_SECTION.myMap}
       title="나의 지도 현황"
       aside={
-        // 지역·계절 선택 (지금은 부천·가을만 고를 수 있고 나머지는 "준비 중")
+        // 경기도 지역 및 사계절 선택
         <div className="flex gap-1.5">
-          <FilterSelect label="지역" value={region} options={REGION_OPTIONS} onChange={onRegionChange} />
+          <FilterSelect label="지역" value={region} options={regionOptions} onChange={onRegionChange} />
           <FilterSelect label="계절" value={season} options={SEASON_FILTER_OPTIONS} onChange={onSeasonChange} />
         </div>
       }
@@ -59,7 +67,7 @@ export function MyMapProgressSection({
                 <li key={band.value}>
                   <Link
                     to="/map"
-                    search={{ timeBand: band.value, mode: "mine" }}
+                    search={{ timeBand: band.value, mode: "mine", season: parseSeason(season), region: regionParam }}
                     aria-label={`${band.label} ${filled} / ${total}곳, 나의 지도에서 보기`}
                     className="grid grid-cols-[40px_minmax(0,1fr)_64px] items-center gap-3 rounded-lg px-1 py-1.5 text-sm transition-colors hover:bg-field"
                   >
@@ -87,7 +95,7 @@ export function MyMapProgressSection({
             </p>
             <Link
               to="/map"
-              search={{ timeBand: currentTimeBand(), mode: "mine" }}
+              search={{ timeBand: currentTimeBand(), mode: "mine", season: parseSeason(season), region: regionParam }}
               className="text-sm font-bold text-brand-strong hover:text-brand"
             >
               나의 지도에서 보기 ›

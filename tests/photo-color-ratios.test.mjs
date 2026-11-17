@@ -37,6 +37,14 @@ test("구형 API, 유효하지 않은 bins, 알 수 없는 팔레트는 균등 �
   assert.deepEqual(getPhotoColorRatios([], binsOf([[0, 1]])), []);
 });
 
+test("첫 색(사용자가 고른 대표색)이 분포에 없어도 막대에 최소 폭으로 보인다", () => {
+  const palette = [COLOR_HEX[26], COLOR_HEX[19], COLOR_HEX[37]];
+  const ratios = getPhotoColorRatios(palette, binsOf([[19, .6], [37, .4]]));
+  assert.ok(ratios[0] > 0);
+  assert.ok(Math.abs(ratios[0] - 0.1 / 1.1) < 1e-12);
+  assert.ok(Math.abs(ratios.reduce((a, b) => a + b, 0) - 1) < 1e-12);
+});
+
 test("업로드에서 허용하는 bins 합계 오차 0.02를 비율 표시에서도 허용한다", () => {
   const palette = [COLOR_HEX[0], COLOR_HEX[1]];
   const withinTolerance = getPhotoColorRatios(palette, binsOf([[0, 0.49], [1, 0.5]]));

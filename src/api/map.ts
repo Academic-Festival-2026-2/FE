@@ -1,6 +1,7 @@
 import { request } from "./client";
 
 export type TimeBand = "DAWN" | "DAY" | "SUNSET" | "NIGHT";
+export type SeasonType = "SPRING" | "SUMMER" | "AUTUMN" | "WINTER";
 export type CellStatus = "OK" | "INSUFFICIENT" | "EMPTY";
 
 export type DongProperties = {
@@ -29,6 +30,8 @@ export type DongColor = {
   name: string;
   dominantColor: string | null;
   photoCount: number;
+  // 동 상세에 픽셀로 보이는 사진 수 (공개 + 위치 있음). 공유 지도 응답에만 있음 (BE #156)
+  pointCount?: number;
   status: CellStatus;
   colorRatio: ColorRatio[];
 };
@@ -47,7 +50,7 @@ export type TopDong = {
 };
 
 export type MapDongs = {
-  season: string;
+  season: SeasonType;
   timeBand: TimeBand;
   dongs: DongColor[];
   topDongs: TopDong[];
@@ -74,6 +77,7 @@ export function getBoundaries(regionCode: string) {
   return request<Boundaries>(`/api/map/boundaries?regionCode=${regionCode}`);
 }
 
-export function getMapDongs(timeBand: TimeBand, regionCode: string) {
-  return request<MapDongs>(`/api/map/dongs?timeBand=${timeBand}&regionCode=${regionCode}`);
+export function getMapDongs(timeBand: TimeBand, regionCode: string, season?: SeasonType) {
+  const suffix = season ? `&season=${season}` : "";
+  return request<MapDongs>(`/api/map/dongs?timeBand=${timeBand}&regionCode=${regionCode}${suffix}`);
 }

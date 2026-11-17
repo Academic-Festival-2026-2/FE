@@ -1,6 +1,6 @@
-import { authRequest } from "./client";
+import { authRequest, request } from "./client";
 import type { DongPoint } from "./dong";
-import type { TimeBand } from "./map";
+import type { SeasonType, TimeBand } from "./map";
 
 export type MyMapCell = {
   dongCode: string;
@@ -13,14 +13,14 @@ export type MyMapCell = {
 };
 
 export type MyMap = {
-  season: string;
+  season: SeasonType;
   totalCellCount: number;
   filledCellCount: number;
   cells: MyMapCell[];
 };
 
-// season·regionCode를 빼면 BE 기본값(가을, 부천 3105)
-export function getMyMap(params: { season?: string; regionCode?: string } = {}) {
+// season을 생략하면 BE에서 한국 시간 기준 현재 계절을 적용
+export function getMyMap(params: { season?: SeasonType; regionCode?: string } = {}) {
   const query = new URLSearchParams();
   if (params.season) query.set("season", params.season);
   if (params.regionCode) query.set("regionCode", params.regionCode);
@@ -49,11 +49,29 @@ export function stopSharingMyMap() {
   return authRequest<void>("/api/users/me/map/share", { method: "DELETE" });
 }
 
+// 공유받은 지도 (로그인 없이 열림). 공유를 껐거나 없는 키면 404 MYMAP404_1
+// map은 나의 지도 응답과 같은 형식이고, 비공개 사진은 BE에서 빼고 옴
+export type SharedMap = {
+  nickname: string;
+  profileImage: string;
+  map: MyMap;
+};
+
+export function getSharedMap(shareKey: string, regionCode: string, season?: SeasonType) {
+  const suffix = season ? `&season=${season}` : "";
+  return request<SharedMap>(
+    `/api/shared-maps/${encodeURIComponent(shareKey)}?regionCode=${regionCode}${suffix}`,
+  );
+}
+
 export type MyDongPhotos = {
   dongCode: string;
   points: DongPoint[];
 };
 
-export function getMyDongPhotos(dongCode: string, timeBand: TimeBand) {
-  return authRequest<MyDongPhotos>(`/api/users/me/map/dongs/${dongCode}?timeBand=${timeBand}`);
+export function getMyDongPhotos(dongCode: string, timeBand: TimeBand, season?: SeasonType) {
+  const suffix = season ? `&season=${season}` : "";
+  return authRequest<MyDongPhotos>(
+    `/api/users/me/map/dongs/${dongCode}?timeBand=${timeBand}${suffix}`,
+  );
 }

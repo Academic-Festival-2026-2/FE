@@ -1,0 +1,283 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import ts from 'typescript';
+
+const moduleUrl = source => 'data:text/javascript;base64,' + Buffer.from(
+  ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText,
+).toString('base64');
+
+// exp(초)만 담은 가짜 JWT
+const jwt = exp => ['{"alg":"HS256"}', JSON.stringify({ sub: '1', exp })]
+  .map(part => Buffer.from(part).toString('base64url')).join('.') + '.sig';
+const now = () => Math.floor(Date.now() / 1000);
+
+// 매번 새 모듈(재발급 상태 공유 안 함) + 가짜 저장소·fetch로 optionalAuthRequest(기본) 또는 call(api)을 부름
+// reissue(store)는 재발급 응답 전에 로그아웃·다른 계정 로그인을 흉내 낼 수 있음 (logout, login)
+// respond(n, store)는 n번째 API 응답 (undefined면 성공). 응답 전에 로그아웃·로그인을 흉내 낼 수 있음
+async function run(tokens, reissue, { call = api => api.optionalAuthRequest('/api/photos/7'), respond } = {}) {
+  const store = { tokens, session: 0 };
+  store.logout = () => { store.tokens = null; store.session += 1; };
+  store.login = next => { store.tokens = next; store.session += 1; };
+  globalThis.__authStore = {
+    getState: () => ({
+      tokens: store.tokens,
+      session: store.session,
+      updateTokens: next => { store.tokens = next; },
+      clearTokens: store.logout,
+    }),
+  };
+  // 같은 data URL 모듈은 캐시되므로 부를 때마다 지금 테스트의 저장소를 읽게 함
+  const mockStore = moduleUrl('export const useAuthStore = { getState: () => globalThis.__authStore.getState() };');
+  const source = (await readFile(new URL('../src/api/client.ts', import.meta.url), 'utf8'))
+    .replace('"../stores/auth-store"', JSON.stringify(mockStore))
+    .replace('import.meta.env.VITE_API_BASE_URL', 'undefined');
+  const api = await import(moduleUrl(source + `\n// ${Math.random()}`));
+
+  const calls = [];
+  let apiCalls = 0;
+  let error;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    calls.push([url, new Headers(init.headers).get('Authorization')]);
+    if (url === '/api/auth/reissue') return reissue(store);
+    apiCalls += 1;
+    return respond?.(apiCalls, store) ?? Response.json({ isSuccess: true, code: 'OK', message: '', result: { liked: true } });
+  };
+  try {
+    await call(api);
+  } catch (e) {
+    error = e;
+  } finally {
+    globalThis.fetch = realFetch;
+    delete globalThis.__authStore;
+  }
+  return { calls, tokens: store.tokens, error };
+}
+
+const ok = tokens => Response.json({ isSuccess: true, code: 'OK', message: '', result: tokens });
+
+test('만료되지 않은 토큰은 그대로 붙여 보냄', async () => {
+  const token = jwt(now() + 600);
+  const { calls } = await run({ accessToken: token, refreshToken: 'r' }, () => assert.fail('재발급하면 안 됨'));
+  assert.deepEqual(calls, [['/api/photos/7', `Bearer ${token}`]]);
+});
+
+test('만료(또는 30초 안에 만료)된 토큰은 보내기 전에 재발급하고 새 토큰으로 보냄', async () => {
+  for (const exp of [now() - 60, now() + 10]) {
+    const fresh = jwt(now() + 1800);
+    const { calls, tokens } = await run(
+      { accessToken: jwt(exp), refreshToken: 'r' },
+      () => ok({ accessToken: fresh, refreshToken: 'r2' }),
+    );
+    assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', `Bearer ${fresh}`]]);
+    assert.equal(tokens.accessToken, fresh);
+  }
+});
+
+test('재발급이 거절되면 로그아웃하고 토큰 없이 보냄', async () => {
+  const { calls, tokens } = await run(
+    { accessToken: jwt(now() - 60), refreshToken: 'r' },
+    () => Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 }),
+  );
+  assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', null]]);
+  assert.equal(tokens, null);
+});
+
+test('재발급을 기다리는 사이 로그아웃하면 이전 토큰을 되살리지 않음', async () => {
+  const { calls, tokens } = await run(
+    { accessToken: jwt(now() - 60), refreshToken: 'r' },
+    store => {
+      store.logout();
+      return ok({ accessToken: jwt(now() + 1800), refreshToken: 'r2' });
+    },
+  );
+  assert.equal(tokens, null);
+  assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', null]]);
+});
+
+test('재발급을 기다리는 사이 다른 계정으로 로그인하면 새 계정 토큰을 덮어쓰지 않음', async () => {
+  // 재발급 응답 토큰(now + 1800)과 구별되게 만료 시각을 다르게 둠
+  const other = jwt(now() + 1700);
+  const { calls, tokens } = await run(
+    { accessToken: jwt(now() - 60), refreshToken: 'r' },
+    store => {
+      store.login({ accessToken: other, refreshToken: 'n' });
+      return ok({ accessToken: jwt(now() + 1800), refreshToken: 'r2' });
+    },
+  );
+  assert.equal(tokens.accessToken, other);
+  assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', `Bearer ${other}`]]);
+});
+
+test('이전 세션의 재발급이 거절돼도 그사이 로그인한 새 세션은 유지하고 새 계정 토큰으로 받음', async () => {
+  const other = jwt(now() + 1800);
+  const { calls, tokens, error } = await run(
+    { accessToken: jwt(now() - 60), refreshToken: 'r' },
+    store => {
+      store.login({ accessToken: other, refreshToken: 'n' });
+      return Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 });
+    },
+  );
+  assert.equal(error, undefined);
+  assert.equal(tokens.accessToken, other);
+  // 토큰 없이 받으면 새 계정의 좋아요가 false로 기억되므로, 새 계정 토큰으로 다시 받음
+  assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', `Bearer ${other}`]]);
+});
+
+test('이전 세션의 재발급이 거절된 사이 로그아웃했으면 토큰 없이 받음', async () => {
+  const { calls, tokens, error } = await run(
+    { accessToken: jwt(now() - 60), refreshToken: 'r' },
+    store => {
+      store.logout();
+      return Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 });
+    },
+  );
+  assert.equal(error, undefined);
+  assert.equal(tokens, null);
+  assert.deepEqual(calls, [['/api/auth/reissue', null], ['/api/photos/7', null]]);
+});
+
+test('공개 API 응답을 기다리는 사이 다른 계정으로 로그인해도 토큰 없이 다시 보내지 않음', async () => {
+  // 공개 API는 401을 안 주지만, 401을 받은 경우(재발급 → 세션 바뀜)에도 이전 세션 결과를 쓰지 않는지 확인
+  const other = { accessToken: jwt(now() + 1700), refreshToken: 'n' };
+  const valid = jwt(now() + 600);
+  const { calls, error } = await run(
+    { accessToken: valid, refreshToken: 'r' },
+    store => {
+      store.login(other);
+      return ok({ accessToken: jwt(now() + 1800), refreshToken: 'r2' });
+    },
+    { respond: n => n === 1 ? Response.json({ isSuccess: false, code: 'COMMON401', message: '' }, { status: 401 }) : undefined },
+  );
+  assert.equal(error, undefined);
+  assert.deepEqual(calls, [
+    ['/api/photos/7', `Bearer ${valid}`],
+    ['/api/auth/reissue', null],
+    ['/api/photos/7', `Bearer ${other.accessToken}`],
+  ]);
+});
+
+test('만료 시각을 읽을 수 없는 토큰은 그대로 보냄 (401이면 기존처럼 재발급)', async () => {
+  const { calls } = await run({ accessToken: 'not-a-jwt', refreshToken: 'r' }, () => assert.fail('재발급하면 안 됨'));
+  assert.deepEqual(calls, [['/api/photos/7', 'Bearer not-a-jwt']]);
+});
+
+// 로그인이 필요한 API(좋아요 등): 401 → 재발급 → 한 번 더 보냄
+const likePhoto = api => api.authRequest('/api/photos/7/likes', { method: 'POST' });
+const unauthorizedFirst = n => n === 1
+  ? Response.json({ isSuccess: false, code: 'COMMON401', message: '' }, { status: 401 })
+  : undefined;
+
+test('401이면 재발급한 새 토큰으로 한 번 더 보냄', async () => {
+  const valid = jwt(now() + 600);
+  const fresh = jwt(now() + 1800);
+  const { calls, error } = await run(
+    { accessToken: valid, refreshToken: 'r' },
+    () => ok({ accessToken: fresh, refreshToken: 'r2' }),
+    { call: likePhoto, respond: unauthorizedFirst },
+  );
+  assert.equal(error, undefined);
+  assert.deepEqual(calls, [
+    ['/api/photos/7/likes', `Bearer ${valid}`],
+    ['/api/auth/reissue', null],
+    ['/api/photos/7/likes', `Bearer ${fresh}`],
+  ]);
+});
+
+test('401 뒤 재발급을 기다리는 사이 로그아웃·다른 계정 로그인을 하면 다시 보내지 않음', async () => {
+  const changes = [store => store.logout(), store => store.login({ accessToken: jwt(now() + 1700), refreshToken: 'n' })];
+  for (const change of changes) {
+    const valid = jwt(now() + 600);
+    const { calls, error } = await run(
+      { accessToken: valid, refreshToken: 'r' },
+      store => {
+        change(store);
+        return ok({ accessToken: jwt(now() + 1800), refreshToken: 'r2' });
+      },
+      { call: likePhoto, respond: unauthorizedFirst },
+    );
+    // 세션 만료(401)로 처리하면 새로 로그인한 계정까지 로그아웃되므로 따로 구별되는 코드
+    assert.equal(error?.code, 'SESSION_CHANGED');
+    assert.deepEqual(calls, [['/api/photos/7/likes', `Bearer ${valid}`], ['/api/auth/reissue', null]]);
+  }
+});
+
+test('401 뒤 이전 세션의 재발급이 거절돼도 새 세션은 유지하고 세션 만료로 보지 않음', async () => {
+  const other = { accessToken: jwt(now() + 1700), refreshToken: 'n' };
+  const valid = jwt(now() + 600);
+  const { calls, tokens, error } = await run(
+    { accessToken: valid, refreshToken: 'r' },
+    store => {
+      store.login(other);
+      return Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 });
+    },
+    { call: likePhoto, respond: unauthorizedFirst },
+  );
+  assert.equal(error?.code, 'SESSION_CHANGED');
+  assert.deepEqual(tokens, other);
+  assert.deepEqual(calls, [['/api/photos/7/likes', `Bearer ${valid}`], ['/api/auth/reissue', null]]);
+});
+
+test('401 뒤 재발급이 거절되면(세션 그대로) 로그아웃하고 세션 만료 오류', async () => {
+  const { tokens, error } = await run(
+    { accessToken: jwt(now() + 600), refreshToken: 'r' },
+    () => Response.json({ isSuccess: false, code: 'USER401_2', message: '' }, { status: 401 }),
+    { call: likePhoto, respond: unauthorizedFirst },
+  );
+  assert.equal(error?.status, 401);
+  assert.equal(error?.code, 'USER401_2');
+  assert.equal(tokens, null);
+});
+
+const inactive = () => Response.json({ isSuccess: false, code: 'USER403_1', message: '' }, { status: 403 });
+
+test('응답을 기다리는 사이 다른 계정으로 로그인했으면 이전 세션의 USER403_1을 세션 만료로 보지 않음', async () => {
+  const other = { accessToken: jwt(now() + 1700), refreshToken: 'n' };
+  const { tokens, error } = await run(
+    { accessToken: jwt(now() + 600), refreshToken: 'r' },
+    () => assert.fail('재발급하면 안 됨'),
+    { call: likePhoto, respond: (n, store) => { store.login(other); return inactive(); } },
+  );
+  assert.equal(error?.code, 'SESSION_CHANGED');
+  assert.deepEqual(tokens, other);
+});
+
+test('세션이 그대로면 USER403_1은 그대로 던짐 (세션 만료 처리)', async () => {
+  const { error } = await run(
+    { accessToken: jwt(now() + 600), refreshToken: 'r' },
+    () => assert.fail('재발급하면 안 됨'),
+    { call: likePhoto, respond: inactive },
+  );
+  assert.equal(error?.code, 'USER403_1');
+});
+
+test('재발급 뒤 다시 보낸 요청을 기다리는 사이 다른 계정으로 로그인했으면 그 401을 세션 만료로 보지 않음', async () => {
+  const other = { accessToken: jwt(now() + 1700), refreshToken: 'n' };
+  const fresh = jwt(now() + 1800);
+  const { calls, tokens, error } = await run(
+    { accessToken: jwt(now() + 600), refreshToken: 'r' },
+    () => ok({ accessToken: fresh, refreshToken: 'r2' }),
+    {
+      call: likePhoto,
+      respond: (n, store) => {
+        if (n === 1) return unauthorizedFirst(n);
+        store.login(other);
+        return Response.json({ isSuccess: false, code: 'COMMON401', message: '' }, { status: 401 });
+      },
+    },
+  );
+  assert.equal(error?.code, 'SESSION_CHANGED');
+  assert.deepEqual(tokens, other);
+  assert.equal(calls.length, 3);
+});
+
+test('재발급 뒤 다시 보낸 요청이 401이어도 세션이 그대로면 그대로 던짐', async () => {
+  const { error } = await run(
+    { accessToken: jwt(now() + 600), refreshToken: 'r' },
+    () => ok({ accessToken: jwt(now() + 1800), refreshToken: 'r2' }),
+    { call: likePhoto, respond: () => Response.json({ isSuccess: false, code: 'COMMON401', message: '' }, { status: 401 }) },
+  );
+  assert.equal(error?.status, 401);
+  assert.equal(error?.code, 'COMMON401');
+});

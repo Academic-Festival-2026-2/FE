@@ -12,13 +12,27 @@ import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
 import {
-  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel,
+  WORLD_HEIGHT, WORLD_WIDTH, toShapes, regionLabel, regionOutline, dropOverlappingLabels,
   type DongShape, type View, MAX_VIEW_SCALE
 } from "./map-geometry";
 
-const EDGE_WIDTH = 6;
-const EDGE_BLUR = 5;
+// 동 색을 흐리게 섞는 세기 (viewBox 단위). 시안 "그라데이션 중" = 부천 첫 화면(view ≈ 625)에서 10.
+// 확대할 때는 이 값 그대로라 화면에서는 점점 세지고(의도), 축소할 때는 화면(view) 한 변 × FILL_BLUR_SHARE로
+// 키워서 화면에서 같은 세기로 보이게 (고정값이면 축소할수록 그라데이션이 사라짐)
+const FILL_BLUR = 10;
+const FILL_BLUR_SHARE = 0.016;
+// 동 경계선: 얇고 흐리게 (화면 px, 투명도)
+const DONG_LINE_WIDTH = 0.4;
+const DONG_LINE_OPACITY = 0.3;
 const MIN_VIEW = 90;
+// 동 이름은 화면(view) 넓이의 이 비율보다 크게 보이는 동에만 띄움
+// (시 하나가 화면에 꽉 차면 대부분 동에 뜨고, 축소하면 사라져서 시 이름만 남음)
+const DONG_LABEL_MIN_SHARE = 0.005;
+// 동 이름 글자 크기 = 화면(view) 한 변 × 이 비율
+const DONG_LABEL_FONT = 0.019;
+// 가운데 지역이 화면(view) 한 변의 이 비율 이상으로 크게 보이면 "그 지역에 들어왔다"고 봄
+// (부천 첫 화면 0.92, 한 번 축소 0.61, 두 번 축소 0.41 → 두 번 축소하면 시 이름으로 돌아감)
+const REGION_ARRIVE_SHARE = 0.5;
 // 확대·축소 버튼 (지도 화면의 유리 패널과 같은 톤)
 // 시간대·계절·지도 종류를 바꿀 때 동 색이 서서히 바뀌게 (fill을 CSS로 줘야 전환됨, 동작 줄이기면 즉시)
 const FILL_TRANSITION = "transition-[fill] duration-500 ease-out motion-reduce:transition-none";
@@ -69,6 +83,17 @@ function shapesOf(boundaries: Boundaries) {
   return shapes;
 }
 
+// 지역 테두리도 경계 객체마다 한 번만 계산 (안산처럼 섬이 많은 곳은 수십 ms 걸림)
+const outlineCache = new WeakMap<Boundaries, string>();
+function outlineOf(boundaries: Boundaries) {
+  let outline = outlineCache.get(boundaries);
+  if (outline === undefined) {
+    outline = regionOutline(boundaries);
+    outlineCache.set(boundaries, outline);
+  }
+  return outline;
+}
+
 type Props = {
   // 지금 받아 둔 지역들의 경계 (화면에 보이는 지역만 부모가 넘김)
   regions: Boundaries[];
@@ -80,7 +105,7 @@ type Props = {
   hoveredCode: string | null;
   onHover: (dongCode: string | null) => void;
   // 동을 누르면 그 동으로 확대한 뒤 호출됨 (동 상세로 이동)
-  onSelect: (dongCode: string) => void;
+  onSelect?: (dongCode: string) => void;
   // 확대를 시작할 때 호출됨 (지도 위 패널을 숨기는 용도)
   onSelectStart?: (dongCode: string) => void;
   // 지금 지도가 보이는 영역(카드). 확대를 시작할 때 이 크기에서 화면 전체로 커짐 (없으면 지도 상자)
@@ -94,6 +119,8 @@ type Props = {
   controlsClassName?: string;
   // 색이 바뀔 때 번져 나가는 방향 (탭 표시가 움직인 방향과 같게). 기본은 왼쪽 → 오른쪽
   fillWave?: "ltr" | "rtl";
+  // 화면 가운데 지역 (제목의 시). 이 지역에 확대해 들어오면 동 이름을 띄움
+  focusRegion?: string | null;
 };
 
 function clampView({ x, y, size }: View, maxSize: number): View {
@@ -120,6 +147,7 @@ function toSvgPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
 
 export function SvgMap({
   regions,
+  focusRegion,
   homeView,
   onViewChange,
   dongs,
@@ -141,6 +169,22 @@ export function SvgMap({
     () => regions.map((b) => ({ code: b.regionCode, name: b.regionName, at: regionLabel(shapesOf(b)) })),
     [regions],
   );
+  // 지역(시·군) 테두리
+  const outlines = useMemo(
+    () => regions.map((b) => ({ code: b.regionCode, path: outlineOf(b) })),
+    [regions],
+  );
+  // 가운데 지역 크기 (화면 좌표, 가로·세로 중 긴 쪽)
+  const focusSize = useMemo(() => {
+    const region = regions.find((b) => b.regionCode === focusRegion);
+    if (!region) return 0;
+    const bounds = shapesOf(region).map((shape) => shape.bounds);
+    return Math.max(
+      Math.max(...bounds.map((b) => b[2])) - Math.min(...bounds.map((b) => b[0])),
+      Math.max(...bounds.map((b) => b[3])) - Math.min(...bounds.map((b) => b[1])),
+    );
+  }, [regions, focusRegion]);
+
   // 동마다 색 전환 시작을 늦추는 시간 (동 가운데의 가로 위치 기준)
   // ltr: 왼쪽 동 0ms → 오른쪽 동 FILL_WAVE_MS / rtl: 반대
   const fillDelays = useMemo(() => {
@@ -157,11 +201,22 @@ export function SvgMap({
   }, [shapes, fillWave]);
   const svgRef = useRef<SVGSVGElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (가장자리 흐림, 부천 모양 자르기)
-  const edgeGroupRef = useRef<SVGGElement>(null);
+  // 확대·축소 애니메이션 동안 잠깐 끄는 무거운 레이어 (동 색 흐림 층, 부천 모양 자르기)
+  const blurGroupRef = useRef<SVGGElement>(null);
   const clipGroupRef = useRef<SVGGElement>(null);
   const focusOverlayRef = useRef<SVGPathElement>(null);
   const [view, setView] = useState<View>(homeView);
+  // 가운데 지역이 화면에 충분히 크게 보일 때(그 지역에 들어왔을 때)만 그 지역 동 이름 표시.
+  // 그중에서도 화면에서 너무 작은 동은 글자가 겹쳐서 뺌
+  const arrived = Boolean(focusRegion) && focusSize / view.size > REGION_ARRIVE_SHARE;
+  // 남은 동끼리도 이름이 겹치면 큰 동 이름만 남김 (확대하면 글자가 상대적으로 작아져 다시 나타남)
+  const dongLabels = arrived
+    ? dropOverlappingLabels(
+      shapes.filter((shape) => shape.dongCode.startsWith(focusRegion!)
+        && shape.area / (view.size * view.size) > DONG_LABEL_MIN_SHARE),
+      view.size * DONG_LABEL_FONT,
+    )
+    : [];
   const viewRef = useRef<View>(homeView);
   // 화면 이동이 0.2초 멈추면 한 번만 알림 (드래그 중 매 프레임 알리지 않게)
   useEffect(() => {
@@ -170,8 +225,24 @@ export function SvgMap({
     return () => window.clearTimeout(timer);
   }, [view, onViewChange]);
   const frameRef = useRef(0);
-  const dragRef = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    view: View;
+    moved: boolean;
+  } | null>(null);
   const movedRef = useRef(false);
+  // 화면에 닿아 있는 손가락(포인터)들의 위치. 두 손가락이면 확대·축소(핀치)
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  // 핀치 시작 때: 두 손가락 사이 거리, 가운데 점(화면 좌표), 그 점 아래 지도 좌표, 그때의 view
+  const pinchRef = useRef<{
+    dist: number;
+    midX: number;
+    midY: number;
+    anchor: { x: number; y: number };
+    view: View;
+  } | null>(null);
   // 동 상세에서 돌아온 동 (처음 그릴 때부터 그 동을 강조한 상태로 시작)
   const [returnShape] = useState(() =>
     returnFrom ? (shapes.find((shape) => shape.dongCode === returnFrom) ?? null) : null,
@@ -189,8 +260,6 @@ export function SvgMap({
   const uid = useId();
   const clipId = `${uid}-clip`;
   const blurId = `${uid}-blur`;
-  const featherId = `${uid}-feather`;
-  const edgesId = `${uid}-edges`;
 
   function moveTooltip(event: React.PointerEvent<HTMLDivElement>) {
     const tip = tooltipRef.current;
@@ -208,6 +277,29 @@ export function SvgMap({
     const color = colorOf(dongCode);
     return color ? toneColor(color) : EMPTY_FILL;
   };
+
+  // 닿아 있는 손가락 중 두 개의 거리와 가운데 점 (화면 좌표)
+  function pinchState() {
+    const [a, b] = [...pointersRef.current.values()];
+    return {
+      dist: Math.hypot(a.x - b.x, a.y - b.y),
+      midX: (a.x + b.x) / 2,
+      midY: (a.y + b.y) / 2,
+    };
+  }
+
+  // 지금 닿아 있는 두 손가락으로 핀치를 (다시) 시작.
+  // 손가락 수가 바뀔 때마다 그 자리에서 기준을 새로 잡아야 지도가 튀지 않음
+  function startPinch(svg: SVGSVGElement) {
+    const { dist, midX, midY } = pinchState();
+    pinchRef.current = {
+      dist,
+      midX,
+      midY,
+      anchor: toSvgPoint(svg, midX, midY),
+      view: viewRef.current,
+    };
+  }
 
   function applyView(next: View) {
     viewRef.current = next;
@@ -270,9 +362,9 @@ export function SvgMap({
     root.style.zIndex = "50";
     root.style.overflow = "hidden";
     root.style.backgroundColor = "#ffffff";
-    // 렉 줄이기: 가장자리 흐림(가우시안 블러 + 마스크)과 부천 모양 자르기(clip-path)는 viewBox가 바뀔 때마다
+    // 렉 줄이기: 동 색 흐림 층(지도 전체 가우시안 블러)과 부천 모양 자르기(clip-path)는 viewBox가 바뀔 때마다
     // 지도 전체를 다시 계산해서 가장 무거움. 움직이는 동안에는 차이가 거의 안 보이므로 꺼 두고 끝나면 되돌림
-    edgeGroupRef.current?.style.setProperty("display", "none");
+    blurGroupRef.current?.style.setProperty("display", "none");
     clipGroupRef.current?.removeAttribute("clip-path");
 
     const draw = (e: number) => {
@@ -322,7 +414,7 @@ export function SvgMap({
         root.style[name] = "";
       }
     }
-    edgeGroupRef.current?.style.removeProperty("display");
+    blurGroupRef.current?.style.removeProperty("display");
     clipGroupRef.current?.setAttribute("clip-path", `url(#${clipId})`);
     viewRef.current = homeView;
     svgRef.current?.setAttribute("viewBox", `${homeView.x} ${homeView.y} ${homeView.size} ${homeView.size}`);
@@ -367,7 +459,8 @@ export function SvgMap({
   // 동을 누르면: 지도가 화면 전체로 커지면서, 누른 동을 화면 한가운데로 끌어와 확대.
   // 끝나는 순간 동의 크기·위치가 동 상세(화면 전체 카카오맵)에서 그려질 동과 같아서 바로 넘어가도 이어져 보임.
   function select(shape: DongShape) {
-    if (movedRef.current || selectingRef.current) return;
+    // 공유 지도처럼 onSelect가 없으면 동을 눌러도 아무 일도 안 함 (보기만)
+    if (!onSelect || movedRef.current || selectingRef.current) return;
     selectingRef.current = true;
     setSelecting(shape);
     onHover(shape.dongCode);
@@ -453,11 +546,15 @@ export function SvgMap({
     return () => svg.removeEventListener("wheel", handleWheel);
   }, [maxSize]);
 
+  // 흐린 층: 빈 동은 투명으로 빼서 옆 동 색이 빈 동을 덮어 칠한 것처럼 보이지 않게 (빈 동은 아래 선명한 회색이 보임)
   const fills = shapes.map((shape) => (
     <path
       key={shape.dongCode}
       d={shape.path}
-      style={{ fill: fillOf(shape.dongCode), transitionDelay: fillDelays.get(shape.dongCode) }}
+      style={{
+        fill: colorOf(shape.dongCode) ? fillOf(shape.dongCode) : "transparent",
+        transitionDelay: fillDelays.get(shape.dongCode),
+      }}
       fillRule="evenodd"
       className={FILL_TRANSITION}
     />
@@ -474,13 +571,29 @@ export function SvgMap({
       <svg
         ref={svgRef}
         viewBox={`${view.x} ${view.y} ${view.size} ${view.size}`}
-        className={`h-full w-full select-none ${selecting ? "pointer-events-none" : ""}`}
+        className={`h-full w-full touch-none select-none ${selecting ? "pointer-events-none" : ""}`}
         role="group"
         aria-label="동별 대표색 지도"
         onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          // 첫 손가락이면 새 동작 시작: 이전에 떼는 이벤트를 놓쳐 남은 손가락 기록은 지움
+          if (event.isPrimary) pointersRef.current.clear();
+          pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+          const svg = svgRef.current;
+          // 두 번째 손가락이 닿으면 끌기를 멈추고 확대·축소 시작
+          if (pointersRef.current.size === 2 && svg) {
+            cancelAnimationFrame(frameRef.current);
+            dragRef.current = null;
+            // 손가락을 떼도 동이 눌리지 않게
+            movedRef.current = true;
+            startPinch(svg);
+            return;
+          }
+
+          if (!event.isPrimary) return;
           movedRef.current = false;
-          if (event.pointerType === "touch") return;
           dragRef.current = {
+            pointerId: event.pointerId,
             x: event.clientX,
             y: event.clientY,
             view: viewRef.current,
@@ -488,9 +601,29 @@ export function SvgMap({
           };
         }}
         onPointerMove={(event) => {
-          const drag = dragRef.current;
+          if (pointersRef.current.has(event.pointerId)) {
+            pointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+          }
           const svg = svgRef.current;
-          if (!drag || !svg) return;
+          const pinch = pinchRef.current;
+          if (pinch && svg && pointersRef.current.size >= 2) {
+            const { dist, midX, midY } = pinchState();
+            if (!dist) return;
+            // 손가락을 벌리면(거리가 커지면) view가 작아짐 = 확대. 시작할 때 가운데 점을 기준으로
+            const zoomed = zoomAround(
+              pinch.view, pinch.anchor.x, pinch.anchor.y, pinch.dist / dist, maxSize);
+            // 두 손가락 가운데가 움직인 만큼 지도도 같이 옮김
+            const rect = svg.getBoundingClientRect();
+            const ratio = zoomed.size / Math.min(rect.width, rect.height);
+            applyView(clampView({
+              ...zoomed,
+              x: zoomed.x - (midX - pinch.midX) * ratio,
+              y: zoomed.y - (midY - pinch.midY) * ratio,
+            }, maxSize));
+            return;
+          }
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId || !svg) return;
           const dx = event.clientX - drag.x;
           const dy = event.clientY - drag.y;
           if (!drag.moved) {
@@ -502,16 +635,33 @@ export function SvgMap({
           }
           const rect = svg.getBoundingClientRect();
           const ratio = drag.view.size / Math.min(rect.width, rect.height);
-          applyView(
-            clampView(
-              { ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio,}, maxSize),
-          );
+          applyView(clampView(
+            { ...drag.view, x: drag.view.x - dx * ratio, y: drag.view.y - dy * ratio }, maxSize));
         }}
-        onPointerUp={() => {
-          dragRef.current = null;
+        onPointerUp={(event) => {
+          pointersRef.current.delete(event.pointerId);
+          const svg = svgRef.current;
+          if (pinchRef.current && svg) {
+            if (pointersRef.current.size >= 2) {
+              // 세 손가락 중 하나를 떼면 남은 두 손가락으로 기준을 다시 잡음 (지도가 튀지 않게)
+              startPinch(svg);
+            } else {
+              pinchRef.current = null;
+              // 한 손가락만 남으면 그 손가락으로 바로 이어서 끌기 (지금 위치·지금 view에서 시작해서 튀지 않음)
+              const rest = [...pointersRef.current.entries()][0];
+              if (rest) {
+                const [pointerId, { x, y }] = rest;
+                dragRef.current = { pointerId, x, y, view: viewRef.current, moved: true };
+              }
+            }
+          }
+          if (dragRef.current?.pointerId === event.pointerId) dragRef.current = null;
         }}
-        onPointerCancel={() => {
+        onPointerCancel={(event) => {
+          pointersRef.current.delete(event.pointerId);
+          if (pointersRef.current.size < 2) pinchRef.current = null;
           dragRef.current = null;
+          movedRef.current = true;
         }}
       >
         <defs>
@@ -521,31 +671,8 @@ export function SvgMap({
             ))}
           </clipPath>
           <filter id={blurId} x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation={EDGE_BLUR} />
+            <feGaussianBlur stdDeviation={Math.max(FILL_BLUR, view.size * FILL_BLUR_SHARE)} />
           </filter>
-          <filter id={featherId} x="-10%" y="-10%" width="120%" height="120%">
-            <feGaussianBlur stdDeviation={EDGE_WIDTH / 4} />
-          </filter>
-          <mask
-            id={edgesId}
-            maskUnits="userSpaceOnUse"
-            x={-100}
-            y={-100}
-            width={WORLD_WIDTH + 200}
-            height={WORLD_HEIGHT + 200}
-          >
-            <g
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth={EDGE_WIDTH}
-              strokeLinejoin="round"
-              filter={`url(#${featherId})`}
-            >
-              {shapes.map((shape) => (
-                <path key={shape.dongCode} d={shape.path} />
-              ))}
-            </g>
-          </mask>
         </defs>
 
         <g ref={clipGroupRef} clipPath={`url(#${clipId})`}>
@@ -559,9 +686,10 @@ export function SvgMap({
                   transitionDelay: fillDelays.get(shape.dongCode),
                 }}
                 fillRule="evenodd"
-                className={`cursor-pointer outline-none ${FILL_TRANSITION}`}
-                tabIndex={0}
-                role="button"
+                className={`${onSelect ? "cursor-pointer" : ""} outline-none ${FILL_TRANSITION}`}
+                // 보기 전용(onSelect 없음)이면 버튼이 아니므로 키보드 포커스·버튼 역할도 뺌
+                tabIndex={onSelect ? 0 : undefined}
+                role={onSelect ? "button" : undefined}
                 aria-label={shape.name}
                 onPointerEnter={() => onHover(shape.dongCode)}
                 onPointerLeave={() => onHover(null)}
@@ -574,7 +702,8 @@ export function SvgMap({
               />
             ))}
           </g>
-          <g ref={edgeGroupRef} mask={`url(#${edgesId})`} pointerEvents="none">
+          {/* 선명한 동 색 위에 흐린 동 색을 덮어 칠한 동 사이 색이 이어지게. 시 바깥은 clipPath가 자름 */}
+          <g ref={blurGroupRef} pointerEvents="none">
             <g filter={`url(#${blurId})`}>{fills}</g>
           </g>
         </g>
@@ -586,8 +715,25 @@ export function SvgMap({
               d={shape.path}
               fill="none"
               stroke="#ffffff"
-              strokeOpacity={0.45}
-              strokeWidth={0.8}
+              strokeOpacity={DONG_LINE_OPACITY}
+              strokeWidth={DONG_LINE_WIDTH}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </g>
+
+        {/* 시·군 경계: 동 경계보다 진한 선. 이웃 시와 맞닿은 선은 두 지역에서 한 번씩 그려져 겹치므로
+            반투명으로 하면 겹친 곳만 더 진해짐 → 불투명 색으로 */}
+        <g pointerEvents="none">
+          {outlines.map(({ code, path }) => (
+            <path
+              key={code}
+              d={path}
+              fill="none"
+              stroke="#8a93a5"
+              strokeWidth={1.6}
+              strokeLinejoin="round"
+              strokeLinecap="round"
               vectorEffect="non-scaling-stroke"
             />
           ))}
@@ -595,7 +741,10 @@ export function SvgMap({
 
         {/* 지역 이름. 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로 보이게 */}
         <g pointerEvents="none" aria-hidden="true">
-          {regionLabels.map(({ code, name, at: [x, y] }) => (
+          {regionLabels
+            // 들어간 시라도 동 이름이 하나도 안 뜨면(동이 다 작음) 시 이름은 남김
+            .filter(({ code }) => !(arrived && dongLabels.length > 0 && code === focusRegion))
+            .map(({ code, name, at: [x, y] }) => (
             <text
               key={code}
               x={x}
@@ -639,6 +788,33 @@ export function SvgMap({
             vectorEffect="non-scaling-stroke"
             pointerEvents="none"
           />
+        )}
+
+        {/* 동 이름 (확대했을 때만). 글자 크기를 화면 크기에 비례시켜 확대·축소해도 같은 크기로.
+            동을 눌러 확대하는 애니메이션 중에는 viewBox만 바뀌어서 글자가 커져 보이므로 숨김 */}
+        {!selecting && (
+          <g pointerEvents="none" aria-hidden="true">
+            {dongLabels.map((shape) => (
+              <text
+                key={shape.dongCode}
+                x={shape.label[0]}
+                y={shape.label[1]}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={view.size * DONG_LABEL_FONT}
+                fontWeight={700}
+                fill="#2b3245"
+                fillOpacity={0.75}
+                stroke="#ffffff"
+                strokeOpacity={0.75}
+                strokeWidth={view.size * 0.003}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              >
+                {shape.name}
+              </text>
+            ))}
+          </g>
         )}
 
       </svg>

@@ -8,13 +8,16 @@ import {
   type MyPhotoItem,
   type MyPhotosResponse,
   type PhotoDetail,
+  type SeasonType,
 } from "../../api/photo";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { getPhotoColorRatios } from "../dong/photo-color-ratios";
+import { photoImageUrl } from "../dong/photo-image-url";
 import { useUserStore } from "../../stores/user-store";
 import { formatDate } from "../../utils/date";
+import { SEASON_OPTIONS, seasonOf } from "../map/map-data";
 
 const PAGE_SIZE = 12;
 const timeBandLabel = {
@@ -24,8 +27,11 @@ const timeBandLabel = {
   NIGHT: "밤",
 } as const;
 
-function formatDateTime(value: string) {
-  return `${formatDate(value)} ${value.slice(11, 16)}`;
+function formatPhotoDate(value: string | null, season: SeasonType) {
+  return value ? formatDate(value) : (seasonOf(season)?.name ?? "촬영 시기 미상");
+}
+function formatDateTime(value: string | null, season: SeasonType) {
+  return value ? `${formatDate(value)} ${value.slice(11, 16)}` : (seasonOf(season)?.name ?? "촬영 시기 미상");
 }
 
 function PhotoThumbnail({ photo }: { photo: MyPhotoItem }) {
@@ -85,6 +91,8 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const ratios = detail ? getPhotoColorRatios(detail.palette, detail.bins) : [];
+  // 축소 이미지가 있으면 그것, 없으면(이 기능 전에 올린 사진) 원본
+  const imageUrl = detail ? photoImageUrl(detail) : null;
 
   useEffect(() => {
     let ignore = false;
@@ -153,11 +161,11 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
           {!detail && !loadError && <p className="py-10 text-center text-sm text-ink-muted">사진을 불러오는 중...</p>}
           {detail && (
             <>
-              {detail.imageUrl && !imageFailed ? (
+              {imageUrl && !imageFailed ? (
                 // 원래 비율 그대로, 잘리지 않게 (아주 좁은 사진은 양옆을 옅은 배경으로)
                 <div className="flex justify-center overflow-hidden rounded-[14px] bg-field">
                   <img
-                    src={detail.imageUrl}
+                    src={imageUrl}
                     alt={`${photo.name} 사진`}
                     onLoad={(event) =>
                       setNatural({
@@ -187,7 +195,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
               </p>
               <h3 className="mt-7 border-b border-divider pb-3 text-sm font-bold text-ink">촬영 정보</h3>
               <dl className="space-y-4 py-4 text-sm">
-                <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">촬영 일시</dt><dd className="font-bold text-ink">{formatDateTime(detail.takenAt)}</dd></div>
+                <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">{detail.takenAt ? "촬영 일시" : "촬영 시기"}</dt><dd className="font-bold text-ink">{formatDateTime(detail.takenAt, detail.season)}</dd></div>
                 <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">촬영 지역</dt><dd className="font-bold text-ink">{detail.name}</dd></div>
                 <div className="flex gap-4"><dt className="w-24 shrink-0 text-ink-muted">시간대</dt><dd className="font-bold text-ink">{timeBandLabel[detail.timeBand]}</dd></div>
               </dl>
@@ -224,6 +232,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
 export function MyPhotosPage() {
   const expireSession = useExpireSession();
   const [page, setPage] = useState(0);
+  const [seasonFilter, setSeasonFilter] = useState<SeasonType | "ALL">("ALL");
   const [refreshKey, setRefreshKey] = useState(0);
   const [data, setData] = useState<MyPhotosResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -232,7 +241,7 @@ export function MyPhotosPage() {
 
   useEffect(() => {
     let ignore = false;
-    getMyPhotos(page, PAGE_SIZE)
+    getMyPhotos(page, PAGE_SIZE, seasonFilter === "ALL" ? undefined : seasonFilter)
       .then((result) => {
         if (ignore) return;
         setData(result);
@@ -248,7 +257,17 @@ export function MyPhotosPage() {
         }
       });
     return () => { ignore = true; };
-  }, [page, refreshKey, expireSession]);
+  }, [page, seasonFilter, refreshKey, expireSession]);
+
+  function changeSeasonFilter(value: SeasonType | "ALL") {
+    if (value === seasonFilter) return;
+    setData(null);
+    setLoading(true);
+    setError(null);
+    setSelected(null);
+    setPage(0);
+    setSeasonFilter(value);
+  }
 
   function changePage(nextPage: number) {
     setData(null);
@@ -319,7 +338,21 @@ export function MyPhotosPage() {
               </span>
             )}
           </h2>
-          <span className="text-[13px] text-ink-muted">최신순</span>
+          <div className="flex items-center gap-3">
+            <label htmlFor="my-photos-season" className="sr-only">사진 계절 필터</label>
+            <select
+              id="my-photos-season"
+              value={seasonFilter}
+              onChange={(event) => changeSeasonFilter(event.target.value as SeasonType | "ALL")}
+              className="h-9 rounded-[10px] border border-field-line bg-white px-3 text-sm font-medium text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <option value="ALL">전체 계절</option>
+              {SEASON_OPTIONS.map(({ value, name }) => (
+                <option key={value} value={value}>{name}</option>
+              ))}
+            </select>
+            <span className="text-[13px] text-ink-muted">최신순</span>
+          </div>
         </div>
         {error ? (
           <div role="alert" className="rounded-2xl border border-danger-line bg-white px-6 py-10 text-center">
@@ -330,9 +363,18 @@ export function MyPhotosPage() {
           <p role="status" className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center text-sm text-ink-muted">내 사진을 불러오는 중...</p>
         ) : photos.length === 0 ? (
           <div className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center">
-            <p className="font-bold text-ink">아직 업로드한 사진이 없어요.</p>
-            <p className="mt-2 text-sm text-ink-muted">사진을 업로드하고 동네의 색을 기록해 보세요.</p>
-            <Link to="/upload" className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">첫 사진 업로드</Link>
+            {seasonFilter === "ALL" ? (
+              <>
+                <p className="font-bold text-ink">아직 업로드한 사진이 없어요.</p>
+                <p className="mt-2 text-sm text-ink-muted">사진을 업로드하고 동네의 색을 기록해 보세요.</p>
+                <Link to="/upload" className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">첫 사진 업로드</Link>
+              </>
+            ) : (
+              <>
+                <p className="font-bold text-ink">이 계절에 찍은 사진이 없어요.</p>
+                <button type="button" onClick={() => changeSeasonFilter("ALL")} className="mt-5 inline-flex h-11 items-center rounded-xl bg-brand px-5 text-sm font-bold text-white transition-colors hover:bg-brand-hover">전체 계절 보기</button>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -342,23 +384,23 @@ export function MyPhotosPage() {
                   key={photo.photoId}
                   type="button"
                   onClick={() => setSelected(photo)}
-                  aria-label={`${photo.name} ${formatDate(photo.takenAt)} 사진 상세 보기`}
+                  aria-label={`${photo.name} ${formatPhotoDate(photo.takenAt, photo.season)} 사진 상세 보기`}
                   className="overflow-hidden rounded-2xl border border-card-line bg-white text-left transition hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(26,36,64,0.10)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <PhotoThumbnail photo={photo} />
                   <div className="flex items-start justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-ink sm:text-base">{photo.name}</p>
-                      <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">{formatDate(photo.takenAt)} · {timeBandLabel[photo.timeBand]}</p>
+                      <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">{formatPhotoDate(photo.takenAt, photo.season)} · {timeBandLabel[photo.timeBand]}</p>
                     </div>
                     <span className="mt-1 size-3 shrink-0 rounded-[3px]" style={{ backgroundColor: photo.color }} aria-hidden="true" />
                   </div>
                 </button>
               ))}
             </div>
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-[13px] text-ink-muted">
-              <p>{firstNumber}–{lastNumber} / {data?.totalElements.toLocaleString()}장</p>
-              <div className="flex items-center gap-2">
+            <div className="mt-6 grid grid-cols-1 items-center gap-3 text-[13px] text-ink-muted sm:grid-cols-3">
+              <p className="text-center sm:text-left">{firstNumber}–{lastNumber} / {data?.totalElements.toLocaleString()}장</p>
+              <div className="flex items-center justify-center gap-2">
                 <button type="button" disabled={page === 0} onClick={() => changePage(page - 1)} className="h-9 rounded-[10px] border border-line bg-white px-4 font-bold text-ink-sub hover:bg-field disabled:opacity-40">이전</button>
                 <span aria-label="현재 페이지" className="min-w-7 text-center font-bold text-ink">{page + 1}</span>
                 <button type="button" disabled={!data?.hasNext} onClick={() => changePage(page + 1)} className="h-9 rounded-[10px] border border-line bg-white px-4 font-bold text-ink-sub hover:bg-field disabled:opacity-40">다음</button>

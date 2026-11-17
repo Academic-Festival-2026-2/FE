@@ -19,7 +19,10 @@ export function MapTooltip({ dong, guName, bandLabel, hint }: Props) {
         <ColorBar colors={(dong.colorRatio ?? []).slice(0, 4)} />
       </div>
       <p className="mt-3 text-[13px] text-ink-sub">
-        {bandLabel} 사진 {dong.photoCount}장
+        {/* 공유 지도는 픽셀 수, 나의 지도(pointCount 없음)는 내 사진 수 */}
+        {dong.pointCount !== undefined
+          ? `${bandLabel} · 픽셀 ${dong.pointCount}개`
+          : `${bandLabel} 사진 ${dong.photoCount}장`}
       </p>
       <p className="mt-1 text-[13px] font-bold text-brand-strong">{hint}</p>
     </div>

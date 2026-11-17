@@ -1,6 +1,7 @@
 // 마이페이지 영역 id (요약 카드 숫자를 누르면 이 영역으로 스크롤)
 export const MYPAGE_SECTION = {
   photos: "mypage-photos",
+  likes: "mypage-likes",
   myMap: "mypage-my-map",
   badges: "mypage-badges",
 } as const;
