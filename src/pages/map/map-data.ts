@@ -348,8 +348,16 @@ export function useMyMap(
   }
 
   const codes = key ? key.split(",") : [];
-  // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
-  const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
+  // 보이는 지역을 하나로 합친 것 (지도 칠하기용). 받은 칸·시간대가 그대로면 같은 Map을 돌려줘서 지도가 동 겹을 다시 만들지 않게
+  const dongs = useMemo(
+    () =>
+      new Map(
+        (key ? key.split(",") : []).flatMap((code) => [
+          ...cellsToDongs(cellsByRegion?.get(`${season}:${code}`), timeBand),
+        ]),
+      ),
+    [key, cellsByRegion, season, timeBand],
+  );
   const first = codes[0];
   const firstCells = first ? cellsByRegion?.get(`${season}:${first}`) : undefined;
   const error =
@@ -424,8 +432,16 @@ export function useSharedMap(
     return cellsToDongs(regionCode ? cells.get(`${season}:${regionCode}`) : undefined, timeBand);
   }
   const codes = key ? key.split(",") : [];
-  // 보이는 지역을 하나로 합친 것 (지도 칠하기용)
-  const dongs = new Map(codes.flatMap((code) => [...dongsOf(code)]));
+  // 보이는 지역을 하나로 합친 것 (지도 칠하기용). 받은 칸·시간대가 그대로면 같은 Map을 돌려줘서 지도가 동 겹을 다시 만들지 않게
+  const dongs = useMemo(
+    () =>
+      new Map(
+        (key ? key.split(",") : []).flatMap((code) => [
+          ...cellsToDongs(cells.get(`${season}:${code}`), timeBand),
+        ]),
+      ),
+    [key, cells, season, timeBand],
+  );
   const first = codes[0];
   const error =
     first && failedKeys.has(`${season}:${first}`) ? "공유 지도를 불러오지 못했어요." : null;
