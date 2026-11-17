@@ -5,7 +5,7 @@ import { ApiError } from "../../api/client";
 import { Checkbox } from "../../components/form/checkbox";
 import { TextField } from "../../components/form/text-field";
 import { AuthLayout } from "../../components/layout/auth-layout";
-import { TermsDialog } from "../../components/terms-dialog";
+import { TermsDialog } from "../../components/dialog/terms-dialog";
 import { LOCATION_TERMS } from "../../constants/terms/location-terms";
 import { PRIVACY_TERMS } from "../../constants/terms/privacy-terms";
 import { SERVICE_TERMS } from "../../constants/terms/service-terms";

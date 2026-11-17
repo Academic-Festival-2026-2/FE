@@ -8,7 +8,7 @@ import {
   dominantIndex,
   COLOR_HEX,
   COLOR_NAMES,
-} from "../src/pages/photo-upload/color-analysis.ts";
+} from "../src/features/photo/color-analysis.ts";
 import {
   futureTakenAtError,
   parseLocalTime,

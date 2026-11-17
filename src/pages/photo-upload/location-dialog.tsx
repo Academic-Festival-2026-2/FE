@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { BoundaryFeature } from "../../api/map";
 import { CloseIcon } from "../../components/icons";
-import { maskPath, toKakaoPath } from "../map/map-data";
-import { labelPoint } from "../map/map-geometry";
+import { maskPath, toKakaoPath } from "../../features/map/kakao";
+import { labelPoint } from "../../features/map/map-geometry";
 import { findDong } from "./photo-validation";
 
 type Props = {
@@ -55,7 +55,7 @@ export function LocationDialog({ feature, onClose, onConfirm, initialPoint }: Pr
       });
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
       const mask = new kakao.maps.Polygon({
-        // 동 바깥 덮개 (map-data.ts maskPath, 동 상세 지도와 같은 모양)
+        // 동 바깥 덮개 (features/map/kakao.ts maskPath, 동 상세 지도와 같은 모양)
         path: maskPath(outlines),
         strokeWeight: 0,
         fillColor: "#F5F7FA",

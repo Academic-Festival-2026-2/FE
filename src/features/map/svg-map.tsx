@@ -10,7 +10,8 @@ import {
 } from "react";
 import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
-import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
+import { EMPTY_FILL, PAGE_BG } from "./map-constants";
+import { toneColor } from "./map-colors";
 import { ZoomControls } from "./map-ui";
 import { prefersReducedMotion } from "../../utils/motion";
 import {
@@ -78,7 +79,7 @@ type StageFrame = {
   dim: number;
 };
 
-// 경계 데이터는 화면 이동 후에도 같은 객체를 다시 쓰므로(map-data 캐시) 계산 결과도 저장해 둠
+// 경계 데이터는 화면 이동 후에도 같은 객체를 다시 쓰므로(use-boundaries.ts 캐시) 계산 결과도 저장해 둠
 const shapesCache = new WeakMap<Boundaries, DongShape[]>();
 function shapesOf(boundaries: Boundaries) {
   let shapes = shapesCache.get(boundaries);

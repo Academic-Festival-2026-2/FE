@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { EMPTY_FILL } from "../map/map-data";
+import { EMPTY_FILL } from "../../features/map/map-constants";
 import { prefersReducedMotion } from "../../utils/motion";
 import { BAND_PIXEL } from "../../utils/time-band";
 

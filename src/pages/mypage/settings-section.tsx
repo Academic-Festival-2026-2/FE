@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ApiError } from "../../api/client";
 import { updateMyInfo, type MyInfoResponse } from "../../api/user";
 import { Switch } from "../../components/form/switch";
-import { TermsDialog } from "../../components/terms-dialog";
+import { TermsDialog } from "../../components/dialog/terms-dialog";
 import { LOCATION_TERMS } from "../../constants/terms/location-terms";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useLogout } from "../../hooks/use-logout";

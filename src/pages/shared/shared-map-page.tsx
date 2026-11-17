@@ -2,12 +2,20 @@ import { useCallback, useMemo, useState } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import type { SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
-import { useRegionBoundaries, useRegionList, useSharedMap } from "../map/map-data";
-import { fitView, regionAt, regionsInView, unproject, type View } from "../map/map-geometry";
-import { MapLoading } from "../map/map-loading";
-import { MapTooltip } from "../map/map-tooltip";
-import { ErrorBanner, MapTitlePanel, TimeBandBar } from "../map/map-ui";
-import { SvgMap } from "../map/svg-map";
+import { useRegionBoundaries } from "../../features/map/use-boundaries";
+import { useRegionList } from "../../features/map/use-region-list";
+import { useSharedMap } from "../../features/map/use-my-map";
+import {
+  fitView,
+  regionAt,
+  regionsInView,
+  unproject,
+  type View,
+} from "../../features/map/map-geometry";
+import { MapLoading } from "../../features/map/map-loading";
+import { MapTooltip } from "../../features/map/map-tooltip";
+import { ErrorBanner, MapTitlePanel, TimeBandBar } from "../../features/map/map-ui";
+import { SvgMap } from "../../features/map/svg-map";
 import { Avatar } from "../../components/avatar";
 import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
 import { bandLabel } from "../../utils/time-band";

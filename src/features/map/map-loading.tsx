@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { cn } from "../../utils/cn";
 import { prefersReducedMotion } from "../../utils/motion";
 import { BAND_PIXEL } from "../../utils/time-band";
-import { EMPTY_FILL } from "./map-data";
+import { EMPTY_FILL } from "./map-constants";
 
 // 로고 4칸 (logo-mark.tsx와 같은 배치·색: 라벤더·하늘 / 주황·남색). order: 불이 들어오는 순서 (시계 방향)
 const PIXELS = [

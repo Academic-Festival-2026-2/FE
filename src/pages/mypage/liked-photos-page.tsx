@@ -15,9 +15,9 @@ import { formatTakenDate } from "../../utils/date";
 import { bandLabel, currentTimeBand } from "../../utils/time-band";
 import { cn } from "../../utils/cn";
 import { HeartIcon } from "../../components/icons";
-import { PhotoLightbox } from "../dong/photo-lightbox";
-import { useLightboxHistory } from "../dong/use-lightbox-history";
-import { usePhotoDetails } from "../dong/use-photo-details";
+import { PhotoLightbox } from "../../features/photo/photo-lightbox";
+import { useLightboxHistory } from "../../features/photo/use-lightbox-history";
+import { usePhotoDetails } from "../../features/photo/use-photo-details";
 import { PhotoListTitle, PhotoThumbnail } from "./photo-list-parts";
 
 const PAGE_SIZE = 12;

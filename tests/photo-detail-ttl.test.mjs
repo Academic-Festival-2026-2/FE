@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DEFAULT_DETAIL_TTL_MS, detailTtl } from "../src/pages/dong/photo-detail-ttl.ts";
+import { DEFAULT_DETAIL_TTL_MS, detailTtl } from "../src/features/photo/photo-detail-ttl.ts";
 
 const signedUrl = (params) =>
   `https://bucket.s3.ap-northeast-2.amazonaws.com/photos/original/a.jpg?${new URLSearchParams(params)}`;

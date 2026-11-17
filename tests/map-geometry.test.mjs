@@ -10,7 +10,7 @@ import {
   dropOverlappingLabels,
   WORLD_WIDTH,
   WORLD_HEIGHT,
-} from "../src/pages/map/map-geometry.ts";
+} from "../src/features/map/map-geometry.ts";
 
 const close = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} ≠ ${b}`);
 

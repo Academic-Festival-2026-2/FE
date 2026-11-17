@@ -1,6 +1,6 @@
 import type { BoundaryFeature, TimeBand } from "../../api/map";
 // 테스트가 Node로 이 파일을 바로 불러오므로 확장자(.ts)까지 적음
-import { inRing } from "../map/map-geometry.ts";
+import { inRing } from "../../features/map/map-geometry.ts";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 

@@ -10,7 +10,9 @@ import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { useUserStore } from "../../stores/user-store";
-import { DEFAULT_REGION_CODE, useRegionBoundaries, useRegionList } from "../map/map-data";
+import { DEFAULT_REGION_CODE } from "../../features/map/map-constants";
+import { useRegionBoundaries } from "../../features/map/use-boundaries";
+import { useRegionList } from "../../features/map/use-region-list";
 import { SEASON_OPTIONS } from "../../utils/season";
 import { TIME_BANDS } from "../../utils/time-band";
 import { UploadComplete } from "./upload-complete";
@@ -26,7 +28,11 @@ import {
   validateColors,
 } from "./photo-validation";
 import { photoUploadTimeFields } from "./photo-upload-time";
-import { analyzePhoto, chooseRepresentative, type ColorAnalysis as Colors } from "./color-analysis";
+import {
+  analyzePhoto,
+  chooseRepresentative,
+  type ColorAnalysis as Colors,
+} from "../../features/photo/color-analysis";
 import { FIELD, RepresentativePicker, Select } from "./upload-form-parts";
 import { uploadErrorMessage } from "./upload-error";
 type Photo = {

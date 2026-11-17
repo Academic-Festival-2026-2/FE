@@ -4,14 +4,14 @@ import { likePhoto, unlikePhoto, type PhotoDetail } from "../../api/photo";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { cn } from "../../utils/cn";
-import { LoginPromptDialog } from "../map/login-prompt-dialog";
+import { LoginPromptDialog } from "../../components/dialog/login-prompt-dialog";
 import { Chevron, CloseIcon, HeartIcon } from "../../components/icons";
-import { photoImageUrl } from "./photo-image-url";
-import { paletteShares } from "./photo-info";
-import { PhotoLightbox } from "./photo-lightbox";
-import { PhotoMeta } from "./photo-meta";
-import { useLightboxHistory } from "./use-lightbox-history";
-import { usePhotoDetails } from "./use-photo-details";
+import { photoImageUrl } from "../../features/photo/photo-image-url";
+import { paletteShares } from "../../features/photo/photo-info";
+import { PhotoLightbox } from "../../features/photo/photo-lightbox";
+import { PhotoMeta } from "../../features/photo/photo-meta";
+import { useLightboxHistory } from "../../features/photo/use-lightbox-history";
+import { usePhotoDetails } from "../../features/photo/use-photo-details";
 
 // 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜
 // 세로 사진은 조금 더 길게 허용, 너무 좁아지면 아래 닉네임·시간대 줄이 들어갈 최소 폭 유지
