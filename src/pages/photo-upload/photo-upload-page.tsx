@@ -1,22 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
 import { getMyInfo } from "../../api/user";
-import { ApiError } from "../../api/client";
 import { uploadPhoto, type PhotoUploadResult, type SeasonType } from "../../api/photo";
 import type { TimeBand } from "../../api/map";
-import chevronDown from "../../assets/icons/chevron-down.svg";
 import mapPin from "../../assets/icons/map-pin.svg";
 import { AuthHeader } from "../../components/layout/auth-header";
+import { MaskIcon } from "../../components/icons";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { useUserStore } from "../../stores/user-store";
-import {
-  DEFAULT_REGION_CODE,
-  SEASON_OPTIONS,
-  useRegionBoundaries,
-  useRegionList,
-} from "../map/map-data";
+import { DEFAULT_REGION_CODE, useRegionBoundaries, useRegionList } from "../map/map-data";
+import { SEASON_OPTIONS } from "../../utils/season";
+import { TIME_BANDS } from "../../utils/time-band";
 import { UploadComplete } from "./upload-complete";
 import { LocationDialog } from "./location-dialog";
 import { UploadPixels } from "./upload-pixels";
@@ -30,14 +26,9 @@ import {
   validateColors,
 } from "./photo-validation";
 import { photoUploadTimeFields } from "./photo-upload-time";
-
-import {
-  analyzePhoto,
-  chooseRepresentative,
-  COLOR_HEX,
-  COLOR_NAMES,
-  type ColorAnalysis as Colors,
-} from "./color-analysis";
+import { analyzePhoto, chooseRepresentative, type ColorAnalysis as Colors } from "./color-analysis";
+import { FIELD, RepresentativePicker, Select } from "./upload-form-parts";
+import { uploadErrorMessage } from "./upload-error";
 type Photo = {
   id: string;
   file: File;
@@ -63,139 +54,19 @@ type Photo = {
 };
 const navButton =
   "h-11 rounded-[10px] border border-brand bg-white px-4 text-sm text-brand-strong transition-colors hover:bg-brand-soft disabled:cursor-not-allowed disabled:border-line disabled:text-ink-faint disabled:hover:bg-white";
-const field =
-  "h-11 w-full rounded-[10px] border border-field-line bg-white px-3.5 text-sm text-ink outline-none transition-colors focus:border-brand";
 const badgeNeed =
   "rounded-md border border-brand bg-white px-2 py-[3px] text-xs font-bold text-brand-strong";
 const primary =
   "h-12 w-full rounded-xl bg-brand px-5 text-base font-extrabold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-text";
-const bands: [TimeBand, string, string][] = [
-  ["DAWN", "새벽", "05–08"],
-  ["DAY", "낮", "08–16"],
-  ["SUNSET", "노을", "16–19"],
-  ["NIGHT", "밤", "19–05"],
-];
-const seasons: [SeasonType, string][] = SEASON_OPTIONS.map(({ value, name }) => [
-  value as SeasonType,
-  name,
-]);
 const PREVIEW_MAX_HEIGHT = 560;
 // 시·구·동 목록 가나다순 (숫자는 크기 순: 중1동 < 중2동 < 중10동)
 const byName = (a: string, b: string) => a.localeCompare(b, "ko", { numeric: true });
 
-// 대표색 후보 3개(첫 후보 = 자동 대표색, 처음에 선택됨). 고르면 그 색이 지도에 칠해질 대표색이 됨
-function RepresentativePicker({
-  analysis,
-  selected,
-  disabled,
-  onSelect,
-}: {
-  analysis: Colors;
-  selected: string;
-  disabled: boolean;
-  onSelect: (hex: string) => void;
-}) {
-  return (
-    <div role="radiogroup" aria-label="픽셀에 찍힐 색 고르기" className="grid grid-cols-3 gap-2.5">
-      {analysis.candidates.map((hex) => {
-        const checked = hex === selected;
-        // 칸 전체를 후보 색으로 채우고 색상 코드는 칸 아래에.
-        // 선택된 칸은 검정 테두리(배경색 틈을 두고)로 강조. 선택 안 된 칸도 원래 색 그대로 보여 줌(비교해서 고를 수 있게)
-        return (
-          <button
-            key={hex}
-            type="button"
-            role="radio"
-            aria-checked={checked}
-            aria-label={`${COLOR_NAMES[COLOR_HEX.findIndex((c) => c === hex)] ?? hex} (${hex})`}
-            disabled={disabled}
-            onClick={() => onSelect(hex)}
-            className="group flex min-w-0 flex-col gap-2 text-left disabled:cursor-not-allowed"
-          >
-            <span
-              className={`block h-14 w-full rounded-[10px] transition ${checked ? "ring-2 ring-ink ring-offset-2 ring-offset-page" : "ring-1 ring-black/10 group-hover:ring-2 group-hover:ring-black/20 group-disabled:group-hover:ring-1 group-disabled:group-hover:ring-black/10"}`}
-              style={{ background: hex }}
-              aria-hidden
-            />
-            <span
-              className={`truncate font-mono text-[13px] ${checked ? "font-bold text-ink" : "text-ink-muted"}`}
-            >
-              {hex}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 const steps = [
   ["대표색 뽑기", "사진의 주인공 색을 뽑고, 후보 중에서 바꿀 수 있어요."],
   ["한 장씩 확인", "시간대와 동이 비어 있으면 직접 골라 주세요."],
   ["지도에 더하기", "공유 지도 또는 나의 지도에만 칠해요."],
 ];
-
-function uploadErrorMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.code === "PHOTO400_12")
-      return "사진의 계절 정보를 찾지 못했어요. 잠시 후 다시 시도해 주세요.";
-    if (error.code === "PHOTO400_25")
-      return "미래 촬영 시각의 사진은 올릴 수 없어요. 카메라 날짜와 시간을 확인해 주세요.";
-    if (error.code === "PHOTO409_1") return "이미 등록된 사진입니다. 다른 사진을 선택해 주세요.";
-    // AI 검수에서 거절된 사진 (BE ClaudeImageModerator 기준: 선정적·폭력적·혐오감을 주는 사진)
-    if (error.code === "PHOTO422_1")
-      return "지도에 올릴 수 없는 사진이에요. 선정적이거나 폭력적인 사진, 혐오감을 주는 사진은 올릴 수 없어요.";
-  }
-  return error instanceof Error ? error.message : "업로드하지 못했어요. 다시 시도해 주세요.";
-}
-
-// 촬영 위치 시·구·동 선택 칸 하나. options: [값, 보이는 이름]
-// 안내 문구(빈 값)는 다시 고를 수 없게 막음 → 시를 비우면 구·동 목록을 만들 수 없어요
-function Select({
-  label,
-  value,
-  placeholder,
-  options,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder: string;
-  options: string[][];
-  disabled: boolean;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block min-w-0">
-      <span className="mb-1.5 block text-xs font-bold text-ink-sub">{label}</span>
-      <span className="relative block">
-        <select
-          aria-label={`촬영 위치 ${label}`}
-          disabled={disabled}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`${field} appearance-none truncate border-select-line pr-9 disabled:bg-field disabled:text-ink-faint`}
-        >
-          <option value="" disabled>
-            {placeholder}
-          </option>
-          {options.map(([optionValue, name]) => (
-            <option key={optionValue} value={optionValue}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <img
-          src={chevronDown}
-          alt=""
-          width={16}
-          height={16}
-          className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2"
-        />
-      </span>
-    </label>
-  );
-}
 
 export function PhotoUploadPage() {
   const [photos, setPhotos] = useState<Photo[]>([]);
@@ -570,7 +441,7 @@ export function PhotoUploadPage() {
               촬영 시각과 위치로 동·시간대를 정하고, 사진의 대표색을 뽑아 지도에 더합니다.
             </p>
             <div
-              className={`mt-4 flex min-h-[457px] flex-col items-center justify-center gap-6 rounded-[20px] border border-dashed px-5 py-12 text-center transition-colors ${dragging ? "border-brand bg-brand-soft" : "border-[#c5ccda] bg-white"}`}
+              className={`mt-4 flex min-h-[457px] flex-col items-center justify-center gap-6 rounded-[20px] border border-dashed px-5 py-12 text-center transition-colors ${dragging ? "border-brand bg-brand-soft" : "border-line-strong bg-white"}`}
               onDragOver={(e) => {
                 e.preventDefault();
                 setDragging(true);
@@ -785,10 +656,10 @@ export function PhotoUploadPage() {
                           aria-label="촬영 날짜·시각 (한국 시간)"
                           readOnly
                           value={photo.takenAt}
-                          className={`${field} mt-4 bg-field`}
+                          className={`${FIELD} mt-4 bg-field`}
                         />
                         <div className="mt-3 grid grid-cols-4 gap-2.5">
-                          {bands.map(([band, label, range]) => (
+                          {TIME_BANDS.map(({ value: band, label, range }) => (
                             <div
                               key={band}
                               className={`flex h-[68px] flex-col justify-center gap-1 rounded-[10px] border px-2.5 ${
@@ -822,7 +693,7 @@ export function PhotoUploadPage() {
                           aria-label="촬영 계절"
                           className="mt-2 grid grid-cols-4 gap-2"
                         >
-                          {seasons.map(([value, label]) => (
+                          {SEASON_OPTIONS.map(({ value, name: label }) => (
                             <button
                               key={value}
                               type="button"
@@ -850,7 +721,7 @@ export function PhotoUploadPage() {
                           aria-label="촬영 시간대"
                           className="mt-2 grid grid-cols-4 gap-2"
                         >
-                          {bands.map(([band, label, range]) => (
+                          {TIME_BANDS.map(({ value: band, label, range }) => (
                             <button
                               key={band}
                               type="button"
@@ -990,20 +861,11 @@ export function PhotoUploadPage() {
                           type="button"
                           disabled={!selectedFeature}
                           onClick={() => setMapOpen(true)}
-                          className="mt-2.5 flex h-11 w-full items-center gap-2 rounded-[10px] bg-field px-3.5 text-left text-sm text-ink transition-colors hover:bg-[#e9edf4] disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-field"
+                          className="mt-2.5 flex h-11 w-full items-center gap-2 rounded-[10px] bg-field px-3.5 text-left text-sm text-ink transition-colors hover:bg-field-hover disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-field"
                         >
                           {locationPicked ? (
                             // 위치를 고른 뒤: 아이콘을 지도에 더하기 버튼과 같은 파란색으로
-                            <span
-                              aria-hidden
-                              className="size-4 shrink-0 bg-brand"
-                              style={{
-                                maskImage: `url("${mapPin}")`,
-                                WebkitMaskImage: `url("${mapPin}")`,
-                                maskSize: "100% 100%",
-                                WebkitMaskSize: "100% 100%",
-                              }}
-                            />
+                            <MaskIcon src={mapPin} className="size-4 shrink-0 bg-brand" />
                           ) : (
                             <img src={mapPin} alt="" width={16} height={16} />
                           )}
@@ -1083,13 +945,13 @@ export function PhotoUploadPage() {
                     .filter(Boolean)
                     .join(" "),
                   !photo.metadata.takenAt
-                    ? seasons.find(([season]) => season === photo.season)?.[1]
+                    ? SEASON_OPTIONS.find((option) => option.value === photo.season)?.name
                     : undefined,
-                  bands.find(
-                    ([band]) =>
-                      band ===
+                  TIME_BANDS.find(
+                    (band) =>
+                      band.value ===
                       (photo.metadata.takenAt ? timeBand(photo.takenAt) : photo.selectedBand),
-                  )?.[1],
+                  )?.label,
                 ]
                   .filter(Boolean)
                   .join(" · ")}

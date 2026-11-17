@@ -2,6 +2,23 @@ import type { SeasonType } from "../api/map";
 
 export const LAST_SEASON_KEY = "pixel:last-season";
 
+const SEASONS: Record<string, { name: string; months: string }> = {
+  SPRING: { name: "봄", months: "3–5월" },
+  SUMMER: { name: "여름", months: "6–8월" },
+  AUTUMN: { name: "가을", months: "9–11월" },
+  WINTER: { name: "겨울", months: "12–2월" },
+};
+
+// 계절 선택 목록 (봄 → 겨울 순서)
+export const SEASON_OPTIONS = Object.entries(SEASONS).map(([value, info]) => ({
+  value: value as SeasonType,
+  ...info,
+}));
+
+export function seasonOf(season: string | null) {
+  return season ? SEASONS[season] : undefined;
+}
+
 export function parseSeason(value: unknown): SeasonType | undefined {
   if (value === "SPRING" || value === "SUMMER" || value === "AUTUMN" || value === "WINTER")
     return value;

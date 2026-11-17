@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import chevronDown from "../../assets/icons/chevron-down.svg";
+import { useDismiss } from "../../hooks/use-dismiss";
 import { cn } from "../../utils/cn";
 import type { FilterOption } from "./my-map-filters";
 
@@ -36,21 +37,7 @@ export function FilterSelect({
   const current = options.find((option) => option.value === value);
 
   // 바깥 클릭·Esc로 닫기
-  useEffect(() => {
-    if (!open) return;
-    const handleMouseDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  useDismiss(ref, open, setOpen);
 
   return (
     <div ref={ref} className="relative">

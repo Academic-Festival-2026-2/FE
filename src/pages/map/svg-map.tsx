@@ -11,6 +11,8 @@ import {
 import type { Boundaries, DongColor } from "../../api/map";
 import { predictDongHeightPx } from "./kakao-fit";
 import { EMPTY_FILL, PAGE_BG, toneColor } from "./map-data";
+import { ZoomControls } from "./map-ui";
+import { prefersReducedMotion } from "../../utils/motion";
 import {
   WORLD_HEIGHT,
   WORLD_WIDTH,
@@ -45,9 +47,6 @@ const REGION_ARRIVE_SHARE = 0.5;
 const FILL_TRANSITION = "transition-[fill] duration-500 ease-out motion-reduce:transition-none";
 // 색이 왼쪽 동부터 오른쪽 동으로 번져 나가듯 바뀌게, 가장 오른쪽 동이 늦게 시작하는 시간(ms)
 const FILL_WAVE_MS = 220;
-
-const ZOOM_BUTTON =
-  "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
 
 // 동을 눌렀을 때 지도가 화면 전체로 커지며 그 동으로 확대되는 시간 (끝나면 바로 동 상세).
 // 동 상세에서 돌아올 때 화면 전체에서 카드로 줄어드는 시간도 같음
@@ -324,7 +323,7 @@ export function SvgMap({
   function animateTo(target: View) {
     cancelAnimationFrame(frameRef.current);
     const to = clampView(target, maxSize);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (prefersReducedMotion()) {
       applyView(to);
       return;
     }
@@ -509,7 +508,7 @@ export function SvgMap({
       onSelect(shape.dongCode);
     };
     const root = rootRef.current;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = prefersReducedMotion();
     if (!root || reduceMotion || shape.bounds[3] <= shape.bounds[1]) {
       finish();
       return;
@@ -872,35 +871,13 @@ export function SvgMap({
         {hoveredCode && pointerInside && !selecting && tooltip}
       </div>
 
-      <div
-        className={`liquid-glass absolute flex flex-col gap-0.5 rounded-xl p-1 transition-opacity duration-300 pointer-coarse:hidden ${controlsClassName} ${selecting ? "invisible" : ""}`}
-      >
-        <button
-          type="button"
-          aria-label="확대"
-          onClick={() => zoomBy(1 / 1.5)}
-          className={`${ZOOM_BUTTON} text-lg leading-none`}
-        >
-          +
-        </button>
-
-        <button
-          type="button"
-          aria-label="축소"
-          onClick={() => zoomBy(1.5)}
-          className={`${ZOOM_BUTTON} text-lg leading-none`}
-        >
-          −
-        </button>
-        <button
-          type="button"
-          aria-label="처음 크기로"
-          onClick={reset}
-          className={`${ZOOM_BUTTON} text-[11px] font-bold`}
-        >
-          전체
-        </button>
-      </div>
+      <ZoomControls
+        onZoomIn={() => zoomBy(1 / 1.5)}
+        onZoomOut={() => zoomBy(1.5)}
+        onReset={reset}
+        resetLabel="처음 크기로"
+        className={`transition-opacity duration-300 ${controlsClassName} ${selecting ? "invisible" : ""}`}
+      />
     </div>
   );
 }

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, type FormEvent } from "react";
 import { ApiError } from "../../api/client";
 import { updateMyInfo, type MyInfoResponse } from "../../api/user";
 import { Avatar } from "../../components/avatar";
+import { DialogActions, DialogShell } from "../../components/dialog/dialog-shell";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { cn } from "../../utils/cn";
 import { PROFILE_CHARACTERS, PROFILE_COLORS, profileLabel } from "../../utils/profile-image";
@@ -18,25 +19,16 @@ const GRID = "grid grid-cols-4 justify-items-center gap-y-2 @sm:grid-cols-8";
 
 // 프로필 사진 변경: 골라서 미리 보고 저장 버튼으로 반영
 export function ProfileImageDialog({ current, onClose, onUpdated }: ProfileImageDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const expireSession = useExpireSession();
   const [draft, setDraft] = useState(current);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // 화면에 나타나면 모달로 열기 (showModal: 배경 어둡게, 뒤쪽 클릭 막기, 포커스 가두기)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) dialog.showModal();
-  }, []);
+  const canSave = draft !== current && !isSaving;
 
-  function handleClose() {
-    if (isSaving) return;
-    onClose();
-  }
-
-  async function handleSave() {
-    if (draft === current || isSaving) return;
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSave) return;
     setIsSaving(true);
     setError(null);
     try {
@@ -78,66 +70,40 @@ export function ProfileImageDialog({ current, onClose, onUpdated }: ProfileImage
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="profile-image-title"
-      onClose={handleClose}
-      // ESC: 브라우저 기본 닫기를 막고 직접 닫음. 저장 중에는 닫지 않음
-      onCancel={(event) => {
-        event.preventDefault();
-        handleClose();
-      }}
-      // 어두운 바깥을 누르면 닫기. 바깥(::backdrop) 클릭은 target이 dialog 자체로 들어옴
-      // dialog에 padding을 주면 흰 상자 여백 클릭도 dialog로 잡혀 닫히므로, padding은 안쪽 div에 줌
-      onClick={(event) => {
-        if (event.target === event.currentTarget) handleClose();
-      }}
-      className="m-auto w-[min(440px,calc(100%-32px))] rounded-[18px] bg-white p-0 shadow-[0_12px_32px_rgba(0,0,0,0.1)] backdrop:bg-black/40"
+    <DialogShell
+      eyebrow="PROFILE"
+      title="프로필 사진 변경"
+      titleId="profile-image-title"
+      busy={isSaving}
+      onClose={onClose}
     >
-      <div className="p-6">
-        <p className="font-mono text-[11px] tracking-[1.2px] text-brand-strong">PROFILE</p>
-        <h2 id="profile-image-title" className="mt-1 text-xl leading-7 font-bold text-ink">
-          프로필 사진 변경
-        </h2>
+      <div className="mt-4 flex flex-col items-center gap-2 rounded-[10px] bg-field py-4">
+        <Avatar image={draft} size={96} />
+        <p className="text-sm text-ink-sub">{profileLabel(draft)}</p>
+      </div>
 
-        <div className="mt-4 flex flex-col items-center gap-2 rounded-[10px] bg-field py-4">
-          <Avatar image={draft} size={96} />
-          <p className="text-sm text-ink-sub">{profileLabel(draft)}</p>
-        </div>
+      <div className="@container">
+        <p className="mt-4 text-xs text-ink-muted">단색</p>
+        <div className={cn(GRID, "mt-2")}>{PROFILE_COLORS.map(renderOption)}</div>
 
-        <div className="@container">
-          <p className="mt-4 text-xs text-ink-muted">단색</p>
-          <div className={cn(GRID, "mt-2")}>{PROFILE_COLORS.map(renderOption)}</div>
+        <p className="mt-4 text-xs text-ink-muted">캐릭터</p>
+        <div className={cn(GRID, "mt-2")}>{PROFILE_CHARACTERS.map(renderOption)}</div>
+      </div>
 
-          <p className="mt-4 text-xs text-ink-muted">캐릭터</p>
-          <div className={cn(GRID, "mt-2")}>{PROFILE_CHARACTERS.map(renderOption)}</div>
-        </div>
-
+      <form onSubmit={handleSubmit} noValidate>
         {error && (
           <p role="alert" className="mt-3 text-xs text-danger">
             {error}
           </p>
         )}
-
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={isSaving}
-            onClick={handleClose}
-            className="h-11 rounded-[10px] border border-card-line bg-white text-sm text-ink transition-colors hover:bg-field disabled:opacity-50"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            disabled={draft === current || isSaving}
-            onClick={handleSave}
-            className="h-11 rounded-[10px] bg-brand text-sm font-bold text-white transition-colors hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSaving ? "저장 중..." : "저장"}
-          </button>
-        </div>
-      </div>
-    </dialog>
+        <DialogActions
+          busy={isSaving}
+          canSubmit={canSave}
+          submitLabel="저장"
+          busyLabel="저장 중..."
+          onCancel={onClose}
+        />
+      </form>
+    </DialogShell>
   );
 }

@@ -1,4 +1,6 @@
 import type { BoundaryFeature, TimeBand } from "../../api/map";
+// 테스트가 Node로 이 파일을 바로 불러오므로 확장자(.ts)까지 적음
+import { inRing } from "../map/map-geometry.ts";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
@@ -53,23 +55,13 @@ export function timeBand(value: string): TimeBand | undefined {
         : "NIGHT";
 }
 
-function inRing(lng: number, lat: number, ring: number[][]) {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i],
-      [xj, yj] = ring[j];
-    if (yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
-  }
-  return inside;
-}
-
 // 화면의 위치 안내에만 사용합니다. 행정동·EXIF 검증의 최종 판정은 서버가 합니다.
 export function findDong(features: BoundaryFeature[], latitude: number, longitude: number) {
   return features.find((feature) =>
     feature.geometry.coordinates.some(
       ([outer, ...holes]) =>
-        inRing(longitude, latitude, outer) &&
-        !holes.some((ring) => inRing(longitude, latitude, ring)),
+        inRing(outer, longitude, latitude) &&
+        !holes.some((ring) => inRing(ring, longitude, latitude)),
     ),
   );
 }

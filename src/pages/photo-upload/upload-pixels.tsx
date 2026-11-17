@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { BAND_PIXEL, EMPTY_FILL } from "../map/map-data";
+import { EMPTY_FILL } from "../map/map-data";
+import { prefersReducedMotion } from "../../utils/motion";
+import { BAND_PIXEL } from "../../utils/time-band";
 
 // 바깥 8칸이 시계 방향으로 차오르는 순서 (3×3 칸 번호, 가운데 4번은 내 사진 자리)
 const FILL_ORDER = [0, 1, 2, 5, 8, 7, 6, 3];
@@ -19,12 +21,6 @@ const STEP_MS = 550;
 const HOLD_STEPS = 3;
 const REST_STEPS = 2;
 const CYCLE = FILL_ORDER.length + HOLD_STEPS + REST_STEPS;
-
-function prefersReducedMotion() {
-  return (
-    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
 
 // 지금 차 있는 칸 수 (0~8). 다 차면 잠깐 유지 → 비우고 → 다시 시작
 function useFilledCount(full: boolean) {

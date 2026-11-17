@@ -1,12 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { isSessionExpired } from "../../hooks/use-expire-session";
+import { useDismiss } from "../../hooks/use-dismiss";
 import { useLogout } from "../../hooks/use-logout";
 import { useAuthStore } from "../../stores/auth-store";
 import { useUserStore } from "../../stores/user-store";
 import logOutIcon from "../../assets/icons/log-out.svg";
 import userIcon from "../../assets/icons/user.svg";
 import { Avatar } from "../avatar";
+import { MaskIcon } from "../icons";
 
 // 헤더 오른쪽 위 프로필 버튼 + 드롭다운 (로그인 상태에서만 사용)
 export function ProfileMenu() {
@@ -26,21 +28,7 @@ export function ProfileMenu() {
   }, [loadMe, clearTokens]);
 
   // 바깥 클릭·Esc로 닫기
-  useEffect(() => {
-    if (!open) return;
-    const handleMouseDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  useDismiss(ref, open, setOpen);
 
   const nickname = me?.nickname ?? "";
 
@@ -87,16 +75,7 @@ export function ProfileMenu() {
             onClick={logout}
             className="flex h-11 w-full items-center gap-2.5 px-4 text-sm text-danger hover:bg-danger-soft disabled:opacity-50"
           >
-            <span
-              aria-hidden
-              className="size-[18px] shrink-0 bg-danger"
-              style={{
-                maskImage: `url("${logOutIcon}")`,
-                WebkitMaskImage: `url("${logOutIcon}")`,
-                maskSize: "100% 100%",
-                WebkitMaskSize: "100% 100%",
-              }}
-            />
+            <MaskIcon src={logOutIcon} className="size-[18px] shrink-0 bg-danger" />
             {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
           </button>
         </div>
