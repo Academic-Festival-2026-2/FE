@@ -25,6 +25,7 @@ import {
   prepareDongTransition,
 } from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
+import { PhotoCredits } from "./photo-credits";
 import { PixelCount } from "./pixel-count";
 import { labelPoint } from "../../features/map/map-geometry";
 
@@ -451,6 +452,9 @@ export function DongPage() {
           onSeasonChange={changeSeason}
         />
       </div>
+
+      {/* 관리자가 올린 데모 사진 출처 (왼쪽 아래). 나의 지도는 내 사진만 보이므로 없음 */}
+      {!mine && <PhotoCredits className="bottom-6 left-4 z-10" />}
 
       {activeSelection &&
         (bubbleHost ? (
