@@ -1,5 +1,5 @@
 import chevronDown from "../../assets/icons/chevron-down.svg";
-import { COLOR_HEX, COLOR_NAMES, type ColorAnalysis } from "./color-analysis";
+import { COLOR_HEX, COLOR_NAMES, type ColorAnalysis } from "../../features/photo/color-analysis";
 
 // 사진 업로드 화면의 입력 부품 (대표색 후보 고르기, 촬영 위치 시·구·동 선택 칸)
 

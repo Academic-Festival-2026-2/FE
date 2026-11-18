@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { COLOR_HEX } from "../src/pages/photo-upload/color-analysis.ts";
-import { getPhotoColorRatios } from "../src/pages/dong/photo-color-ratios.ts";
+import { COLOR_HEX } from "../src/features/photo/color-analysis.ts";
+import { getPhotoColorRatios } from "../src/features/photo/photo-color-ratios.ts";
 
 function binsOf(entries) {
   const bins = Array(40).fill(0);

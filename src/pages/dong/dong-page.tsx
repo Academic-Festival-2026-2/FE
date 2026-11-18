@@ -7,24 +7,18 @@ import { getMyDongPhotos } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useMediaQuery } from "../../hooks/use-media-query";
 import { useAuthStore } from "../../stores/auth-store";
-import {
-  EMPTY_FILL,
-  KAKAO_ERROR,
-  KAKAO_UNAVAILABLE,
-  maskPath,
-  PAGE_BG,
-  useRegionList,
-  toKakaoPath,
-  useBoundaries,
-  useDongColors,
-  useMyMap,
-} from "../map/map-data";
-import { ErrorBanner, GLASS, TimeBandBar, ZoomControls } from "../map/map-ui";
+import { EMPTY_FILL, PAGE_BG } from "../../features/map/map-constants";
+import { KAKAO_ERROR, KAKAO_UNAVAILABLE, maskPath, toKakaoPath } from "../../features/map/kakao";
+import { useRegionList } from "../../features/map/use-region-list";
+import { useBoundaries } from "../../features/map/use-boundaries";
+import { useDongColors } from "../../features/map/use-dong-colors";
+import { useMyMap } from "../../features/map/use-my-map";
+import { ErrorBanner, GLASS, TimeBandBar, ZoomControls } from "../../features/map/map-ui";
 import { cn } from "../../utils/cn";
 import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
 import { bandLabel } from "../../utils/time-band";
-import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
-import { MapLoading } from "../map/map-loading";
+import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../../features/map/kakao-fit";
+import { MapLoading } from "../../features/map/map-loading";
 import {
   canUseDongTransition,
   markReturnFrom,
@@ -32,7 +26,7 @@ import {
 } from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
 import { PixelCount } from "./pixel-count";
-import { labelPoint } from "../map/map-geometry";
+import { labelPoint } from "../../features/map/map-geometry";
 
 const SELECTED_STROKE = "#1a1a1a";
 const DONG_TINT_OPACITY = 0.14;
@@ -186,7 +180,7 @@ export function DongPage() {
       overlays.push(
         new kakao.maps.Polygon({
           map,
-          // 동 바깥 덮개 (map-data.ts maskPath, 업로드 위치 선택 창과 같은 모양)
+          // 동 바깥 덮개 (features/map/kakao.ts maskPath, 업로드 위치 선택 창과 같은 모양)
           path: maskPath(outlines),
           strokeWeight: 0,
           fillColor: PAGE_BG,

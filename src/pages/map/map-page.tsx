@@ -6,28 +6,24 @@ import type { DongColor, SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { UploadButton } from "../../components/layout/upload-button";
+import { KAKAO_UNAVAILABLE } from "../../features/map/kakao";
+import { useDongColors } from "../../features/map/use-dong-colors";
+import { useMyMap } from "../../features/map/use-my-map";
+import { useRegionBoundaries } from "../../features/map/use-boundaries";
+import { useRegionList } from "../../features/map/use-region-list";
+import { MapTooltip } from "../../features/map/map-tooltip";
 import {
-  KAKAO_UNAVAILABLE,
-  useDongColors,
-  useMyMap,
-  useRegionBoundaries,
-  useRegionList,
-} from "./map-data";
-import { MapTooltip } from "./map-tooltip";
-import { fitView, regionsInView, regionAt, unproject, type View } from "./map-geometry";
-import { LoginPromptDialog } from "./login-prompt-dialog";
-import {
-  ErrorBanner,
-  MapModeToggle,
-  EmptyMyMapCard,
-  MapTitlePanel,
-  MyMapGuidePanel,
-  TimeBandBar,
-  TopDongsPanel,
-  type TopDongItem,
-} from "./map-ui";
-import { MapLoading } from "./map-loading";
-import { SvgMap } from "./svg-map";
+  fitView,
+  regionsInView,
+  regionAt,
+  unproject,
+  type View,
+} from "../../features/map/map-geometry";
+import { LoginPromptDialog } from "../../components/dialog/login-prompt-dialog";
+import { ErrorBanner, MapModeToggle, MapTitlePanel, TimeBandBar } from "../../features/map/map-ui";
+import { EmptyMyMapCard, MyMapGuidePanel, TopDongsPanel, type TopDongItem } from "./map-panels";
+import { MapLoading } from "../../features/map/map-loading";
+import { SvgMap } from "../../features/map/svg-map";
 import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
 import { bandLabel, TIME_BAND_VALUES } from "../../utils/time-band";
 

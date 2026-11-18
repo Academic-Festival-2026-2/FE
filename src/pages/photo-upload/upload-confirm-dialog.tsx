@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import lock from "../../assets/icons/lock.svg";
 import radioFilled from "../../assets/icons/radio-filled.svg";
 import { CloseIcon } from "../../components/icons";
-import { PixelLoader } from "../map/map-loading";
+import { PixelLoader } from "../../features/map/map-loading";
 
 type Props = {
   // 예) "역곡3동 · 노을"

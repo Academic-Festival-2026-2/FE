@@ -9,7 +9,7 @@ import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-sessi
 import { useUserStore } from "../../stores/user-store";
 import { BadgeSection } from "./badge-section";
 import { LikedPhotosSection } from "./liked-photos-section";
-import { DEFAULT_REGION_CODE } from "../map/map-data";
+import { DEFAULT_REGION_CODE } from "../../features/map/map-constants";
 import { parseSeason, preferredSeason, rememberSeason } from "../../utils/season";
 import { summarizeMyMap } from "./my-map-stats";
 import { MyMapProgressSection } from "./my-map-progress-section";

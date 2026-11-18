@@ -1,5 +1,5 @@
 import type { RegionList } from "../../api/map";
-import { DEFAULT_REGION_CODE } from "../map/map-data";
+import { DEFAULT_REGION_CODE } from "../../features/map/map-constants";
 import { SEASON_OPTIONS } from "../../utils/season";
 
 export type FilterOption = {

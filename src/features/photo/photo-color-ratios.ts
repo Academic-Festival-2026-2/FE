@@ -1,4 +1,4 @@
-import { COLOR_HEX } from "../photo-upload/color-analysis.ts";
+import { COLOR_HEX } from "./color-analysis.ts";
 
 // 첫 색(사용자가 고른 대표색)의 막대 최소 폭: 나머지 색 합의 이 비율
 const FIRST_COLOR_MIN_SHARE = 0.1;

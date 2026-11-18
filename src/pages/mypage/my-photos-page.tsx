@@ -13,8 +13,8 @@ import {
 import { AuthHeader } from "../../components/layout/auth-header";
 import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
-import { getPhotoColorRatios } from "../dong/photo-color-ratios";
-import { photoImageUrl } from "../dong/photo-image-url";
+import { getPhotoColorRatios } from "../../features/photo/photo-color-ratios";
+import { photoImageUrl } from "../../features/photo/photo-image-url";
 import { CloseIcon } from "../../components/icons";
 import { useUserStore } from "../../stores/user-store";
 import { formatTakenAt, formatTakenDate } from "../../utils/date";

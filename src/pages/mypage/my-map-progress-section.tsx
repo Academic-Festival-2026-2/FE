@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { useRegionList } from "../map/map-data";
+import { useRegionList } from "../../features/map/use-region-list";
 import { BAND_PIXEL, currentTimeBand, TIME_BANDS } from "../../utils/time-band";
 import { parseSeason } from "../../utils/season";
 import { FilterSelect } from "./filter-select";

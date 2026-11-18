@@ -4,7 +4,7 @@ import type { PhotoUploadResult } from "../../api/photo";
 import { BadgeIcon } from "../../components/badge-icon";
 import { BADGES, badgeEarnedText, isKnownBadge, sortByBadgeOrder } from "../../constants/badges";
 import { bandLabel } from "../../utils/time-band";
-import { labelPoint } from "../map/map-geometry";
+import { labelPoint } from "../../features/map/map-geometry";
 
 type CompletedPhoto = { id: string; filename: string; color: string; result: PhotoUploadResult };
 

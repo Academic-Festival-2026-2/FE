@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { LogoMark } from "../../components/layout/logo-mark";
+import { LogoMark } from "../layout/logo-mark";
 
 type LoginPromptDialogProps = {
   open: boolean;
