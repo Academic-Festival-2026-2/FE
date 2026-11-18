@@ -455,8 +455,11 @@ export function DongPage() {
         />
       </div>
 
-      {/* 관리자가 올린 데모 사진 출처 (왼쪽 아래). 나의 지도는 내 사진만 보이므로 없음 */}
-      {!mine && <PhotoCredits className="bottom-6 left-4 z-10" />}
+      {/* 관리자가 올린 데모 사진 출처. 나의 지도는 내 사진만 보이므로 없음.
+          PC는 왼쪽 아래, 폰은 시간대 바와 겹치지 않게 오른쪽 맨 아래 구석(카카오 로고와 같은 줄)에 작게 */}
+      {!mine && (
+        <PhotoCredits className="right-1 bottom-0.5 z-10 sm:right-auto sm:bottom-6 sm:left-4" />
+      )}
 
       {activeSelection &&
         (bubbleHost ? (

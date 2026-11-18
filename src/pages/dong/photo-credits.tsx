@@ -2,11 +2,11 @@ import { useId, useRef, useState } from "react";
 import { InfoIcon } from "../../components/icons";
 import { ADMIN_NICKNAME, CC_LICENSE_URL, PHOTO_CREDITS } from "../../constants/photo-credits";
 import { useDismiss } from "../../hooks/use-dismiss";
-import { GLASS } from "../../features/map/map-ui";
 import { cn } from "../../utils/cn";
 
-// 동 상세 왼쪽 아래 ⓘ: 관리자 계정이 올린 데모 사진의 출처.
+// 동 상세 ⓘ: 관리자 계정이 올린 데모 사진의 출처 (위치는 dong-page의 className).
 // 마우스는 올리면(hover는 마우스 기기에서만 적용), 터치는 누르면 위로 열림. CC 라이선스 이름은 안내 페이지 링크
+// 폰(sm 미만)은 오른쪽 구석에 있어서 배경 없이 아이콘만, 상자는 오른쪽 끝에 맞춰 열림
 export function PhotoCredits({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -23,7 +23,8 @@ export function PhotoCredits({ className }: { className?: string }) {
         aria-expanded={open}
         aria-controls={bubbleId}
         onClick={() => setOpen((value) => !value)}
-        className={cn(GLASS, "grid size-9 place-items-center rounded-full text-ink-sub")}
+        // 유리 모양(GLASS = liquid-glass)은 PC에서만. Tailwind가 찾을 수 있게 클래스 이름을 글자 그대로 씀
+        className="grid size-8 place-items-center rounded-full text-ink-sub sm:liquid-glass sm:size-9"
       >
         <InfoIcon size={16} />
       </button>
@@ -31,7 +32,7 @@ export function PhotoCredits({ className }: { className?: string }) {
       <div
         id={bubbleId}
         className={cn(
-          "absolute bottom-full left-0 w-72 max-w-[calc(100vw-2rem)] pb-2 group-hover:block group-has-focus-visible:block",
+          "absolute right-0 bottom-full w-72 max-w-[calc(100vw-2rem)] pb-2 sm:right-auto sm:left-0 group-hover:block group-has-focus-visible:block",
           open ? "block" : "hidden",
         )}
       >
