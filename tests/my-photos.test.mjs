@@ -19,11 +19,13 @@ test("내 사진 목록/상세/삭제는 인증 API 및 올바른 경로를 사�
     '"./client"',
     JSON.stringify(mockClient),
   );
-  const { getMyPhotos, getPhotoDetail, deletePhoto } = await import(moduleUrl(source));
+  const { getMyPhotos, getPhotoDetail, deletePhoto, updatePhotoVisibility } = await import(
+    moduleUrl(source)
+  );
   const calls = [];
   globalThis.__myPhotosAuthRequest = async (...args) => {
     calls.push(args);
-    return args[1]?.method === "DELETE"
+    return args[1]?.method === "DELETE" || args[1]?.method === "PATCH"
       ? undefined
       : { photos: [], page: 1, size: 12, totalElements: 0, hasNext: false };
   };
@@ -31,10 +33,14 @@ test("내 사진 목록/상세/삭제는 인증 API 및 올바른 경로를 사�
     await getMyPhotos(1, 12);
     await getPhotoDetail(123, true);
     await deletePhoto(123);
+    await updatePhotoVisibility(123, false);
+    await updatePhotoVisibility(123, true);
     assert.deepEqual(calls, [
       ["/api/users/me/photos?page=1&size=12"],
       ["/api/photos/123"],
       ["/api/photos/123", { method: "DELETE" }],
+      ["/api/photos/123", { method: "PATCH", body: '{"isPublic":false}' }],
+      ["/api/photos/123", { method: "PATCH", body: '{"isPublic":true}' }],
     ]);
   } finally {
     delete globalThis.__myPhotosAuthRequest;
