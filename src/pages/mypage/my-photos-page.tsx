@@ -41,18 +41,18 @@ function dialogPhotoSize(naturalWidth: number, naturalHeight: number) {
   return { width, height: Math.round(width / ratio) };
 }
 
-// 공개 여부는 동 상세 사진 픽셀·공유된 나의 지도·남의 좋아요 목록에만 영향 (칸 색 집계와는 별개)
-// 동 상세 사진 픽셀은 촬영 위치가 있는 공개 사진만 나옴 (BE: location IS NOT NULL)
+// 공개 여부는 동 상세 사진 픽셀·공유된 나의 지도·남의 좋아요 목록에만 영향 (모두의 지도 칸 색 집계와는 별개)
+// 동 상세 사진 픽셀은 EXIF 확인(exif_verified)·위치가 있는 공개 사진만 나옴 (BE findPhotoPoints)
 const VISIBILITY_OPTIONS = [
   {
     value: true,
     label: "공개",
-    hint: "다른 사람도 이 사진을 볼 수 있어요. 촬영 위치가 있으면 동 지도에도 표시돼요.",
+    hint: "다른 사람도 이 사진을 볼 수 있어요. 촬영 시각·위치가 확인된 사진은 동 지도에도 표시돼요.",
   },
   {
     value: false,
     label: "나만 보기",
-    hint: "이 사진은 다른 사람에게 보이지 않아요. 지도 칸 색 집계는 공개 여부와 관계없어요.",
+    hint: "이 사진은 다른 사람에게 보이지 않아요. 모두의 지도 색 집계는 공개 여부와 관계없어요.",
   },
 ];
 
