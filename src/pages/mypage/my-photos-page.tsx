@@ -42,9 +42,18 @@ function dialogPhotoSize(naturalWidth: number, naturalHeight: number) {
 }
 
 // 공개 여부는 동 상세 사진 픽셀·공유된 나의 지도·남의 좋아요 목록에만 영향 (칸 색 집계와는 별개)
+// 동 상세 사진 픽셀은 촬영 위치가 있는 공개 사진만 나옴 (BE: location IS NOT NULL)
 const VISIBILITY_OPTIONS = [
-  { value: true, label: "공개", hint: "동 지도에서 다른 사람도 이 사진을 볼 수 있어요." },
-  { value: false, label: "나만 보기", hint: "이 사진은 다른 사람에게 보이지 않아요." },
+  {
+    value: true,
+    label: "공개",
+    hint: "다른 사람도 이 사진을 볼 수 있어요. 촬영 위치가 있으면 동 지도에도 표시돼요.",
+  },
+  {
+    value: false,
+    label: "나만 보기",
+    hint: "이 사진은 다른 사람에게 보이지 않아요. 지도 칸 색 집계는 공개 여부와 관계없어요.",
+  },
 ];
 
 // BE는 AI 검수 결과가 PUBLIC인 사진만 공개로 바꿀 수 있게 함 (PHOTO403_2)
@@ -115,7 +124,8 @@ function PhotoDetailDialog({ photo, onClose, onDeleted, onVisibilityChanged }: D
   }, [confirmDelete, busy, onClose]);
 
   async function changeVisibility(isPublic: boolean) {
-    if (busy || isPublic === photo.isPublic || (isPublic && !canBePublic)) return;
+    // 삭제 확인창이 떠 있으면 아래 버튼에 키보드로 가더라도 바꾸지 않음
+    if (busy || confirmDelete || isPublic === photo.isPublic || (isPublic && !canBePublic)) return;
     setSavingVisibility(true);
     setVisibilityError(null);
     try {
@@ -123,7 +133,8 @@ function PhotoDetailDialog({ photo, onClose, onDeleted, onVisibilityChanged }: D
       onVisibilityChanged(isPublic);
     } catch (error) {
       if (isSessionExpired(error)) expireSession();
-      else if (error instanceof ApiError && error.code === "PHOTO403_2")
+      // 검수 통과 사진인데 막히면(BE 공개 조건이 바뀐 경우) 서버 문구를 그대로 보여 줌
+      else if (error instanceof ApiError && error.code === "PHOTO403_2" && !canBePublic)
         setVisibilityError(lockedHint(photo.aiVerdict));
       else
         setVisibilityError(
@@ -173,8 +184,11 @@ function PhotoDetailDialog({ photo, onClose, onDeleted, onVisibilityChanged }: D
             type="button"
             autoFocus
             aria-label="사진 상세 닫기"
-            onClick={onClose}
-            className="flex size-9 items-center justify-center rounded-[10px] border border-line text-ink-sub hover:bg-field"
+            disabled={busy}
+            onClick={() => {
+              if (!busy) onClose();
+            }}
+            className="flex size-9 items-center justify-center rounded-[10px] border border-line text-ink-sub hover:bg-field disabled:cursor-not-allowed disabled:opacity-50"
           >
             <CloseIcon size={14} strokeWidth={1.6} />
           </button>
@@ -220,7 +234,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted, onVisibilityChanged }: D
                   ))}
                 </div>
               )}
-              {/* 공개 여부 바꾸기 (공유 지도 색 반영은 공개 여부와 별개라 여기서 말하지 않음) */}
+              {/* 공개 여부 바꾸기 */}
               <div className="mt-4">
                 <div
                   role="group"
@@ -235,7 +249,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted, onVisibilityChanged }: D
                         key={option.label}
                         type="button"
                         aria-pressed={active}
-                        disabled={busy || locked}
+                        disabled={busy || confirmDelete || locked}
                         onClick={() => changeVisibility(option.value)}
                         className={`h-8 rounded-full px-4 text-xs font-bold transition-colors disabled:cursor-not-allowed ${
                           active
