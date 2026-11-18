@@ -5,6 +5,7 @@ import {
   deletePhoto,
   getMyPhotos,
   getPhotoDetail,
+  updatePhotoVisibility,
   type MyPhotoItem,
   type MyPhotosResponse,
   type PhotoDetail,
@@ -40,13 +41,27 @@ function dialogPhotoSize(naturalWidth: number, naturalHeight: number) {
   return { width, height: Math.round(width / ratio) };
 }
 
+// 공개 여부는 동 상세 사진 픽셀·공유된 나의 지도·남의 좋아요 목록에만 영향 (칸 색 집계와는 별개)
+const VISIBILITY_OPTIONS = [
+  { value: true, label: "공개", hint: "동 지도에서 다른 사람도 이 사진을 볼 수 있어요." },
+  { value: false, label: "나만 보기", hint: "이 사진은 다른 사람에게 보이지 않아요." },
+];
+
+// BE는 AI 검수 결과가 PUBLIC인 사진만 공개로 바꿀 수 있게 함 (PHOTO403_2)
+function lockedHint(aiVerdict: MyPhotoItem["aiVerdict"]) {
+  return aiVerdict === "UNCHECKED"
+    ? "AI 검수를 하지 못한 사진이라 공개할 수 없어요."
+    : "AI 검수에서 동네 풍경이 아니거나 얼굴·번호판이 크게 나온 사진으로 분류돼 공개할 수 없어요.";
+}
+
 type DetailDialogProps = {
   photo: MyPhotoItem;
   onClose: () => void;
   onDeleted: () => void;
+  onVisibilityChanged: (isPublic: boolean) => void;
 };
 
-function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
+function PhotoDetailDialog({ photo, onClose, onDeleted, onVisibilityChanged }: DetailDialogProps) {
   const expireSession = useExpireSession();
   const [detail, setDetail] = useState<PhotoDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -57,6 +72,10 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [savingVisibility, setSavingVisibility] = useState(false);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const canBePublic = photo.aiVerdict === "PUBLIC";
+  const busy = deleting || savingVisibility;
   const ratios = detail ? getPhotoColorRatios(detail.palette, detail.bins) : [];
   // 축소 이미지가 있으면 그것, 없으면(이 기능 전에 올린 사진) 원본
   const imageUrl = detail ? photoImageUrl(detail) : null;
@@ -84,7 +103,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || deleting) return;
+      if (event.key !== "Escape" || busy) return;
       if (confirmDelete) setConfirmDelete(false);
       else onClose();
     };
@@ -93,7 +112,27 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
       document.body.style.overflow = originalOverflow;
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [confirmDelete, deleting, onClose]);
+  }, [confirmDelete, busy, onClose]);
+
+  async function changeVisibility(isPublic: boolean) {
+    if (busy || isPublic === photo.isPublic || (isPublic && !canBePublic)) return;
+    setSavingVisibility(true);
+    setVisibilityError(null);
+    try {
+      await updatePhotoVisibility(photo.photoId, isPublic);
+      onVisibilityChanged(isPublic);
+    } catch (error) {
+      if (isSessionExpired(error)) expireSession();
+      else if (error instanceof ApiError && error.code === "PHOTO403_2")
+        setVisibilityError(lockedHint(photo.aiVerdict));
+      else
+        setVisibilityError(
+          error instanceof ApiError ? error.message : "공개 설정을 바꾸지 못했어요.",
+        );
+    } finally {
+      setSavingVisibility(false);
+    }
+  }
 
   async function handleDelete() {
     if (deleting) return;
@@ -114,7 +153,7 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 sm:p-6"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !deleting) onClose();
+        if (event.target === event.currentTarget && !busy) onClose();
       }}
     >
       <section
@@ -181,10 +220,47 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
                   ))}
                 </div>
               )}
-              {/* 업로드 때 고른 공개 여부만 표시 (공유 지도 색 반영은 공개 여부와 별개라 여기서 말하지 않음) */}
-              <p className="mt-4 inline-block rounded-full bg-brand-soft px-3 py-1 text-xs font-bold text-brand-strong">
-                {photo.isPublic ? "공개" : "나만 보기"}
-              </p>
+              {/* 공개 여부 바꾸기 (공유 지도 색 반영은 공개 여부와 별개라 여기서 말하지 않음) */}
+              <div className="mt-4">
+                <div
+                  role="group"
+                  aria-label="사진 공개 설정"
+                  className="inline-flex rounded-full border border-line bg-field p-1"
+                >
+                  {VISIBILITY_OPTIONS.map((option) => {
+                    const active = option.value === photo.isPublic;
+                    const locked = option.value && !canBePublic;
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        aria-pressed={active}
+                        disabled={busy || locked}
+                        onClick={() => changeVisibility(option.value)}
+                        className={`h-8 rounded-full px-4 text-xs font-bold transition-colors disabled:cursor-not-allowed ${
+                          active
+                            ? "bg-white text-brand-strong shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                            : "text-ink-muted hover:text-ink"
+                        } ${locked ? "opacity-40" : ""}`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p aria-live="polite" className="mt-2 text-xs leading-5 text-ink-muted">
+                  {savingVisibility
+                    ? "공개 설정을 바꾸는 중..."
+                    : canBePublic
+                      ? VISIBILITY_OPTIONS.find((option) => option.value === photo.isPublic)?.hint
+                      : lockedHint(photo.aiVerdict)}
+                </p>
+                {visibilityError && (
+                  <p role="alert" className="mt-1 text-xs leading-5 text-danger">
+                    {visibilityError}
+                  </p>
+                )}
+              </div>
               <h3 className="mt-7 border-b border-divider pb-3 text-sm font-bold text-ink">
                 촬영 정보
               </h3>
@@ -213,11 +289,12 @@ function PhotoDetailDialog({ photo, onClose, onDeleted }: DetailDialogProps) {
           </p>
           <button
             type="button"
+            disabled={savingVisibility}
             onClick={() => {
               setDeleteError(null);
               setConfirmDelete(true);
             }}
-            className="mt-4 w-full rounded-xl border border-danger-line bg-danger-soft py-3 text-sm font-bold text-danger transition-colors hover:bg-[#fbdcdc]"
+            className="mt-4 w-full rounded-xl border border-danger-line bg-danger-soft py-3 text-sm font-bold text-danger transition-colors hover:bg-[#fbdcdc] disabled:opacity-50"
           >
             이 사진 삭제하기
           </button>
@@ -339,6 +416,21 @@ export function MyPhotosPage() {
     }
   }
 
+  // 다시 불러오지 않고 목록과 열린 상세의 공개 표시만 바꾼다
+  function handleVisibilityChanged(photoId: number, isPublic: boolean) {
+    setData((current) =>
+      current
+        ? {
+            ...current,
+            photos: current.photos.map((item) =>
+              item.photoId === photoId ? { ...item, isPublic } : item,
+            ),
+          }
+        : current,
+    );
+    setSelected((current) => (current?.photoId === photoId ? { ...current, isPublic } : current));
+  }
+
   const photos = data?.photos ?? [];
   const firstNumber = page * PAGE_SIZE + 1;
   const lastNumber = Math.min((page + 1) * PAGE_SIZE, data?.totalElements ?? 0);
@@ -354,7 +446,7 @@ export function MyPhotosPage() {
         <PhotoListTitle
           eyebrow="MY PHOTOS"
           title="내 사진 모아보기"
-          description="내가 올린 사진을 모아 보고, 사진을 누르면 촬영 정보를 보거나 삭제할 수 있어요."
+          description="내가 올린 사진을 모아 보고, 사진을 누르면 촬영 정보를 보거나 공개 설정을 바꾸고 삭제할 수 있어요."
         />
         <div className="mt-6 mb-3 flex items-center justify-between gap-4">
           {/* 올린 사진 수는 제목 옆에 작게 */}
@@ -504,6 +596,7 @@ export function MyPhotosPage() {
           photo={selected}
           onClose={() => setSelected(null)}
           onDeleted={handleDeleted}
+          onVisibilityChanged={(isPublic) => handleVisibilityChanged(selected.photoId, isPublic)}
         />
       )}
     </div>

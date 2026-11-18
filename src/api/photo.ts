@@ -140,3 +140,12 @@ export function getMyPhotos(page = 0, size = 12, season?: SeasonType) {
 export function deletePhoto(photoId: number) {
   return authRequest<void>(`/api/photos/${photoId}`, { method: "DELETE" });
 }
+
+// BE: PATCH /api/photos/{photoId}. 성공해도 result 없음
+// AI 검수가 PUBLIC이 아닌 사진을 공개로 바꾸면 PHOTO403_2
+export function updatePhotoVisibility(photoId: number, isPublic: boolean) {
+  return authRequest<void>(`/api/photos/${photoId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ isPublic }),
+  });
+}
