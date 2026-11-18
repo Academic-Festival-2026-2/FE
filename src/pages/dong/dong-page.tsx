@@ -379,7 +379,9 @@ export function DongPage() {
       : (boundaryError ?? (mine ? myMap.error : colorError) ?? detailError);
 
   return (
-    <div className="relative h-screen w-full">
+    // 높이는 dvh: 폰 브라우저의 주소창·도구 막대를 뺀 실제로 보이는 높이 (100vh면 아래 UI가 막대 뒤로 가려짐).
+    // 지도 화면의 확대 전환도 window.innerHeight(= 보이는 높이) 기준이라 끝 모습이 맞음
+    <div className="relative h-dvh w-full">
       <div ref={containerRef} className="h-full w-full [&_svg]:pointer-events-none" />
       {/* 지도(경계·카카오맵 타일)를 그리는 중. 오류가 있으면 오류 배너만 */}
       <MapLoading show={!errorMessage && tilesReadyFor !== dongCode} />
