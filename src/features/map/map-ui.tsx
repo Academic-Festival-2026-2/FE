@@ -1,9 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
 import type { ColorRatio, SeasonType, TimeBand } from "../../api/map";
 import chevronDown from "../../assets/icons/chevron-down-navy.svg";
+import { MaskIcon } from "../../components/icons";
+import { useDismiss } from "../../hooks/use-dismiss";
 import { cn } from "../../utils/cn";
-import { BAND_PIXEL, SEASON_OPTIONS, TIME_BANDS } from "./map-data";
+import { prefersReducedMotion } from "../../utils/motion";
+import { SEASON_OPTIONS } from "../../utils/season";
+import { BAND_PIXEL, TIME_BANDS } from "../../utils/time-band";
 
 // 지도 위에 띄우는 유리 패널 (리퀴드 글라스 느낌). 값은 index.css의 liquid-glass에서 조정
 export const GLASS = "liquid-glass";
@@ -52,7 +55,7 @@ function LiquidIndicator({ activeIndex, className }: { activeIndex: number; clas
     placeRef.current = place;
 
     const previous = prevIndexRef.current;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduceMotion = prefersReducedMotion();
     const moving = previous !== null && previous !== activeIndex && !reduceMotion;
     place(moving);
     if (moving) {
@@ -135,29 +138,20 @@ export function MapModeToggle({
   );
 }
 
-
 // 계절 선택 (지도 아래 시간대 바 왼쪽, 목록은 위로 펼침)
-function SeasonSelect({ season, onChange }: { season: SeasonType; onChange: (value: SeasonType) => void }) {
+function SeasonSelect({
+  season,
+  onChange,
+}: {
+  season: SeasonType;
+  onChange: (value: SeasonType) => void;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const current = SEASON_OPTIONS.find((option) => option.value === season);
 
   // 바깥 클릭·Esc로 닫기
-  useEffect(() => {
-    if (!open) return;
-    const handleMouseDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  useDismiss(ref, open, setOpen);
 
   return (
     <div ref={ref} className="relative">
@@ -166,26 +160,26 @@ function SeasonSelect({ season, onChange }: { season: SeasonType; onChange: (val
         aria-expanded={open}
         aria-label={`계절 선택: ${current?.name ?? "미선택"}`}
         onClick={() => setOpen((prev) => !prev)}
-        className={cn(SELECTED_PILL, "flex h-8 shrink-0 items-center gap-1 rounded-[9px] pr-2 pl-3 text-[13px] leading-none font-bold whitespace-nowrap text-white")}
+        className={cn(
+          SELECTED_PILL,
+          "flex h-8 shrink-0 items-center gap-1 rounded-[9px] pr-2 pl-3 text-[13px] leading-none font-bold whitespace-nowrap text-white",
+        )}
       >
         {current?.name ?? "계절"}
         {/* 피그마 화살표 모양 그대로, 색만 흰색으로. 위로 펼치니 닫혀 있을 때 ▲, 열리면 ▼ */}
-        <span
-          aria-hidden
+        <MaskIcon
+          src={chevronDown}
           className={cn("size-4 bg-white transition-transform", !open && "rotate-180")}
-          style={{
-            maskImage: `url("${chevronDown}")`,
-            WebkitMaskImage: `url("${chevronDown}")`,
-            maskSize: "100% 100%",
-            WebkitMaskSize: "100% 100%",
-          }}
         />
       </button>
       {open && (
         <ul
           aria-label="계절"
           // 목록 글자가 지도 위에서도 잘 읽히게 패널보다 덜 비치게 (흰색 88%)
-          className={cn(GLASS_SOLID, "absolute bottom-full left-0 z-20 mb-3 flex w-[70px] flex-col gap-0.5 rounded-xl p-1")}
+          className={cn(
+            GLASS_SOLID,
+            "absolute bottom-full left-0 z-20 mb-3 flex w-[70px] flex-col gap-0.5 rounded-xl p-1",
+          )}
         >
           {SEASON_OPTIONS.map((option) => {
             const selected = option.value === season;
@@ -195,7 +189,7 @@ function SeasonSelect({ season, onChange }: { season: SeasonType; onChange: (val
                   type="button"
                   aria-pressed={selected}
                   onClick={() => {
-                    onChange(option.value as SeasonType);
+                    onChange(option.value);
                     setOpen(false);
                   }}
                   className={cn(
@@ -249,7 +243,10 @@ export function TimeBandBar({
               <span
                 aria-hidden
                 // 좁은 화면에서는 색 픽셀을 숨겨서 바 폭을 줄임
-                className={cn("hidden size-2.5 rounded-[2px] transition-[border-color] duration-300 sm:block border-[1.5px]", active ? "border-white" : "border-transparent")}
+                className={cn(
+                  "hidden size-2.5 rounded-[2px] transition-[border-color] duration-300 sm:block border-[1.5px]",
+                  active ? "border-white" : "border-transparent",
+                )}
                 style={{ backgroundColor: BAND_PIXEL[band.value] }}
               />
               {band.label}
@@ -271,117 +268,57 @@ export function ColorBar({ colors }: { colors: ColorRatio[] }) {
   );
 }
 
-const PANEL = "rounded-[18px] border border-card-line bg-white p-6";
+const ZOOM_BUTTON =
+  "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
 
-// 오른쪽 패널에 보여 줄 동 (공유 지도는 BE topDongs, 나의 지도는 내 칸에서 고름)
-export type TopDongItem = {
-  dongCode: string;
-  name: string;
-  // 구가 없는 시·군은 비어 있음
-  guName?: string | null;
-  photoCount: number;
-  colorRatio: ColorRatio[];
-};
-
-// 공유 지도·나의 지도 오른쪽 패널: "{제목}" + 사진 많은 순 상위 동 (최대 3개)
-export function TopDongsPanel({
-  title,
-  season,
-  dongs,
-  emptyText,
-  onHover,
+// 지도 위 확대·축소·전체 버튼 (지도 화면·동 상세 공용). 터치 기기는 두 손가락으로 확대하므로 숨김
+// className: 놓을 자리(right-·bottom- 등)와 화면별 추가 모양
+export function ZoomControls({
+  onZoomIn,
+  onZoomOut,
+  onReset,
+  resetLabel,
+  className,
 }: {
-  title: string;
-  season: { name: string; months: string } | undefined;
-  dongs: TopDongItem[];
-  emptyText: string;
-  onHover: (dongCode: string | null) => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onReset: () => void;
+  // "전체" 버튼의 화면 낭독기 이름
+  resetLabel: string;
+  className?: string;
 }) {
   return (
-    <section className={PANEL}>
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-extrabold text-ink">{title}</h2>
-        <span className="text-xs text-ink-muted">
-          {season ? `${season.name} · ` : ""}사진 많은 순
-        </span>
-      </div>
-
-      {dongs.length === 0 ? (
-        <p className="mt-6 text-sm text-ink-muted">{emptyText}</p>
-      ) : (
-        <ol className="mt-3">
-          {dongs.map((dong, index) => (
-            <li
-              key={dong.dongCode}
-              onMouseEnter={() => onHover(dong.dongCode)}
-              onMouseLeave={() => onHover(null)}
-              className="grid min-h-[70px] grid-cols-[20px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-t border-divider py-3"
-            >
-              <span className="row-span-2 font-mono text-xl font-semibold text-brand-strong">
-                {index + 1}
-              </span>
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-base font-extrabold text-ink">{dong.name}</span>
-                <span className="text-xs text-ink-muted">
-                  {dong.guName ? `${dong.guName} · ` : ""}
-                  {dong.photoCount}장
-                </span>
-              </div>
-              <ColorBar colors={dong.colorRatio} />
-            </li>
-          ))}
-        </ol>
+    <div
+      className={cn(
+        "liquid-glass absolute flex flex-col gap-0.5 rounded-xl p-1 pointer-coarse:hidden",
+        className,
       )}
-    </section>
-  );
-}
-
-// 나의 지도에 아직 칠한 칸이 하나도 없을 때 지도 가운데에 띄우는 안내 (피그마 "18 · 나의 지도 비어 있음")
-export function EmptyMyMapCard({ season }: { season: string }) {
-  return (
-    <div className="flex w-[min(372px,calc(100vw-72px))] flex-col items-center rounded-[18px] bg-white px-6 pt-6 pb-6 text-center shadow-[0_16px_20px_rgba(22,22,26,0.18)]">
-      <span className="grid grid-cols-3 gap-1" aria-hidden>
-        {Array.from({ length: 9 }, (_, i) =>
-          i === 4 ? (
-            <span key={i} className="size-4 rounded-[3px] border-2 border-dashed border-brand" />
-          ) : (
-            <span key={i} className="size-4 rounded-[3px] bg-preview" />
-          ),
-        )}
-      </span>
-      <p className="mt-3.5 text-lg font-extrabold text-ink">이 지역의 {season} 지도는 아직 비어 있어요</p>
-      <p className="mt-1 text-sm text-ink-sub">사진 한 장이면 첫 동이 칠해져요.</p>
-      <Link
-        to="/upload"
-        className="mt-4 flex h-12 items-center rounded-xl bg-brand px-[22px] text-[15px] font-extrabold text-white transition-colors hover:bg-brand-hover"
+    >
+      <button
+        type="button"
+        aria-label="확대"
+        onClick={onZoomIn}
+        className={`${ZOOM_BUTTON} text-lg leading-none`}
       >
-        첫 사진 업로드
-      </Link>
+        +
+      </button>
+      <button
+        type="button"
+        aria-label="축소"
+        onClick={onZoomOut}
+        className={`${ZOOM_BUTTON} text-lg leading-none`}
+      >
+        −
+      </button>
+      <button
+        type="button"
+        aria-label={resetLabel}
+        onClick={onReset}
+        className={`${ZOOM_BUTTON} text-[11px] font-bold`}
+      >
+        전체
+      </button>
     </div>
-  );
-}
-
-// 나의 지도가 비어 있을 때 오른쪽 패널: 어떻게 채워지는지 3단계 안내
-export function MyMapGuidePanel({ regionName, dongCount }: { regionName: string; dongCount: number }) {
-  const steps = [
-    "사진을 올리면 찍은 동에 첫 색이 칠해져요",
-    "새벽·낮·노을·밤마다 따로 칠해져요",
-    `${dongCount}개 동을 다 칠하면 나만의 ${regionName} 지도 완성`,
-  ];
-  return (
-    <section className={PANEL}>
-      <h2 className="text-lg font-extrabold text-ink">이렇게 채워져요</h2>
-      <ol className="mt-3.5 flex flex-col gap-3.5">
-        {steps.map((step, i) => (
-          <li key={step} className="flex gap-3">
-            <span className="grid size-[26px] shrink-0 place-items-center rounded-full bg-brand text-[13px] font-bold text-white">
-              {i + 1}
-            </span>
-            <span className="pt-[3px] text-sm text-[#3e4350]">{step}</span>
-          </li>
-        ))}
-      </ol>
-    </section>
   );
 }
 

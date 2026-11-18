@@ -1,17 +1,11 @@
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
-import { InfoIcon } from "./photo-icons";
+import { useId, useRef, useState } from "react";
+import { InfoIcon } from "../../components/icons";
+import { useDismiss } from "../../hooks/use-dismiss";
+import { useMediaQuery } from "../../hooks/use-media-query";
 
 // 마우스처럼 올려 놓을 수 있는 포인터가 있는지. 화면 폭이 아니라 이걸로 나눠야
 // 폭이 넓은 태블릿(터치)도 아이콘을 눌러 설명을 볼 수 있음
 const HOVER_QUERY = "(hover: hover) and (pointer: fine)";
-function subscribeHover(onChange: () => void) {
-  const media = window.matchMedia(HOVER_QUERY);
-  media.addEventListener("change", onChange);
-  return () => media.removeEventListener("change", onChange);
-}
-function useCanHover() {
-  return useSyncExternalStore(subscribeHover, () => window.matchMedia(HOVER_QUERY).matches);
-}
 
 type Props = {
   // 픽셀로 보이는 사진 수 (공개 + 위치 있음)
@@ -22,20 +16,13 @@ type Props = {
 
 // 동 상세 제목 패널의 "픽셀 2/4". 마우스가 있으면 숫자에 올렸을 때, 터치 기기는 옆 아이콘을 누르면 설명이 보임
 export function PixelCount({ pointCount, photoCount }: Props) {
-  const canHover = useCanHover();
+  const canHover = useMediaQuery(HOVER_QUERY);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const bubbleId = useId();
 
   // 터치 기기: 바깥을 누르면 닫힘
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(event: PointerEvent) {
-      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [open]);
+  useDismiss(wrapperRef, open, setOpen, { pointer: "pointerdown", escape: false });
 
   const count = (
     <span>

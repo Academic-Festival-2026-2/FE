@@ -11,44 +11,16 @@ import {
 import { AuthHeader } from "../../components/layout/auth-header";
 import { UploadButton } from "../../components/layout/upload-button";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
-import { formatDate } from "../../utils/date";
-import { currentTimeBand } from "../../utils/time-band";
+import { formatTakenDate } from "../../utils/date";
+import { bandLabel, currentTimeBand } from "../../utils/time-band";
 import { cn } from "../../utils/cn";
-import { bandLabel } from "../map/map-data";
-import { HeartIcon } from "../dong/photo-icons";
-import { PhotoLightbox } from "../dong/photo-lightbox";
-import { useLightboxHistory } from "../dong/use-lightbox-history";
-import { usePhotoDetails } from "../dong/use-photo-details";
+import { HeartIcon } from "../../components/icons";
+import { PhotoLightbox } from "../../features/photo/photo-lightbox";
+import { useLightboxHistory } from "../../features/photo/use-lightbox-history";
+import { usePhotoDetails } from "../../features/photo/use-photo-details";
+import { PhotoListTitle, PhotoThumbnail } from "./photo-list-parts";
 
 const PAGE_SIZE = 12;
-
-// 촬영 시각 없이 올린 사진(#111)은 날짜 대신 "촬영 시기 미상" (좋아요 목록 응답에는 계절이 없음, 크게 보기에서는 계절이 보임)
-function formatLikedDate(takenAt: string | null) {
-  return takenAt ? formatDate(takenAt) : "촬영 시기 미상";
-}
-
-function PhotoThumbnail({ photo }: { photo: LikedPhotoItem }) {
-  const [failed, setFailed] = useState(false);
-  return (
-    <div className="relative aspect-[4/3] overflow-hidden bg-preview">
-      {photo.thumbnailUrl && !failed ? (
-        <img
-          src={photo.thumbnailUrl}
-          alt={`${photo.name}에서 촬영한 사진`}
-          loading="lazy"
-          onError={() => setFailed(true)}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="grid h-full place-items-center" style={{ backgroundColor: photo.color }}>
-          <span className="rounded-lg bg-white/80 px-3 py-1 text-xs font-bold text-ink-sub">
-            미리보기 없음
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // 카드의 하트로 좋아요 취소·다시 좋아요. 누르면 바로 바꿔 보여 주고, 실패하면 원래대로 되돌림
 // 취소한 카드는 실수로 눌렀을 때 되돌릴 수 있게 페이지를 다시 받을 때까지 그대로 둠
@@ -203,29 +175,11 @@ export function LikedPhotosPage() {
         <UploadButton />
       </AuthHeader>
       <main className="mx-auto w-full max-w-[1192px] px-4 pt-4 pb-12">
-        <p className="mt-2 font-mono text-[13px] tracking-[1.04px] text-brand-strong">LIKED PHOTOS</p>
-        <div className="mt-3 flex items-center gap-3">
-          <Link
-            to="/mypage"
-            aria-label="마이페이지로 돌아가기"
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-line bg-white text-ink-sub transition-colors hover:bg-field hover:text-ink"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-              <path
-                d="M10 3L5 8l5 5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </Link>
-          <h1 className="text-[30px] font-extrabold tracking-[-0.9px] text-ink">좋아요 표시한 사진</h1>
-        </div>
-        <p className="mt-2 text-base text-ink-sub">
-          지도에서 하트를 누른 사진을 모아 봐요. 사진을 누르면 크게 볼 수 있고, 하트를 누르면 좋아요를 취소해요.
-        </p>
+        <PhotoListTitle
+          eyebrow="LIKED PHOTOS"
+          title="좋아요 표시한 사진"
+          description="지도에서 하트를 누른 사진을 모아 봐요. 사진을 누르면 크게 볼 수 있고, 하트를 누르면 좋아요를 취소해요."
+        />
         <div className="mt-6 mb-3 flex items-center justify-between gap-4">
           <h2 className="flex items-baseline gap-2 text-[17px] leading-[25px] font-bold text-ink">
             사진
@@ -238,7 +192,10 @@ export function LikedPhotosPage() {
           <span className="text-[13px] text-ink-muted">최근에 누른 순</span>
         </div>
         {error ? (
-          <div role="alert" className="rounded-2xl border border-danger-line bg-white px-6 py-10 text-center">
+          <div
+            role="alert"
+            className="rounded-2xl border border-danger-line bg-white px-6 py-10 text-center"
+          >
             <p className="text-sm text-danger">{error}</p>
             <button
               type="button"
@@ -253,13 +210,18 @@ export function LikedPhotosPage() {
             </button>
           </div>
         ) : loading ? (
-          <p role="status" className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center text-sm text-ink-muted">
+          <p
+            role="status"
+            className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center text-sm text-ink-muted"
+          >
             좋아요한 사진을 불러오는 중...
           </p>
         ) : photos.length === 0 ? (
           <div className="rounded-2xl border border-card-line bg-white px-6 py-16 text-center">
             <p className="font-bold text-ink">아직 좋아요한 사진이 없어요.</p>
-            <p className="mt-2 text-sm text-ink-muted">지도에서 마음에 드는 사진의 하트를 눌러 보세요.</p>
+            <p className="mt-2 text-sm text-ink-muted">
+              지도에서 마음에 드는 사진의 하트를 눌러 보세요.
+            </p>
             <Link
               to="/map"
               search={{ timeBand: currentTimeBand() }}
@@ -285,16 +247,19 @@ export function LikedPhotosPage() {
                       }}
                       type="button"
                       onClick={() => openPhoto(index)}
-                      aria-label={`${photo.nickname}님이 ${photo.name}에서 찍은 사진 크게 보기 (${formatLikedDate(photo.takenAt)})`}
+                      aria-label={`${photo.nickname}님이 ${photo.name}에서 찍은 사진 크게 보기 (${formatTakenDate(photo.takenAt)})`}
                       className="block w-full overflow-hidden rounded-2xl border border-card-line bg-white text-left transition group-hover:shadow-[0_8px_24px_rgba(26,36,64,0.10)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
                       <PhotoThumbnail photo={photo} />
                       <div className="flex items-start justify-between gap-2 px-3 py-3 sm:px-4 sm:py-4">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-bold text-ink sm:text-base">{photo.name}</p>
+                          <p className="truncate text-sm font-bold text-ink sm:text-base">
+                            {photo.name}
+                          </p>
                           <p className="mt-1 truncate text-xs text-ink-sub">{photo.nickname}</p>
+                          {/* 촬영 시각 없이 올린 사진(#111)은 "촬영 시기 미상" (좋아요 목록 응답에는 계절이 없음, 크게 보기에서는 계절이 보임) */}
                           <p className="mt-1 font-mono text-[11px] text-ink-muted sm:text-xs">
-                            {formatLikedDate(photo.takenAt)} · {bandLabel(photo.timeBand)}
+                            {formatTakenDate(photo.takenAt)} · {bandLabel(photo.timeBand)}
                           </p>
                         </div>
                         <span

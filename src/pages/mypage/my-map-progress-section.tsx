@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { BAND_PIXEL, TIME_BANDS, useRegionList } from "../map/map-data";
-import { currentTimeBand } from "../../utils/time-band";
+import { useRegionList } from "../../features/map/use-region-list";
+import { BAND_PIXEL, currentTimeBand, TIME_BANDS } from "../../utils/time-band";
 import { parseSeason } from "../../utils/season";
 import { FilterSelect } from "./filter-select";
 import { SEASON_FILTER_OPTIONS, toRegionOptions } from "./my-map-filters";
@@ -40,8 +40,18 @@ export function MyMapProgressSection({
       aside={
         // 경기도 지역 및 사계절 선택
         <div className="flex gap-1.5">
-          <FilterSelect label="지역" value={region} options={regionOptions} onChange={onRegionChange} />
-          <FilterSelect label="계절" value={season} options={SEASON_FILTER_OPTIONS} onChange={onSeasonChange} />
+          <FilterSelect
+            label="지역"
+            value={region}
+            options={regionOptions}
+            onChange={onRegionChange}
+          />
+          <FilterSelect
+            label="계절"
+            value={season}
+            options={SEASON_FILTER_OPTIONS}
+            onChange={onSeasonChange}
+          />
         </div>
       }
     >
@@ -56,7 +66,9 @@ export function MyMapProgressSection({
             </span>
             <span className="text-sm text-ink-muted">/ {stats.totalDongs}곳</span>
           </p>
-          <p className="mt-1.5 text-xs text-ink-muted">시간대 하나라도 칠했으면 칠한 동으로 세요.</p>
+          <p className="mt-1.5 text-xs text-ink-muted">
+            시간대 하나라도 칠했으면 칠한 동으로 세요.
+          </p>
 
           {/* 시간대를 누르면 그 시간대의 나의 지도로 */}
           <ul className="mt-4 mb-4 flex flex-col gap-1">
@@ -67,7 +79,12 @@ export function MyMapProgressSection({
                 <li key={band.value}>
                   <Link
                     to="/map"
-                    search={{ timeBand: band.value, mode: "mine", season: parseSeason(season), region: regionParam }}
+                    search={{
+                      timeBand: band.value,
+                      mode: "mine",
+                      season: parseSeason(season),
+                      region: regionParam,
+                    }}
                     aria-label={`${band.label} ${filled} / ${total}곳, 나의 지도에서 보기`}
                     className="grid grid-cols-[40px_minmax(0,1fr)_64px] items-center gap-3 rounded-lg px-1 py-1.5 text-sm transition-colors hover:bg-field"
                   >
@@ -95,7 +112,12 @@ export function MyMapProgressSection({
             </p>
             <Link
               to="/map"
-              search={{ timeBand: currentTimeBand(), mode: "mine", season: parseSeason(season), region: regionParam }}
+              search={{
+                timeBand: currentTimeBand(),
+                mode: "mine",
+                season: parseSeason(season),
+                region: regionParam,
+              }}
               className="text-sm font-bold text-brand-strong hover:text-brand"
             >
               나의 지도에서 보기 ›

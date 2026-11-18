@@ -1,10 +1,8 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useAuthStore } from "../stores/auth-store";
+import { createFileRoute } from "@tanstack/react-router";
+import { requireLogin } from "../utils/auth-guard";
 import { PhotoUploadPage } from "../pages/photo-upload/photo-upload-page";
 
 export const Route = createFileRoute("/upload")({
-  beforeLoad: () => {
-    if (!useAuthStore.getState().tokens) throw redirect({ to: "/login" });
-  },
+  beforeLoad: requireLogin,
   component: PhotoUploadPage,
 });

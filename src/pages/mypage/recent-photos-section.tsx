@@ -13,7 +13,7 @@ function UploadTile({ label }: { label: string }) {
   return (
     <Link
       to="/upload"
-      className="flex aspect-square flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-[#c5ccda] text-center text-xs font-bold text-ink-sub transition-colors hover:border-brand hover:bg-brand-soft hover:text-brand-strong"
+      className="flex aspect-square flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-line-strong text-center text-xs font-bold text-ink-sub transition-colors hover:border-brand hover:bg-brand-soft hover:text-brand-strong"
     >
       <span aria-hidden className="text-xl leading-none font-normal">
         +
@@ -52,7 +52,10 @@ export function RecentPhotosSection() {
       title="내 사진"
       aside={
         photos && photos.length > 0 ? (
-          <Link to="/mypage/photos" className="text-sm font-bold text-brand-strong hover:text-brand">
+          <Link
+            to="/mypage/photos"
+            className="text-sm font-bold text-brand-strong hover:text-brand"
+          >
             전체 보기 ›
           </Link>
         ) : null

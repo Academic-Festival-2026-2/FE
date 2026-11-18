@@ -3,7 +3,6 @@ import { authRequest, optionalAuthRequest } from "./client";
 import type { SeasonType, TimeBand } from "./map";
 export type { SeasonType } from "./map";
 
-
 export type PhotoUploadData = {
   dongCode: string;
   latitude?: number;
@@ -107,9 +106,7 @@ export type LikedPhotosResponse = {
 };
 
 export function getLikedPhotos(page = 0, size = 12) {
-  return authRequest<LikedPhotosResponse>(
-    `/api/users/me/liked-photos?page=${page}&size=${size}`,
-  );
+  return authRequest<LikedPhotosResponse>(`/api/users/me/liked-photos?page=${page}&size=${size}`);
 }
 
 // BE: GET /api/users/me/photos?page=0&size=12&season=SPRING (계절 선택, 최신 순)
@@ -142,4 +139,13 @@ export function getMyPhotos(page = 0, size = 12, season?: SeasonType) {
 
 export function deletePhoto(photoId: number) {
   return authRequest<void>(`/api/photos/${photoId}`, { method: "DELETE" });
+}
+
+// BE: PATCH /api/photos/{photoId}. 성공해도 result 없음
+// AI 검수가 PUBLIC이 아닌 사진을 공개로 바꾸면 PHOTO403_2
+export function updatePhotoVisibility(photoId: number, isPublic: boolean) {
+  return authRequest<void>(`/api/photos/${photoId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ isPublic }),
+  });
 }

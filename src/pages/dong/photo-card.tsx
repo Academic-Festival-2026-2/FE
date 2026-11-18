@@ -4,14 +4,14 @@ import { likePhoto, unlikePhoto, type PhotoDetail } from "../../api/photo";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { cn } from "../../utils/cn";
-import { LoginPromptDialog } from "../map/login-prompt-dialog";
-import { Chevron, CloseIcon, HeartIcon } from "./photo-icons";
-import { photoImageUrl } from "./photo-image-url";
-import { paletteShares } from "./photo-info";
-import { PhotoLightbox } from "./photo-lightbox";
-import { PhotoMeta } from "./photo-meta";
-import { useLightboxHistory } from "./use-lightbox-history";
-import { usePhotoDetails } from "./use-photo-details";
+import { LoginPromptDialog } from "../../components/dialog/login-prompt-dialog";
+import { Chevron, CloseIcon, HeartIcon } from "../../components/icons";
+import { photoImageUrl } from "../../features/photo/photo-image-url";
+import { paletteShares } from "../../features/photo/photo-info";
+import { PhotoLightbox } from "../../features/photo/photo-lightbox";
+import { PhotoMeta } from "../../features/photo/photo-meta";
+import { useLightboxHistory } from "../../features/photo/use-lightbox-history";
+import { usePhotoDetails } from "../../features/photo/use-photo-details";
 
 // 말풍선 사진 크기 한도(px). 카드 폭이 사진 폭에 딱 맞게 바뀜
 // 세로 사진은 조금 더 길게 허용, 너무 좁아지면 아래 닉네임·시간대 줄이 들어갈 최소 폭 유지
@@ -108,14 +108,16 @@ export function PhotoCard({
     setFailedUrl(null);
   }
   // 다 받은 사진의 원래 크기 (말풍선 카드 폭을 사진 비율에 맞출 때 씀)
-  const [loaded, setLoaded] = useState<{ url: string; width: number; height: number } | null>(
-    null,
-  );
+  const [loaded, setLoaded] = useState<{ url: string; width: number; height: number } | null>(null);
   // 사진을 눌러 크게 보기(라이트박스)가 열려 있는지. 넘기는 위치(index)는 카드와 같이 씀
   // 뒤로 가기를 누르면 동 화면을 벗어나지 않고 크게 보기만 닫힘
   const { open: zoomed, openLightbox, closeLightbox } = useLightboxHistory();
   // 상세는 사진별로 기억. 크게 보기가 열려 있을 때만 옆 사진 상세·이미지를 미리 받음 (카드만 있을 때는 안 받음)
-  const { photo: current, failed, readyImageUrls } = usePhotoDetails(
+  const {
+    photo: current,
+    failed,
+    readyImageUrls,
+  } = usePhotoDetails(
     points.map((point) => point.photoId),
     index,
     { mine, preload: zoomed },
@@ -181,7 +183,7 @@ export function PhotoCard({
         {failed ? (
           <p className="px-4 py-16 text-sm text-danger">사진을 불러오지 못했어요.</p>
         ) : !current ? (
-          <div className="aspect-[4/3] w-full animate-pulse bg-[#e9ecf2]" />
+          <div className="aspect-[4/3] w-full animate-pulse bg-divider" />
         ) : showImage ? (
           // 누르면 크게 보기 (사진을 다 받은 뒤부터)
           <button

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import chevronDown from "../../assets/icons/chevron-down.svg";
+import { useDismiss } from "../../hooks/use-dismiss";
 import { cn } from "../../utils/cn";
 import type { FilterOption } from "./my-map-filters";
 
@@ -13,7 +14,13 @@ type FilterSelectProps = {
 };
 
 // 나의 지도 현황의 지역·계절 선택 버튼 (아래로 펼치는 목록)
-export function FilterSelect({ label, value, options, onChange, disabledHint = "준비 중이에요" }: FilterSelectProps) {
+export function FilterSelect({
+  label,
+  value,
+  options,
+  onChange,
+  disabledHint = "준비 중이에요",
+}: FilterSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -30,21 +37,7 @@ export function FilterSelect({ label, value, options, onChange, disabledHint = "
   const current = options.find((option) => option.value === value);
 
   // 바깥 클릭·Esc로 닫기
-  useEffect(() => {
-    if (!open) return;
-    const handleMouseDown = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  useDismiss(ref, open, setOpen);
 
   return (
     <div ref={ref} className="relative">
@@ -92,7 +85,9 @@ export function FilterSelect({ label, value, options, onChange, disabledHint = "
                   }}
                   className={cn(
                     "flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-[7px] text-left text-sm whitespace-nowrap",
-                    selected ? "bg-brand-soft font-bold text-brand-strong" : "text-ink hover:bg-field",
+                    selected
+                      ? "bg-brand-soft font-bold text-brand-strong"
+                      : "text-ink hover:bg-field",
                     "disabled:cursor-not-allowed disabled:text-ink-faint disabled:hover:bg-transparent",
                   )}
                 >

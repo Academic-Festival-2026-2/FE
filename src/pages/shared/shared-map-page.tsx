@@ -2,14 +2,23 @@ import { useCallback, useMemo, useState } from "react";
 import { getRouteApi, Link } from "@tanstack/react-router";
 import type { SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
-import { bandLabel, seasonOf, useRegionBoundaries, useRegionList, useSharedMap } from "../map/map-data";
-import { fitView, regionAt, regionsInView, unproject, type View } from "../map/map-geometry";
-import { MapLoading } from "../map/map-loading";
-import { MapTooltip } from "../map/map-tooltip";
-import { ErrorBanner, MapTitlePanel, TimeBandBar } from "../map/map-ui";
-import { SvgMap } from "../map/svg-map";
+import { useRegionBoundaries } from "../../features/map/use-boundaries";
+import { useRegionList } from "../../features/map/use-region-list";
+import { useSharedMap } from "../../features/map/use-my-map";
+import {
+  fitView,
+  regionAt,
+  regionsInView,
+  unproject,
+  type View,
+} from "../../features/map/map-geometry";
+import { MapLoading } from "../../features/map/map-loading";
+import { MapTooltip } from "../../features/map/map-tooltip";
+import { ErrorBanner, MapTitlePanel, TimeBandBar } from "../../features/map/map-ui";
+import { SvgMap } from "../../features/map/svg-map";
 import { Avatar } from "../../components/avatar";
-import { preferredSeason, rememberSeason } from "../../utils/season";
+import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
+import { bandLabel } from "../../utils/time-band";
 
 const route = getRouteApi("/shared/$shareKey");
 
@@ -68,11 +77,13 @@ function SharedMap({ shareKey }: { shareKey: string }) {
   }
 
   const currentRegion = regionList?.regions.find((r) => r.regionCode === currentCode);
-  const filledCount = [...shared.dongsOf(currentCode).values()].filter((dong) => dong.dominantColor).length;
+  const filledCount = [...shared.dongsOf(currentCode).values()].filter(
+    (dong) => dong.dominantColor,
+  ).length;
   const hoveredDong = hoveredCode ? shared.dongs.get(hoveredCode) : undefined;
   const hoveredGu = regions
-  .flatMap((b) => b.features)
-  .find((feature) => feature.properties.dongCode === hoveredCode)?.properties.guName;
+    .flatMap((b) => b.features)
+    .find((feature) => feature.properties.dongCode === hoveredCode)?.properties.guName;
 
   // 공유를 껐거나 없는 링크
   if (shared.notFound) {
@@ -81,7 +92,9 @@ function SharedMap({ shareKey }: { shareKey: string }) {
         <AuthHeader />
         <main className="mx-auto flex max-w-[480px] flex-col items-center px-5 pt-24 text-center">
           <h1 className="text-xl font-extrabold text-ink">공유가 끝났거나 없는 지도예요</h1>
-          <p className="mt-2 text-sm text-ink-sub">공유한 사람이 공유를 껐거나 링크가 잘못됐을 수 있어요.</p>
+          <p className="mt-2 text-sm text-ink-sub">
+            공유한 사람이 공유를 껐거나 링크가 잘못됐을 수 있어요.
+          </p>
           <Link
             to="/map"
             search={{ timeBand, season: selectedSeason }}
@@ -115,7 +128,12 @@ function SharedMap({ shareKey }: { shareKey: string }) {
                 tooltip={
                   !shared.loading &&
                   hoveredDong && (
-                    <MapTooltip dong={hoveredDong} guName={hoveredGu ?? null} bandLabel={bandLabel(timeBand)} hint="" />
+                    <MapTooltip
+                      dong={hoveredDong}
+                      guName={hoveredGu ?? null}
+                      bandLabel={bandLabel(timeBand)}
+                      hint=""
+                    />
                   )
                 }
               />
@@ -146,7 +164,12 @@ function SharedMap({ shareKey }: { shareKey: string }) {
           </div>
 
           <div className="absolute bottom-[27px] left-1/2 w-max -translate-x-1/2">
-            <TimeBandBar season={selectedSeason} timeBand={timeBand} onChange={changeTimeBand} onSeasonChange={changeSeason} />
+            <TimeBandBar
+              season={selectedSeason}
+              timeBand={timeBand}
+              onChange={changeTimeBand}
+              onSeasonChange={changeSeason}
+            />
           </div>
         </section>
       </main>

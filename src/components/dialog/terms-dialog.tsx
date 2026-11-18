@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import type { TermContent } from "../constants/terms/types";
-import { cn } from "../utils/cn";
+import type { TermContent } from "../../constants/terms/types";
+import { cn } from "../../utils/cn";
 
 type TermsDialogProps = {
   term: TermContent;

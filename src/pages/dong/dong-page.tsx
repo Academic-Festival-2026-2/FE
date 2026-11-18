@@ -1,50 +1,36 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams, useRouter, useSearch } from "@tanstack/react-router";
 import { getDongDetail, type DongPoint } from "../../api/dong";
 import type { SeasonType, TimeBand } from "../../api/map";
 import { getMyDongPhotos } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
+import { useMediaQuery } from "../../hooks/use-media-query";
 import { useAuthStore } from "../../stores/auth-store";
-import {
-  bandLabel,
-  EMPTY_FILL,
-  KAKAO_ERROR,
-  KAKAO_UNAVAILABLE,
-  MASK_FRAME_POINTS,
-  PAGE_BG,
-  seasonOf,
-  useRegionList,
-  toKakaoPath,
-  useBoundaries,
-  useDongColors,
-  useMyMap,
-} from "../map/map-data";
-import { ErrorBanner, GLASS, TimeBandBar } from "../map/map-ui";
+import { EMPTY_FILL, PAGE_BG } from "../../features/map/map-constants";
+import { KAKAO_ERROR, KAKAO_UNAVAILABLE, maskPath, toKakaoPath } from "../../features/map/kakao";
+import { useRegionList } from "../../features/map/use-region-list";
+import { useBoundaries } from "../../features/map/use-boundaries";
+import { useDongColors } from "../../features/map/use-dong-colors";
+import { useMyMap } from "../../features/map/use-my-map";
+import { ErrorBanner, GLASS, TimeBandBar, ZoomControls } from "../../features/map/map-ui";
 import { cn } from "../../utils/cn";
-import { preferredSeason, rememberSeason } from "../../utils/season";
-import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../map/kakao-fit";
-import { MapLoading } from "../map/map-loading";
-import { canUseDongTransition, markReturnFrom, prepareDongTransition } from "../../utils/view-transition";
+import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
+import { bandLabel } from "../../utils/time-band";
+import { DONG_FIT_PADDING, DONG_MAX_LEVEL } from "../../features/map/kakao-fit";
+import { MapLoading } from "../../features/map/map-loading";
+import {
+  canUseDongTransition,
+  markReturnFrom,
+  prepareDongTransition,
+} from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
+import { PhotoCredits } from "./photo-credits";
 import { PixelCount } from "./pixel-count";
-import { labelPoint } from "../map/map-geometry";
+import { labelPoint } from "../../features/map/map-geometry";
 
 const SELECTED_STROKE = "#1a1a1a";
 const DONG_TINT_OPACITY = 0.14;
-// 지도 화면(svg-map)의 확대·축소 버튼과 같은 모양
-const ZOOM_BUTTON =
-  "grid size-8 place-items-center rounded-lg text-ink-sub transition-colors hover:bg-white/60 hover:text-ink";
-
-function signedArea(path: kakao.maps.LatLng[]) {
-  let area = 0;
-  for (let i = 0; i < path.length; i++) {
-    const a = path[i];
-    const b = path[(i + 1) % path.length];
-    area += a.getLng() * b.getLat() - b.getLng() * a.getLat();
-  }
-  return area;
-}
 
 type LocatedPoint = DongPoint & { lat: number; lng: number };
 // 고른 사진 묶음. anchor가 있으면 데스크톱에서 그 픽셀 위에 말풍선으로 띄움 (위치 없는 사진은 null)
@@ -57,24 +43,16 @@ type Selection = {
 // 말풍선을 픽셀에서 오른쪽 위로 띄우는 거리 (말풍선 왼쪽 아래 모서리 기준, px)
 const BUBBLE_OFFSET = 28;
 
-// 고른 픽셀 강조 (조금 크게 + 남색 테두리)
-const PIXEL_SELECTED = ["scale-150", "ring-2", "ring-navy", "z-10"];
+// 고른 픽셀 강조: 크기만 키움 (20px → 24px, 남색 테두리는 평소 픽셀에도 있음)
+const PIXEL_SELECTED = ["scale-[1.2]", "z-10"];
 
 // 데스크톱(sm 이상)인지. 말풍선은 데스크톱에서만, 모바일은 아래 카드
 const DESKTOP_QUERY = "(min-width: 640px)";
-function subscribeDesktop(onChange: () => void) {
-  const media = window.matchMedia(DESKTOP_QUERY);
-  media.addEventListener("change", onChange);
-  return () => media.removeEventListener("change", onChange);
-}
-function useIsDesktop() {
-  return useSyncExternalStore(subscribeDesktop, () => window.matchMedia(DESKTOP_QUERY).matches);
-}
 
 function pixelElement(color: string, count: number) {
   const pixel = document.createElement("div");
   pixel.className =
-    "relative h-4 w-4 cursor-pointer rounded-[3px] border-2 border-white shadow transition-transform";
+    "relative h-5 w-5 cursor-pointer rounded-[3px] border-2 border-white shadow ring-2 ring-navy transition-transform";
   pixel.style.backgroundColor = color;
   if (count > 1) {
     const badge = document.createElement("span");
@@ -94,7 +72,9 @@ function useDongPoints(dongCode: string, timeBand: TimeBand, mine: boolean, seas
 
   useEffect(() => {
     let cancelled = false;
-    const request = mine ? getMyDongPhotos(dongCode, timeBand, season) : getDongDetail(dongCode, timeBand, season);
+    const request = mine
+      ? getMyDongPhotos(dongCode, timeBand, season)
+      : getDongDetail(dongCode, timeBand, season);
     request
       .then((data) => {
         if (cancelled) return;
@@ -145,7 +125,7 @@ export function DongPage() {
   const [selected, setSelected] = useState<Selection | null>(null);
   const activeSelection = selected?.season === selectedSeason ? selected : null;
 
-  const isDesktop = useIsDesktop();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   // 지도에 찍은 픽셀 요소 (위치 키 → 요소). 고른 픽셀 강조용
   const pixelElementsRef = useRef(new Map<string, HTMLElement>());
 
@@ -198,17 +178,11 @@ export function DongPage() {
       const outlines = feature.geometry.coordinates.map((rings) => toKakaoPath(rings)[0]);
       outlines.forEach((outline) => outline.forEach((point) => bounds.extend(point)));
 
-      // 동 바깥 덮개 사각형 (map-data.ts, 업로드 위치 선택 창과 같은 값)
-      const frame = MASK_FRAME_POINTS.map(([lat, lng]) => new kakao.maps.LatLng(lat, lng));
-      const frameSign = Math.sign(signedArea(frame));
-      const holes = outlines.map((outline) =>
-        Math.sign(signedArea(outline)) === frameSign ? [...outline].reverse() : outline,
-      );
-
       overlays.push(
         new kakao.maps.Polygon({
           map,
-          path: [frame, ...holes],
+          // 동 바깥 덮개 (features/map/kakao.ts maskPath, 업로드 위치 선택 창과 같은 모양)
+          path: maskPath(outlines),
           strokeWeight: 0,
           fillColor: PAGE_BG,
           fillOpacity: 0.7,
@@ -271,7 +245,11 @@ export function DongPage() {
       const content = pixelElement(group[0].color, group.length);
       elements.set(key, content);
       content.addEventListener("click", () =>
-        setSelected({ points: group, anchor: { key, lat: group[0].lat, lng: group[0].lng }, season: selectedSeason }),
+        setSelected({
+          points: group,
+          anchor: { key, lat: group[0].lat, lng: group[0].lng },
+          season: selectedSeason,
+        }),
       );
       return new kakao.maps.CustomOverlay({
         map,
@@ -339,7 +317,8 @@ export function DongPage() {
       let dx = 0;
       let dy = 0;
       if (top < margin) dy = top - margin;
-      else if (point.y > container.clientHeight - margin) dy = point.y - (container.clientHeight - margin);
+      else if (point.y > container.clientHeight - margin)
+        dy = point.y - (container.clientHeight - margin);
       if (left < margin) dx = left - margin;
       else if (left + width > container.clientWidth - margin)
         dx = left + width - (container.clientWidth - margin);
@@ -382,7 +361,14 @@ export function DongPage() {
   }
 
   function resetView() {
-    if (map && dongBoundsRef.current) map.setBounds(dongBoundsRef.current, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING, DONG_FIT_PADDING);
+    if (map && dongBoundsRef.current)
+      map.setBounds(
+        dongBoundsRef.current,
+        DONG_FIT_PADDING,
+        DONG_FIT_PADDING,
+        DONG_FIT_PADDING,
+        DONG_FIT_PADDING,
+      );
   }
 
   const notFound = boundaries !== null && !feature;
@@ -394,10 +380,7 @@ export function DongPage() {
 
   return (
     <div className="relative h-screen w-full">
-      <div
-        ref={containerRef}
-        className="h-full w-full [&_svg]:pointer-events-none"
-      />
+      <div ref={containerRef} className="h-full w-full [&_svg]:pointer-events-none" />
       {/* 지도(경계·카카오맵 타일)를 그리는 중. 오류가 있으면 오류 배너만 */}
       <MapLoading show={!errorMessage && tilesReadyFor !== dongCode} />
 
@@ -448,7 +431,9 @@ export function DongPage() {
           {mine && unlocated.length > 0 && (
             <button
               type="button"
-              onClick={() => setSelected({ points: unlocated, anchor: null, season: selectedSeason })}
+              onClick={() =>
+                setSelected({ points: unlocated, anchor: null, season: selectedSeason })
+              }
               className="mt-1.5 text-xs font-bold text-brand-strong underline underline-offset-4"
             >
               위치 없는 사진 {unlocated.length}장 보기
@@ -460,8 +445,16 @@ export function DongPage() {
 
       {/* 지도 화면과 같은 계절 + 시간대 바 (아래 가운데) */}
       <div className="absolute bottom-6 left-1/2 z-10 w-max -translate-x-1/2">
-        <TimeBandBar season={selectedSeason} timeBand={timeBand} onChange={changeTimeBand} onSeasonChange={changeSeason} />
+        <TimeBandBar
+          season={selectedSeason}
+          timeBand={timeBand}
+          onChange={changeTimeBand}
+          onSeasonChange={changeSeason}
+        />
       </div>
+
+      {/* 관리자가 올린 데모 사진 출처 (왼쪽 아래). 나의 지도는 내 사진만 보이므로 없음 */}
+      {!mine && <PhotoCredits className="bottom-6 left-4 z-10" />}
 
       {activeSelection &&
         (bubbleHost ? (
@@ -489,32 +482,13 @@ export function DongPage() {
         ))}
       {/* 확대·축소 (지도 화면과 같은 유리 버튼). 터치 기기는 두 손가락으로 확대하므로 숨김 */}
       {map && (
-        <div className="liquid-glass absolute right-4 bottom-6 z-10 flex flex-col gap-0.5 rounded-xl p-1 pointer-coarse:hidden">
-          <button
-            type="button"
-            aria-label="확대"
-            onClick={() => zoomBy(-1)}
-            className={`${ZOOM_BUTTON} text-lg leading-none`}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            aria-label="축소"
-            onClick={() => zoomBy(1)}
-            className={`${ZOOM_BUTTON} text-lg leading-none`}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            aria-label="동 전체 보기"
-            onClick={resetView}
-            className={`${ZOOM_BUTTON} text-[11px] font-bold`}
-          >
-            전체
-          </button>
-        </div>
+        <ZoomControls
+          onZoomIn={() => zoomBy(-1)}
+          onZoomOut={() => zoomBy(1)}
+          onReset={resetView}
+          resetLabel="동 전체 보기"
+          className="right-4 bottom-6 z-10"
+        />
       )}
     </div>
   );

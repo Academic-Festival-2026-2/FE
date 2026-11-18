@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ApiError } from "../../api/client";
 import { getMyMapShare, shareMyMap, stopSharingMyMap } from "../../api/mymap";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
-import { cn } from "../../utils/cn";
+import { Switch } from "../../components/form/switch";
 import { SectionCard } from "./section-card";
 
 // 공유 링크 주소는 /shared/{shareKey} (PR #87 리뷰). 받은 사람이 보는 화면: pages/shared/shared-map-page.tsx
@@ -81,27 +81,16 @@ export function ShareSection() {
     <SectionCard title="나의 지도 공유">
       <div className="mt-1 flex items-center justify-between gap-4">
         <p className="text-sm leading-[22px] text-ink-sub">
-          {sharing ? "링크가 있는 사람은 내 지도를 볼 수 있어요." : "켜면 내 지도를 볼 수 있는 링크가 만들어져요."}
+          {sharing
+            ? "링크가 있는 사람은 내 지도를 볼 수 있어요."
+            : "켜면 내 지도를 볼 수 있는 링크가 만들어져요."}
         </p>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={sharing}
-          aria-label="나의 지도 공유"
+        <Switch
+          checked={sharing}
+          label="나의 지도 공유"
           disabled={isSaving || shareKey === undefined || loadError}
-          onClick={handleToggle}
-          className={cn(
-            "relative h-[26px] w-11 shrink-0 rounded-full transition-colors disabled:opacity-50",
-            sharing ? "bg-brand" : "bg-[#c5ccda]",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-[3px] left-[3px] size-5 rounded-full bg-white transition-transform",
-              sharing && "translate-x-[18px]",
-            )}
-          />
-        </button>
+          onToggle={handleToggle}
+        />
       </div>
 
       {sharing && (

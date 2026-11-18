@@ -4,7 +4,7 @@ import { updateMyInfo, type MyInfoResponse } from "../../api/user";
 import { TextField } from "../../components/form/text-field";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { validateNickname } from "../../utils/validation";
-import { DialogActions, DialogShell } from "./dialog-shell";
+import { DialogActions, DialogShell } from "../../components/dialog/dialog-shell";
 
 type NicknameDialogProps = {
   current: string;
@@ -44,7 +44,13 @@ export function NicknameDialog({ current, onClose, onUpdated }: NicknameDialogPr
   }
 
   return (
-    <DialogShell eyebrow="NICKNAME" title="닉네임 변경" titleId="nickname-dialog-title" busy={isSaving} onClose={onClose}>
+    <DialogShell
+      eyebrow="NICKNAME"
+      title="닉네임 변경"
+      titleId="nickname-dialog-title"
+      busy={isSaving}
+      onClose={onClose}
+    >
       <form className="mt-4" onSubmit={handleSubmit} noValidate>
         <TextField
           id="nickname"

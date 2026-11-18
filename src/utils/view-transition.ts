@@ -1,3 +1,5 @@
+import { prefersReducedMotion } from "./motion";
+
 // 지도 → 동 상세 화면 전환 (View Transitions API)
 // 1) 지도 화면(svg-map): 지도가 화면 전체로 커지며 누른 동을 화면 한가운데로 끌어와 확대.
 //    끝나는 순간 동 크기·위치가 동 상세에서 그려질 동과 같음 (kakao-fit.ts)
@@ -8,13 +10,11 @@ const DONG_CLASS = "vt-dong";
 // index.css 애니메이션 길이(100ms)보다 넉넉하게 두고 클래스를 뗀다
 const CLEANUP_MS = 500;
 
-function reducedMotion() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 // 전환을 쓸 수 있으면 true (부수 효과 없음). 미지원 브라우저이거나 OS "동작 줄이기"면 false
 export function canUseDongTransition() {
-  return typeof document !== "undefined" && "startViewTransition" in document && !reducedMotion();
+  return (
+    typeof document !== "undefined" && "startViewTransition" in document && !prefersReducedMotion()
+  );
 }
 
 // 전환을 써도 되면 html에 클래스를 붙이고 true. 아니면 false → 바로 이동
@@ -39,7 +39,7 @@ export function markReturnFrom(dongCode: string) {
 
 // 지우지 않고 읽음 (개발 모드에서 화면이 두 번 그려져도 같은 값을 받도록). 시간이 지나면 저절로 무효
 export function peekReturnFrom(): string | null {
-  if (!returnFrom || reducedMotion()) return null;
+  if (!returnFrom || prefersReducedMotion()) return null;
   if (Date.now() - returnFrom.at > RETURN_VALID_MS) {
     returnFrom = null;
     return null;

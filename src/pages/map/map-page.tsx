@@ -6,26 +6,29 @@ import type { DongColor, SeasonType, TimeBand } from "../../api/map";
 import { AuthHeader } from "../../components/layout/auth-header";
 import { ProfileMenu } from "../../components/layout/profile-menu";
 import { UploadButton } from "../../components/layout/upload-button";
-import { bandLabel, seasonOf, useDongColors, useMyMap, useRegionBoundaries, useRegionList } from "./map-data";
-import { MapTooltip } from "./map-tooltip";
-import { fitView, regionsInView, regionAt, unproject, type View } from "./map-geometry";
-import { LoginPromptDialog } from "./login-prompt-dialog";
+import { KAKAO_UNAVAILABLE } from "../../features/map/kakao";
+import { useDongColors } from "../../features/map/use-dong-colors";
+import { useMyMap } from "../../features/map/use-my-map";
+import { useRegionBoundaries } from "../../features/map/use-boundaries";
+import { useRegionList } from "../../features/map/use-region-list";
+import { MapTooltip } from "../../features/map/map-tooltip";
 import {
-  ErrorBanner,
-  MapModeToggle,
-  EmptyMyMapCard,
-  MapTitlePanel,
-  MyMapGuidePanel,
-  TimeBandBar,
-  TopDongsPanel,
-  type TopDongItem,
-} from "./map-ui";
-import { MapLoading } from "./map-loading";
-import { SvgMap } from "./svg-map";
-import { preferredSeason, rememberSeason } from "../../utils/season";
+  fitView,
+  regionsInView,
+  regionAt,
+  unproject,
+  type View,
+} from "../../features/map/map-geometry";
+import { LoginPromptDialog } from "../../components/dialog/login-prompt-dialog";
+import { ErrorBanner, MapModeToggle, MapTitlePanel, TimeBandBar } from "../../features/map/map-ui";
+import { EmptyMyMapCard, MyMapGuidePanel, TopDongsPanel, type TopDongItem } from "./map-panels";
+import { MapLoading } from "../../features/map/map-loading";
+import { SvgMap } from "../../features/map/svg-map";
+import { preferredSeason, rememberSeason, seasonOf } from "../../utils/season";
+import { bandLabel, TIME_BAND_VALUES } from "../../utils/time-band";
 
-// 시간대 탭 순서 (지도 아래 바 왼쪽부터)
-const BAND_ORDER: TimeBand[] = ["DAWN", "DAY", "SUNSET", "NIGHT"];
+// 카카오 지도 본체를 미리 받기 시작하는 시각 (지도 화면이 열린 뒤 ms)
+const KAKAO_PRELOAD_DELAY_MS = 1500;
 
 export function MapPage() {
   const { timeBand, mode, region: regionParam, season: urlSeason } = useSearch({ from: "/map" });
@@ -42,7 +45,7 @@ export function MapPage() {
   if (wave.timeBand !== timeBand || wave.mine !== mine) {
     const forward =
       wave.timeBand !== timeBand
-        ? BAND_ORDER.indexOf(timeBand) > BAND_ORDER.indexOf(wave.timeBand)
+        ? TIME_BAND_VALUES.indexOf(timeBand) > TIME_BAND_VALUES.indexOf(wave.timeBand)
         : mine;
     setWave({ timeBand, mine, direction: forward ? "ltr" : "rtl" });
   }
@@ -58,6 +61,15 @@ export function MapPage() {
     const timer = window.setTimeout(() => setLeaving(false), 1200);
     return () => window.clearTimeout(timer);
   }, [returnFrom]);
+
+  // 동 상세 첫 진입 때 카카오 지도가 늦게 뜨지 않게, 지도 화면에 있는 동안 카카오 지도 본체를 미리 받아 둠.
+  // index.html은 autoload=false라 작은 로더만 받고, 본체는 kakao.maps.load를 처음 부를 때 받음 (여러 번 불러도 한 번만 받음)
+  // 지도 경계·색을 먼저 받도록 조금 늦게 시작
+  useEffect(() => {
+    if (KAKAO_UNAVAILABLE) return;
+    const timer = window.setTimeout(() => kakao.maps.load(() => {}), KAKAO_PRELOAD_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
   // 지도 카드 (동을 누르면 svg-map이 이 크기에서 화면 전체로 커지며 확대)
   const stageRef = useRef<HTMLElement>(null);
   // 숨길 때는 바로 숨김(유리 패널의 backdrop-filter가 움직이는 지도 위에서 무거움), 다시 보일 때만 서서히
@@ -87,7 +99,12 @@ export function MapPage() {
       : codes;
   }, [regionList, shownView, currentCode]);
   const { regions, error: boundaryError } = useRegionBoundaries(visibleCodes);
-  const { dongs, colorsOf, error: colorError, loading } = useDongColors(timeBand, visibleCodes, selectedSeason);
+  const {
+    dongs,
+    colorsOf,
+    error: colorError,
+    loading,
+  } = useDongColors(timeBand, visibleCodes, selectedSeason);
   const currentRegion = regionList?.regions.find((r) => r.regionCode === currentCode);
   const currentColors = currentCode ? colorsOf(currentCode) : undefined;
   const topDongs = currentColors?.topDongs ?? [];
@@ -101,7 +118,11 @@ export function MapPage() {
       const code = regionAt(regions, unproject([next.x + next.size / 2, next.y + next.size / 2]));
       if (code && code !== currentCode) {
         setCenterCode(code);
-        navigate({ to: "/map", search: { timeBand, mode, region: Number(code), season: selectedSeason }, replace: true });
+        navigate({
+          to: "/map",
+          search: { timeBand, mode, region: Number(code), season: selectedSeason },
+          replace: true,
+        });
       }
     },
     [regions, currentCode, timeBand, mode, selectedSeason, navigate],
@@ -168,7 +189,12 @@ export function MapPage() {
     }
     navigate({
       to: "/map",
-      search: {timeBand, mode: nextMine ? "mine" : undefined, region: currentCode ? Number(currentCode) : undefined, season: selectedSeason },
+      search: {
+        timeBand,
+        mode: nextMine ? "mine" : undefined,
+        region: currentCode ? Number(currentCode) : undefined,
+        season: selectedSeason,
+      },
     });
   }
   return (
@@ -246,7 +272,10 @@ export function MapPage() {
 
             {/* 경계·색을 받는 중 (오류면 오류 배너만) */}
             <MapLoading
-              show={!leaving && ((regions.length === 0 && !boundaryError) || (shownLoading && !shownError))}
+              show={
+                !leaving &&
+                ((regions.length === 0 && !boundaryError) || (shownLoading && !shownError))
+              }
             />
 
             {/* 동으로 확대하는 동안 지도 위 패널은 숨김 */}
@@ -273,13 +302,20 @@ export function MapPage() {
 
             {/* 피그마처럼 카드 정중앙보다 30px 아래 (지도 가운데 근처) */}
             {myMapEmpty && (
-              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:top-[calc(50%+30px)] ${leaveFade}`}>
+              <div
+                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 sm:top-[calc(50%+30px)] ${leaveFade}`}
+              >
                 <EmptyMyMapCard season={seasonInfo?.name ?? ""} />
               </div>
             )}
 
             <div className={`absolute bottom-[27px] left-1/2 w-max -translate-x-1/2 ${leaveFade}`}>
-              <TimeBandBar season={selectedSeason} timeBand={timeBand} onChange={changeTimeBand} onSeasonChange={changeSeason} />
+              <TimeBandBar
+                season={selectedSeason}
+                timeBand={timeBand}
+                onChange={changeTimeBand}
+                onSeasonChange={changeSeason}
+              />
             </div>
           </section>
 

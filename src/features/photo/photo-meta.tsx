@@ -1,7 +1,8 @@
 import type { PhotoDetail } from "../../api/photo";
-import { BAND_PIXEL, bandLabel } from "../map/map-data";
+import { BAND_PIXEL, bandLabel } from "../../utils/time-band";
 import { cn } from "../../utils/cn";
-import { formatTakenAt, paletteShares } from "./photo-info";
+import { formatTakenAt } from "../../utils/date";
+import { paletteShares } from "./photo-info";
 
 // 사진 정보: 올린 사람 · 시간대 / 찍은 시각 / 대표색 막대
 // 카드와 크게 보기(흰 정보 박스)가 같은 내용을 쓰고 색만 다름
@@ -62,7 +63,9 @@ export function PhotoMeta({
           {bandLabel(photo.timeBand)}
         </span>
       </div>
-      <p className={cn("mt-1 font-mono text-xs", colors.takenAt)}>{formatTakenAt(photo.takenAt, photo.season)}</p>
+      <p className={cn("mt-1 font-mono text-xs", colors.takenAt)}>
+        {formatTakenAt(photo.takenAt, photo.season)}
+      </p>
       {/* 업로드 화면 대표색 바와 같은 한 줄 막대 */}
       <div className="mt-3 flex h-6 overflow-hidden rounded-[8px]">
         {paletteShares(photo).map(({ color, share }) => (

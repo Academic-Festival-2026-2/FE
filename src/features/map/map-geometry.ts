@@ -57,12 +57,12 @@ export function regionsInView(regions: Region[], view: View, margin = 0.25): str
   const right = view.x + view.size + pad;
   const bottom = view.y + view.size + pad;
   return regions
-  .filter(({ bbox: [minLng, minLat, maxLng, maxLat] }) => {
-    const [x1, y1] = project([minLng, maxLat]);
-    const [x2, y2] = project([maxLng, minLat]);
-    return x1 < right && x2 > left && y1 < bottom && y2 > top;
-  })
-  .map((region) => region.regionCode);
+    .filter(({ bbox: [minLng, minLat, maxLng, maxLat] }) => {
+      const [x1, y1] = project([minLng, maxLat]);
+      const [x2, y2] = project([maxLng, minLat]);
+      return x1 < right && x2 > left && y1 < bottom && y2 > top;
+    })
+    .map((region) => region.regionCode);
 }
 
 function extent(values: number[]): [number, number] {
@@ -94,8 +94,8 @@ export function toShapes(boundaries: Boundaries): DongShape[] {
     const [minX, maxX] = extent(rings.flat().map(([x]) => x));
     const [minY, maxY] = extent(rings.flat().map(([, y]) => y));
     const path = rings
-    .map((ring) => `M${ring.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join("L")}Z`)
-    .join("");
+      .map((ring) => `M${ring.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join("L")}Z`)
+      .join("");
 
     return {
       dongCode: feature.properties.dongCode,
@@ -107,7 +107,9 @@ export function toShapes(boundaries: Boundaries): DongShape[] {
       lngSpan: dongMaxLng - dongMinLng,
       area: feature.geometry.coordinates.reduce(
         (sum, [outer, ...holes]) =>
-          sum + ringArea(outer.map(project)) - holes.reduce((h, hole) => h + ringArea(hole.map(project)), 0),
+          sum +
+          ringArea(outer.map(project)) -
+          holes.reduce((h, hole) => h + ringArea(hole.map(project)), 0),
         0,
       ),
     };
@@ -129,9 +131,13 @@ export function dropOverlappingLabels(shapes: DongShape[], fontSize: number): Do
   const kept = new Set<DongShape>();
   for (const shape of [...shapes].sort((a, b) => b.area - a.area)) {
     const box = labelBox(shape, fontSize);
-    const overlaps = placed.some((other) =>
-      box.left < other.right && other.left < box.right
-      && box.top < other.bottom && other.top < box.bottom);
+    const overlaps = placed.some(
+      (other) =>
+        box.left < other.right &&
+        other.left < box.right &&
+        box.top < other.bottom &&
+        other.top < box.bottom,
+    );
     if (overlaps) continue;
     placed.push(box);
     kept.add(shape);
@@ -178,7 +184,8 @@ export function bboxOf(boundaries: Boundaries): [number, number, number, number]
   return [minLng, minLat, maxLng, maxLat];
 }
 
-function inRing(ring: number[][], x: number, y: number) {
+// 점 (x, y)가 링(닫힌 다각형) 안에 있는지. 좌표 순서는 링과 같게 [경도, 위도] (업로드 동 찾기도 같이 씀)
+export function inRing(ring: number[][], x: number, y: number) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const [xi, yi] = ring[i];
@@ -224,7 +231,10 @@ export function regionOutline(boundaries: Boundaries): string {
   }
 
   // 링을 따라가며 테두리 선분이 이어지면 L로 잇고, 끊기면 M으로 새로 시작
-  const point = (p: number[]) => project(p).map((v) => v.toFixed(1)).join(",");
+  const point = (p: number[]) =>
+    project(p)
+      .map((v) => v.toFixed(1))
+      .join(",");
   let path = "";
   for (const ring of rings) {
     let drawing = false;

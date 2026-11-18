@@ -6,7 +6,7 @@ import { TextField } from "../../components/form/text-field";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useAuthStore } from "../../stores/auth-store";
 import { PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from "../../utils/validation";
-import { DialogActions, DialogShell } from "./dialog-shell";
+import { DialogActions, DialogShell } from "../../components/dialog/dialog-shell";
 
 const FIELDS = ["currentPassword", "newPassword", "newPasswordConfirm"] as const;
 type Field = (typeof FIELDS)[number];
@@ -72,7 +72,13 @@ export function PasswordDialog({ onClose }: { onClose: () => void }) {
   const errorOf = (field: Field) => serverErrors[field] ?? clientErrors[field];
 
   return (
-    <DialogShell eyebrow="PASSWORD" title="비밀번호 변경" titleId="password-dialog-title" busy={isSubmitting} onClose={onClose}>
+    <DialogShell
+      eyebrow="PASSWORD"
+      title="비밀번호 변경"
+      titleId="password-dialog-title"
+      busy={isSubmitting}
+      onClose={onClose}
+    >
       <p className="mt-1 text-xs leading-[18px] text-ink-muted">변경하면 다시 로그인해야 해요.</p>
       <form className="mt-4 flex flex-col gap-2.5" onSubmit={handleSubmit} noValidate>
         <TextField

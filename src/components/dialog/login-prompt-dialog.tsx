@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { LogoMark } from "../../components/layout/logo-mark";
+import { LogoMark } from "../layout/logo-mark";
 
 type LoginPromptDialogProps = {
   open: boolean;
@@ -60,7 +60,10 @@ export function LoginPromptDialog({
         </Link>
         <p className="mt-4 text-sm text-ink-sub">
           처음이신가요?{" "}
-          <Link to="/signup" className="font-bold text-brand-strong underline underline-offset-4 hover:text-brand">
+          <Link
+            to="/signup"
+            className="font-bold text-brand-strong underline underline-offset-4 hover:text-brand"
+          >
             회원가입
           </Link>
         </p>

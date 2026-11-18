@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type { SeasonType, TimeBand } from "../api/map";
 import { parseSeason } from "../utils/season";
-import { parseTimeBand } from "../pages/map/map-data";
+import { parseTimeBand } from "../utils/time-band";
 import { MapPage } from "../pages/map/map-page";
 
 type MapSearch = {

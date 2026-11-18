@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { ApiError } from "../../api/client";
 import { updateMyInfo, type MyInfoResponse } from "../../api/user";
-import { TermsDialog } from "../../components/terms-dialog";
+import { Switch } from "../../components/form/switch";
+import { TermsDialog } from "../../components/dialog/terms-dialog";
 import { LOCATION_TERMS } from "../../constants/terms/location-terms";
 import { isSessionExpired, useExpireSession } from "../../hooks/use-expire-session";
 import { useLogout } from "../../hooks/use-logout";
@@ -53,7 +54,10 @@ export function SettingsSection({ info, onUpdated }: SettingsSectionProps) {
       <button
         type="button"
         onClick={() => setIsPasswordOpen(true)}
-        className={cn(ROW, "mt-2 w-full text-left text-sm font-bold text-ink transition-colors hover:text-brand-strong")}
+        className={cn(
+          ROW,
+          "mt-2 w-full text-left text-sm font-bold text-ink transition-colors hover:text-brand-strong",
+        )}
       >
         비밀번호 변경
         <span aria-hidden className="text-lg leading-none font-normal text-ink-muted">
@@ -82,25 +86,12 @@ export function SettingsSection({ info, onUpdated }: SettingsSectionProps) {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={locationAgreed}
-          aria-label="위치정보 이용 동의"
+        <Switch
+          checked={locationAgreed}
+          label="위치정보 이용 동의"
           disabled={isSavingLocation}
-          onClick={handleToggleLocation}
-          className={cn(
-            "relative h-[26px] w-11 shrink-0 rounded-full transition-colors disabled:opacity-50",
-            locationAgreed ? "bg-brand" : "bg-[#c5ccda]",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-[3px] left-[3px] size-5 rounded-full bg-white transition-transform",
-              locationAgreed && "translate-x-[18px]",
-            )}
-          />
-        </button>
+          onToggle={handleToggleLocation}
+        />
       </div>
 
       <div className="flex items-center justify-between gap-4 py-3.5">

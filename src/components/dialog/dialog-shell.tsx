@@ -11,9 +11,16 @@ type DialogShellProps = {
   children: ReactNode;
 };
 
-// 마이페이지 팝업 공통 틀 (닉네임 변경·비밀번호 변경).
+// 팝업 공통 틀 (마이페이지 닉네임·비밀번호·프로필 사진 변경).
 // 열 때만 렌더링하고 닫으면 사라짐 → 다시 열면 입력값·오류가 초기화됨
-export function DialogShell({ eyebrow, title, titleId, busy = false, onClose, children }: DialogShellProps) {
+export function DialogShell({
+  eyebrow,
+  title,
+  titleId,
+  busy = false,
+  onClose,
+  children,
+}: DialogShellProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   // 화면에 나타나면 모달로 열기 (배경 어둡게, 뒤쪽 클릭 막기, 포커스 가두기)

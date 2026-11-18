@@ -95,7 +95,10 @@ export function LoginPage() {
           </p>
 
           {loginNotice && (
-            <p role="status" className="mt-6 rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand-strong">
+            <p
+              role="status"
+              className="mt-6 rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand-strong"
+            >
               {loginNotice}
             </p>
           )}
