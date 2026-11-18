@@ -25,6 +25,7 @@ import {
   prepareDongTransition,
 } from "../../utils/view-transition";
 import { PhotoCard } from "./photo-card";
+import { PhotoCredits } from "./photo-credits";
 import { PixelCount } from "./pixel-count";
 import { labelPoint } from "../../features/map/map-geometry";
 
@@ -42,8 +43,8 @@ type Selection = {
 // 말풍선을 픽셀에서 오른쪽 위로 띄우는 거리 (말풍선 왼쪽 아래 모서리 기준, px)
 const BUBBLE_OFFSET = 28;
 
-// 고른 픽셀 강조 (조금 크게 + 남색 테두리)
-const PIXEL_SELECTED = ["scale-150", "ring-2", "ring-navy", "z-10"];
+// 고른 픽셀 강조: 크기만 키움 (20px → 24px, 남색 테두리는 평소 픽셀에도 있음)
+const PIXEL_SELECTED = ["scale-[1.2]", "z-10"];
 
 // 데스크톱(sm 이상)인지. 말풍선은 데스크톱에서만, 모바일은 아래 카드
 const DESKTOP_QUERY = "(min-width: 640px)";
@@ -51,7 +52,7 @@ const DESKTOP_QUERY = "(min-width: 640px)";
 function pixelElement(color: string, count: number) {
   const pixel = document.createElement("div");
   pixel.className =
-    "relative h-4 w-4 cursor-pointer rounded-[3px] border-2 border-white shadow transition-transform";
+    "relative h-5 w-5 cursor-pointer rounded-[3px] border-2 border-white shadow ring-2 ring-navy transition-transform";
   pixel.style.backgroundColor = color;
   if (count > 1) {
     const badge = document.createElement("span");
@@ -451,6 +452,9 @@ export function DongPage() {
           onSeasonChange={changeSeason}
         />
       </div>
+
+      {/* 관리자가 올린 데모 사진 출처 (왼쪽 아래). 나의 지도는 내 사진만 보이므로 없음 */}
+      {!mine && <PhotoCredits className="bottom-6 left-4 z-10" />}
 
       {activeSelection &&
         (bubbleHost ? (
